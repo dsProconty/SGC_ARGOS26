@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PHP_DIR=\"/c/Users/sebas/AppData/Local/Microsoft/WinGet/Packages/PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\")",
+      "Read(//c/Users/sebas/Documents/SGC_ARGOS/$PHP_DIR/**)",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\sebas\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\php.exe -m\")",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\sebas\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\php.exe -m && exit\")"
+    ]
+  }
+}

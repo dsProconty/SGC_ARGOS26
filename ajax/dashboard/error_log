@@ -1,0 +1,2 @@
+[12-Jul-2022 11:47:39 America/Guayaquil] PHP Warning:  mysqli::__construct(): (42000/1203): User sgipro_sgc_argos already has more than 'max_user_connections' active connections in /home/sgipro/public_html/SGC_ARGOS/config/database.php on line 14
+[12-Jul-2022 11:47:39 America/Guayaquil] PHP Warning:  mysqli::__construct(): (42000/1203): User sgipro_sgc_argos already has more than 'max_user_connections' active connections in /home/sgipro/public_html/SGC_ARGOS/config/database.php on line 14
