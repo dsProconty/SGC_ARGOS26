@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PHP_DIR=\"/c/Users/sebas/AppData/Local/Microsoft/WinGet/Packages/PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\")",
+      "Read(//c/Users/sebas/Documents/SGC_ARGOS/$PHP_DIR/**)",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\sebas\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\php.exe -m\")",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\sebas\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\PHP.PHP.8.3_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\php.exe -m && exit\")",
+      "Bash(tasklist)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/index.php)",
+      "Bash(php -l \"c:\\\\Users\\\\sebas\\\\Documents\\\\SGC_ARGOS\\\\pages\\\\convenio\\\\view.php\")",
+      "Bash(php -l \"c:\\\\Users\\\\sebas\\\\Documents\\\\SGC_ARGOS\\\\ajax\\\\venta_diferida\\\\venta_diferida.php\")",
+      "Bash(php -l \"c:\\\\Users\\\\sebas\\\\Documents\\\\SGC_ARGOS\\\\pages\\\\venta_diferida\\\\view.php\")",
+      "Bash(where mysql:*)",
+      "Read(//c//**)",
+      "Read(//c/xampp/mysql/**)"
+    ]
+  }
+}
