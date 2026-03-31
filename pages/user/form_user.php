@@ -87,9 +87,9 @@
                                                 <select class="form-control" name="loc_id" id="new_loc_id">
                                                     <option value="">— Seleccione local —</option>
                                                     <?php
-                                                    $qLoc = mysqli_query($mysqli, "SELECT loc_id, loc_direccion FROM local WHERE loc_activo = 1 ORDER BY loc_id ASC");
+                                                    $qLoc = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_nombre, l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_activo = 1 ORDER BY m.mar_descripcion ASC, l.loc_nombre ASC");
                                                     while ($loc = mysqli_fetch_assoc($qLoc)) {
-                                                        echo '<option value="' . $loc['loc_id'] . '">Local ' . $loc['loc_id'] . ' — ' . htmlspecialchars($loc['loc_direccion']) . '</option>';
+                                                        echo '<option value="' . $loc['loc_id'] . '">' . htmlspecialchars($loc['mar_descripcion']) . ' — ' . htmlspecialchars($loc['loc_nombre'] ?: $loc['loc_direccion']) . '</option>';
                                                     }
                                                     ?>
                                                 </select>

@@ -92,7 +92,7 @@
             <div class="modal-body" id="ec_content"></div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="btn_imprimir_ec" style="color:#fff;">
-                    <i class="icon dripicons-print"></i> Imprimir
+                    <i class="icon dripicons-file-pdf"></i> Generar PDF
                 </button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
             </div>

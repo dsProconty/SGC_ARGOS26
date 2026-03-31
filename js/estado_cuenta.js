@@ -5,11 +5,18 @@ $(document).ready(function () {
 
     $('#btn_imprimir_ec').on('click', function () {
         var contenido = document.getElementById('ec_content').innerHTML;
-        var ventana   = window.open('', '_blank', 'width=800,height=700');
-        ventana.document.write('<html><head><title>Estado de Cuenta</title>');
+        var ventana   = window.open('', '_blank', 'width=900,height=800');
+        ventana.document.write('<html><head><title>Estado de Cuenta - SGC ARGOS</title>');
         ventana.document.write('<link rel="stylesheet" href="assets/vendor/bootstrap/dist/css/bootstrap.min.css">');
-        ventana.document.write('<style>body{font-family:Arial,sans-serif;font-size:13px;padding:20px;} @media print{.no-print{display:none}}</style>');
-        ventana.document.write('</head><body onload="window.print();window.close();">');
+        ventana.document.write('<style>');
+        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;}');
+        ventana.document.write('@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}');
+        ventana.document.write('</style>');
+        ventana.document.write('</head><body>');
+        ventana.document.write('<div class="no-print" style="text-align:right;margin-bottom:15px;">');
+        ventana.document.write('<button onclick="window.print();" style="background:#17a2b8;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
+        ventana.document.write('&#128196; Guardar / Imprimir PDF</button>');
+        ventana.document.write('</div>');
         ventana.document.write(contenido);
         ventana.document.write('</body></html>');
         ventana.document.close();
@@ -125,7 +132,7 @@ function renderEC(ec, detalles) {
             '</tr>';
     });
 
-    var comisionMonto = totalVenta * comisionPct / 100;
+    var comisionMonto = ventaNeta * comisionPct / 100;
     var totalPagar    = totalVenta - comisionMonto;
 
     // Tabla resumen financiero (igual a la imagen)

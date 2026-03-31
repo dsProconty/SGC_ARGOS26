@@ -211,6 +211,7 @@
                         <div class="input-group-prepend"><span class="input-group-text">$</span></div>
                         <input type="number" class="form-control" id="new_per_cupo" min="0.01" step="0.01" placeholder="0.00">
                     </div>
+                    <small class="text-muted" id="new_cupo_max_hint"></small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -237,13 +238,13 @@
                         <p class="mb-1 text-muted"><small>Cédula</small></p>
                         <strong id="modal_emp_cedula"></strong>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <p class="mb-1 text-muted"><small>N° Tarjeta</small></p>
                         <code id="modal_emp_tarjeta" style="font-size:0.95rem; letter-spacing:1px;"></code>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <p class="mb-1 text-muted"><small>Correo</small></p>
-                        <strong id="modal_emp_correo"></strong>
+                        <strong id="modal_emp_correo" style="word-break:break-all; font-size:0.9rem;"></strong>
                     </div>
                     <div class="col-md-2">
                         <p class="mb-1 text-muted"><small>Estado</small></p>
@@ -291,6 +292,67 @@
     </div>
 </div>
 
+
+<!-- Modal Editar Empleado -->
+<div class="modal fade" id="modal_editar_emp" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-pencil"></i> Editar Empleado</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit_per_id">
+                <div id="alerta_editar_emp" class="mb-2" style="display:none;"></div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Nombres completos <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_per_nombre" maxlength="200">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Cédula <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_per_documento" maxlength="20">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Correo electrónico</label>
+                            <input type="email" class="form-control" id="edit_per_correo" maxlength="150">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Cupo asignado ($) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                <input type="number" class="form-control" id="edit_per_cupo" min="0.01" step="0.01">
+                            </div>
+                            <small class="text-muted" id="edit_cupo_max_hint"></small>
+                        </div>
+                    </div>
+                </div>
+                <!-- Trazabilidad de cambios -->
+                <div class="mt-3">
+                    <h6 class="border-bottom pb-1"><i class="icon dripicons-clock"></i> Historial de cambios</h6>
+                    <div id="edit_trazabilidad_contenido">
+                        <div class="text-center text-muted py-2"><i class="icon dripicons-loading icon-spin"></i> Cargando...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="btn_guardar_edicion" style="color:#fff;">
+                    <i class="icon dripicons-checkmark"></i> Guardar cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
 <script>
 var AJAX_URL = 'ajax/portal_empresa/portal_empresa.php';
@@ -331,8 +393,14 @@ function cargarNomina(buscar) {
                     + '<td class="text-right">$' + parseFloat(e.per_cupo_asignado || 0).toFixed(2) + '</td>'
                     + '<td class="text-right text-danger">$' + parseFloat(e.consumido || 0).toFixed(2) + '</td>'
                     + '<td class="text-right text-success">$' + parseFloat(e.per_cupo_disponible || 0).toFixed(2) + '</td>'
-                    + '<td class="text-center"><button class="btn btn-sm btn-outline-primary" onclick="verEmpleado(' + e.per_id + ')">'
-                    + '<i class="icon dripicons-user"></i> Ver</button></td>'
+                    + '<td class="text-center">'
+                    + '<div class="btn-group btn-group-sm">'
+                    + '<button class="btn btn-outline-primary" onclick="verEmpleado(' + e.per_id + ')" title="Ver detalle"><i class="icon dripicons-user"></i></button>'
+                    + '<button class="btn btn-outline-warning" onclick="editarEmpleado(' + e.per_id + ')" title="Editar"><i class="icon dripicons-pencil"></i></button>'
+                    + (e.per_estado === 'activo'
+                        ? '<a onclick="suspenderEmpleado(' + e.per_id + ', \'suspendido\')" title="Suspender tarjeta" style="color:#dc3545; font-size:18px; cursor:pointer; margin-left:6px;"><i class="icon dripicons-cross"></i></a>'
+                        : '<a onclick="suspenderEmpleado(' + e.per_id + ', \'activo\')" title="Reactivar tarjeta" style="color:#28a745; font-size:18px; cursor:pointer; margin-left:6px;"><i class="icon dripicons-return"></i></a>')
+                    + '</div></td>'
                     + '</tr>';
             });
         }
@@ -434,7 +502,10 @@ $('#btn_nuevo_empleado').on('click', function() {
     $('#alerta_nuevo_emp').hide().html('');
     // Pre-cargar cupo del convenio
     $.getJSON(AJAX_URL + '?action=cupo_convenio', function(r) {
-        if (r.success && r.cupo > 0) $('#new_per_cupo').val(r.cupo);
+        if (r.success && r.cupo > 0) {
+            $('#new_per_cupo').val(r.cupo).data('cupo-max', r.cupo).attr('max', r.cupo);
+            $('#new_cupo_max_hint').text('Máximo: $' + parseFloat(r.cupo).toFixed(2));
+        }
     });
     $('#modal_nuevo_emp').modal('show');
 });
@@ -448,6 +519,12 @@ $('#btn_guardar_emp').on('click', function() {
     if (!nombre)      { alertaEmp('warning', 'Ingrese el nombre del empleado'); return; }
     if (!cedula)      { alertaEmp('warning', 'Ingrese la cédula'); return; }
     if (cupo <= 0)    { alertaEmp('warning', 'Ingrese un cupo válido'); return; }
+    // FIX 3: Validate cupo does not exceed empresa limit
+    var cupoMaxEmpresa = parseFloat($('#new_per_cupo').data('cupo-max') || 0);
+    if (cupoMaxEmpresa > 0 && cupo > cupoMaxEmpresa) {
+        alertaEmp('danger', 'El cupo del empleado no puede ser mayor al cupo asignado a la empresa ($' + cupoMaxEmpresa.toFixed(2) + ')');
+        return;
+    }
 
     var btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
 
@@ -491,4 +568,123 @@ function maskTarjeta(num) {
 // ---- Init ----
 cargarResumen();
 cargarNomina();
+
+// ---- Editar empleado ----
+var cupoMaxEdicion = 0;
+
+function editarEmpleado(per_id) {
+    $.getJSON(AJAX_URL + '?action=detalle_empleado&per_id=' + per_id, function(r) {
+        if (!r.success) { alert(r.mensaje); return; }
+        var d = r.data;
+        $('#edit_per_id').val(d.per_id);
+        $('#edit_per_nombre').val(d.per_nombre);
+        $('#edit_per_documento').val(d.per_documento);
+        $('#edit_per_correo').val(d.per_correo || '');
+        $('#edit_per_cupo').val(parseFloat(d.per_cupo_asignado || 0).toFixed(2));
+        $('#alerta_editar_emp').hide().html('');
+
+        // Load empresa max quota
+        $.getJSON(AJAX_URL + '?action=cupo_convenio', function(rc) {
+            if (rc.success && rc.cupo > 0) {
+                cupoMaxEdicion = rc.cupo;
+                $('#edit_per_cupo').attr('max', rc.cupo);
+                $('#edit_cupo_max_hint').text('Máximo permitido: $' + parseFloat(rc.cupo).toFixed(2));
+            }
+        });
+
+        // Load trazabilidad
+        cargarTrazabilidad(per_id);
+        $('#modal_editar_emp').modal('show');
+    });
+}
+
+function cargarTrazabilidad(per_id) {
+    $('#edit_trazabilidad_contenido').html('<div class="text-center text-muted py-2"><i class="icon dripicons-loading icon-spin"></i> Cargando...</div>');
+    $.getJSON(AJAX_URL + '?action=trazabilidad&per_id=' + per_id, function(r) {
+        if (!r.success || !r.data.length) {
+            $('#edit_trazabilidad_contenido').html('<p class="text-muted mb-0"><small>Sin cambios registrados</small></p>');
+            return;
+        }
+        var html = '<table class="table table-sm table-hover" style="font-size:12px;">'
+            + '<thead class="thead-light"><tr><th>Fecha/Hora</th><th>Usuario</th><th>Cambio</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead><tbody>';
+        r.data.forEach(function(t) {
+            html += '<tr>'
+                + '<td>' + t.tra_fecha + '</td>'
+                + '<td>' + t.name_user + '</td>'
+                + '<td><strong>' + t.tra_campo_label + '</strong></td>'
+                + '<td class="text-danger">' + (t.tra_valor_anterior || '—') + '</td>'
+                + '<td class="text-success">' + (t.tra_valor_nuevo || '—') + '</td>'
+                + '</tr>';
+        });
+        html += '</tbody></table>';
+        $('#edit_trazabilidad_contenido').html(html);
+    });
+}
+
+$('#btn_guardar_edicion').on('click', function() {
+    var per_id  = $('#edit_per_id').val();
+    var nombre  = $('#edit_per_nombre').val().trim();
+    var cedula  = $('#edit_per_documento').val().trim();
+    var correo  = $('#edit_per_correo').val().trim();
+    var cupo    = parseFloat($('#edit_per_cupo').val()) || 0;
+
+    if (!nombre) { alertaEdit('warning', 'Ingrese el nombre'); return; }
+    if (!cedula) { alertaEdit('warning', 'Ingrese la cédula'); return; }
+    if (cupo <= 0) { alertaEdit('warning', 'Ingrese un cupo válido'); return; }
+    if (cupoMaxEdicion > 0 && cupo > cupoMaxEdicion) {
+        alertaEdit('danger', 'El cupo no puede ser mayor al cupo de la empresa ($' + cupoMaxEdicion.toFixed(2) + ')');
+        return;
+    }
+
+    var btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
+    $.ajax({
+        url: AJAX_URL,
+        type: 'POST',
+        data: { action: 'editar_empleado', per_id: per_id, per_nombre: nombre, per_documento: cedula, per_correo: correo, per_cupo: cupo },
+        dataType: 'json',
+        success: function(r) {
+            if (r.success) {
+                cargarTrazabilidad(per_id);
+                cargarResumen();
+                cargarNomina();
+                alertaEdit('success', 'Cambios guardados correctamente');
+            } else {
+                alertaEdit('danger', r.mensaje);
+            }
+        },
+        error: function() { alertaEdit('danger', 'Error de conexión'); },
+        complete: function() { btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar cambios'); }
+    });
+});
+
+function alertaEdit(tipo, msg) {
+    $('#alerta_editar_emp').html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show();
+}
+
+// ---- Suspender / Activar tarjeta ----
+function suspenderEmpleado(per_id, nuevo_estado) {
+    var accion = nuevo_estado === 'suspendido' ? 'suspender' : 'activar';
+    var msg    = nuevo_estado === 'suspendido'
+        ? '¿Confirma que desea SUSPENDER la tarjeta de este empleado? No podrá utilizarla en los locales.'
+        : '¿Confirma que desea ACTIVAR la tarjeta de este empleado?';
+
+    if (!confirm(msg)) return;
+
+    $.ajax({
+        url: AJAX_URL,
+        type: 'POST',
+        data: { action: 'cambiar_estado', per_id: per_id, per_estado: nuevo_estado },
+        dataType: 'json',
+        success: function(r) {
+            if (r.success) {
+                cargarResumen();
+                cargarNomina();
+            } else {
+                alert('Error: ' + r.mensaje);
+            }
+        },
+        error: function() { alert('Error de conexión'); }
+    });
+}
+
 </script>

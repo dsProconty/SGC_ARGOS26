@@ -95,6 +95,9 @@ switch ($permisos) {
                         <li class="nav-dropdown <?php if ($_GET['module'] == 'configuracion') { echo 'active'; } ?>">
                             <a href="?module=configuracion"><i class="icon dripicons-gear"></i><span>Configuración</span></a>
                         </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'locales') { echo 'active'; } ?>">
+                            <a href="?module=locales"><i class="icon dripicons-store"></i><span>Locales</span></a>
+                        </li>
                     </ul>
                 </nav>
             </div>

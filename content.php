@@ -73,5 +73,9 @@ else {
 		include "pages/configuracion/view.php";
 	}
 
+	elseif ($_GET['module'] == 'locales') {
+		include "pages/locales/view.php";
+	}
+
 }
 ?>

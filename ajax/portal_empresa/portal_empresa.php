@@ -142,6 +142,14 @@ switch ($action) {
             break;
         }
 
+        // FIX 3: Validate cupo does not exceed empresa max
+        $empresa = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cli_valor_beneficio FROM cliente WHERE cli_id = $cli_id LIMIT 1"));
+        $cupo_max = (float)($empresa['cli_valor_beneficio'] ?? 0);
+        if ($cupo_max > 0 && $cupo > $cupo_max) {
+            echo json_encode(['success' => false, 'mensaje' => 'El cupo del empleado ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo asignado a la empresa ($' . number_format($cupo_max, 2) . ')']);
+            break;
+        }
+
         $correo_sql = $correo ? "'$correo'" : 'NULL';
         // Generar número de tarjeta único de 16 dígitos
         $num_tarjeta = str_pad(mt_rand(1000, 9999), 4, '0') .
@@ -156,6 +164,157 @@ switch ($action) {
         } else {
             echo json_encode(['success' => false, 'mensaje' => 'Error al guardar: ' . mysqli_error($mysqli)]);
         }
+        break;
+
+
+    // ----------------------------------------------------------
+    // Editar empleado
+    // ----------------------------------------------------------
+    case 'editar_empleado':
+        $per_id    = (int)($_POST['per_id'] ?? 0);
+        $nombre    = mysqli_real_escape_string($mysqli, trim($_POST['per_nombre']    ?? ''));
+        $documento = mysqli_real_escape_string($mysqli, trim($_POST['per_documento'] ?? ''));
+        $correo    = mysqli_real_escape_string($mysqli, trim($_POST['per_correo']    ?? ''));
+        $cupo      = (float)($_POST['per_cupo'] ?? 0);
+
+        if (!$per_id || !$nombre || !$documento || $cupo <= 0) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        // Validate belongs to this empresa
+        $emp_check = mysqli_fetch_assoc(mysqli_query($mysqli,
+            "SELECT per_id, per_nombre, per_documento, per_correo, per_cupo_asignado, per_cupo_disponible
+             FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
+        if (!$emp_check) {
+            echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
+            break;
+        }
+
+        // FIX 3: Validate cupo max
+        $empresa = mysqli_fetch_assoc(mysqli_query($mysqli,
+            "SELECT cli_valor_beneficio FROM cliente WHERE cli_id = $cli_id LIMIT 1"));
+        $cupo_max = (float)($empresa['cli_valor_beneficio'] ?? 0);
+        if ($cupo_max > 0 && $cupo > $cupo_max) {
+            echo json_encode(['success' => false,
+                'mensaje' => 'El cupo ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo de la empresa ($' . number_format($cupo_max, 2) . ')']);
+            break;
+        }
+
+        // Detect and record changes for traceability
+        $id_user_sesion = (int)$_SESSION['id_user'];
+        $cambios = [];
+
+        if ($emp_check['per_nombre'] !== $nombre) {
+            $cambios[] = ['campo' => 'per_nombre', 'label' => 'Nombre', 'anterior' => $emp_check['per_nombre'], 'nuevo' => $nombre];
+        }
+        if ($emp_check['per_documento'] !== $documento) {
+            $cambios[] = ['campo' => 'per_documento', 'label' => 'Cédula', 'anterior' => $emp_check['per_documento'], 'nuevo' => $documento];
+        }
+        if ($emp_check['per_correo'] !== $correo) {
+            $cambios[] = ['campo' => 'per_correo', 'label' => 'Correo', 'anterior' => $emp_check['per_correo'], 'nuevo' => $correo];
+        }
+        $cupo_anterior = (float)$emp_check['per_cupo_asignado'];
+        if (abs($cupo_anterior - $cupo) > 0.001) {
+            $label_cupo = $cupo > $cupo_anterior ? 'Aumento de cupo' : 'Disminución de cupo';
+            $cambios[] = ['campo' => 'per_cupo_asignado', 'label' => $label_cupo,
+                'anterior' => '$' . number_format($cupo_anterior, 2), 'nuevo' => '$' . number_format($cupo, 2)];
+        }
+
+        // Adjust per_cupo_disponible proportionally if cupo changed
+        $cupo_disponible_nuevo = $emp_check['per_cupo_disponible'];
+        if (abs($cupo_anterior - $cupo) > 0.001) {
+            $consumido = $cupo_anterior - (float)$emp_check['per_cupo_disponible'];
+            $cupo_disponible_nuevo = max(0, $cupo - $consumido);
+        }
+
+        $correo_sql = $correo ? "'$correo'" : 'NULL';
+        $q_update = "UPDATE personal SET
+                        per_nombre = '$nombre',
+                        per_documento = '$documento',
+                        per_correo = $correo_sql,
+                        per_cupo_asignado = $cupo,
+                        per_cupo_disponible = $cupo_disponible_nuevo
+                     WHERE per_id = $per_id AND cli_id = $cli_id";
+
+        if (!mysqli_query($mysqli, $q_update)) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . mysqli_error($mysqli)]);
+            break;
+        }
+
+        // Insert traceability records
+        foreach ($cambios as $c) {
+            $campo    = mysqli_real_escape_string($mysqli, $c['campo']);
+            $label    = mysqli_real_escape_string($mysqli, $c['label']);
+            $anterior = mysqli_real_escape_string($mysqli, $c['anterior'] ?? '');
+            $nuevo    = mysqli_real_escape_string($mysqli, $c['nuevo'] ?? '');
+            mysqli_query($mysqli, "INSERT INTO personal_trazabilidad
+                (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                VALUES ($per_id, $id_user_sesion, '$campo', '$label', '$anterior', '$nuevo')");
+        }
+
+        echo json_encode(['success' => true, 'cambios' => count($cambios)]);
+        break;
+
+    // ----------------------------------------------------------
+    // Cambiar estado empleado (suspender / activar)
+    // ----------------------------------------------------------
+    case 'cambiar_estado':
+        $per_id      = (int)($_POST['per_id']    ?? 0);
+        $nuevo_estado = mysqli_real_escape_string($mysqli, trim($_POST['per_estado'] ?? ''));
+
+        if (!$per_id || !in_array($nuevo_estado, ['activo', 'suspendido', 'inactivo'])) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos inválidos']);
+            break;
+        }
+
+        $emp_check = mysqli_fetch_assoc(mysqli_query($mysqli,
+            "SELECT per_id, per_estado FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
+        if (!$emp_check) {
+            echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
+            break;
+        }
+
+        $id_user_sesion = (int)$_SESSION['id_user'];
+        $estado_anterior = $emp_check['per_estado'];
+
+        mysqli_query($mysqli, "UPDATE personal SET per_estado = '$nuevo_estado' WHERE per_id = $per_id");
+
+        // Record in traceability
+        $label = $nuevo_estado === 'suspendido' ? 'Suspensión de tarjeta' : 'Activación de tarjeta';
+        $ant_esc = mysqli_real_escape_string($mysqli, $estado_anterior);
+        $nvo_esc = mysqli_real_escape_string($mysqli, $nuevo_estado);
+        mysqli_query($mysqli, "INSERT INTO personal_trazabilidad
+            (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+            VALUES ($per_id, $id_user_sesion, 'per_estado', '$label', '$ant_esc', '$nvo_esc')");
+
+        echo json_encode(['success' => true]);
+        break;
+
+    // ----------------------------------------------------------
+    // Trazabilidad de un empleado
+    // ----------------------------------------------------------
+    case 'trazabilidad':
+        $per_id = (int)($_GET['per_id'] ?? 0);
+        if (!$per_id) { echo json_encode(['success' => false, 'data' => []]); break; }
+
+        // Verify belongs to empresa
+        $chk = mysqli_fetch_assoc(mysqli_query($mysqli,
+            "SELECT per_id FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
+        if (!$chk) { echo json_encode(['success' => false, 'mensaje' => 'No autorizado']); break; }
+
+        $q = "SELECT t.tra_id, t.tra_campo, t.tra_campo_label, t.tra_valor_anterior, t.tra_valor_nuevo,
+                     DATE_FORMAT(t.tra_fecha, '%d/%m/%Y %H:%i') AS tra_fecha,
+                     u.name_user
+              FROM personal_trazabilidad t
+              JOIN usuario u ON t.id_user = u.id_user
+              WHERE t.per_id = $per_id
+              ORDER BY t.tra_fecha DESC
+              LIMIT 50";
+        $res = mysqli_query($mysqli, $q);
+        $rows = [];
+        while ($row = mysqli_fetch_assoc($res)) { $rows[] = $row; }
+        echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
     default:

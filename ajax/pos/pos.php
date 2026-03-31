@@ -53,6 +53,10 @@ switch ($action) {
 
             if ($result && mysqli_num_rows($result) > 0) {
                 $data = mysqli_fetch_assoc($result);
+                if ($data['per_estado'] === 'suspendido') {
+                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Comuníquese con la empresa.']);
+                    exit;
+                }
                 if ($data['per_estado'] === 'bloqueado') {
                     echo json_encode(['success' => false, 'mensaje' => 'Empleado bloqueado – no puede realizar consumos']);
                     break;
@@ -218,6 +222,10 @@ switch ($action) {
 
         $emp = mysqli_fetch_assoc($rEmp);
 
+        if ($emp['per_estado'] === 'suspendido') {
+            echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida.']);
+            exit;
+        }
         if ($emp['per_estado'] !== 'activo') {
             echo json_encode(['success' => false, 'mensaje' => 'Empleado no activo']);
             break;
