@@ -1,5 +1,5 @@
 <div class="content">
-    <!-- PAGE HEADER -->
+    <!-- PAGE HEADER – igual que el resto del sistema -->
     <header class="page-header">
         <div class="container">
             <div class="d-flex align-items-center">
@@ -12,9 +12,9 @@
                         </ol>
                     </nav>
                 </div>
-                <?php if (!empty($_SESSION['loc_id'])): ?>
-                <div class="ml-auto">
-                    <span class="badge badge-info p-2" style="font-size:0.9rem;">
+                <div class="ml-auto d-flex align-items-center">
+                    <?php if (!empty($_SESSION['loc_id'])): ?>
+                    <span class="badge badge-info p-2 mr-3" style="font-size:0.9rem;">
                         <i class="icon dripicons-location"></i>
                         <?php
                             require_once 'config/database.php';
@@ -25,8 +25,11 @@
                             }
                         ?>
                     </span>
+                    <?php endif; ?>
+                    <a href="?module=pos_historial" class="btn btn-outline-secondary btn-sm">
+                        <i class="icon dripicons-clockwise"></i> Ver Historial
+                    </a>
                 </div>
-                <?php endif; ?>
             </div>
         </div>
     </header>
@@ -34,17 +37,18 @@
     <section class="container m-t-30">
         <div class="row">
 
-            <!-- COLUMNA IZQUIERDA: Búsqueda y venta -->
-            <div class="col-lg-7">
-
-                <!-- BÚSQUEDA POR CÉDULA -->
+            <!-- ===== COL 1: BÚSQUEDA + DATOS EMPLEADO ===== -->
+            <div class="col-lg-6 mb-4">
                 <div class="card">
-                    <h5 class="card-header"><i class="icon dripicons-search"></i> Buscar Empleado</h5>
+                    <h5 class="card-header">
+                        <i class="icon dripicons-search"></i> Buscar Empleado
+                    </h5>
                     <div class="card-body">
+
                         <div class="input-group">
                             <input type="text" id="cedula_input" class="form-control form-control-lg"
-                                   placeholder="Ingrese cédula del empleado..."
-                                   maxlength="20" autocomplete="off">
+                                   placeholder="Cédula del empleado o código Gift Card..."
+                                   maxlength="50" autocomplete="off">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" id="btn_buscar" type="button">
                                     <i class="icon dripicons-search"></i> Buscar
@@ -52,99 +56,167 @@
                             </div>
                         </div>
                         <div id="alerta_busqueda" class="mt-2" style="display:none;"></div>
+
+                        <!-- Estado vacío -->
+                        <div id="div_empleado_vacio" class="text-center text-muted mt-4 py-3">
+                            <i class="icon dripicons-user" style="font-size:2.5rem; opacity:0.25;"></i>
+                            <p class="mt-2 mb-0" style="font-size:0.85rem;">Ingrese una cédula o código Gift Card</p>
+                        </div>
+
+                        <!-- Panel Gift Card (oculto hasta buscar GC) -->
+                        <div id="div_giftcard" style="display:none;">
+                            <hr class="mt-3 mb-3">
+                            <div class="text-center">
+                                <span class="badge badge-info p-2 mb-2" style="font-size:1rem;">
+                                    <i class="icon dripicons-card"></i> GIFT CARD
+                                </span>
+                                <p class="mb-1"><small class="text-muted">Código</small></p>
+                                <h5 class="font-weight-bold" id="gc_codigo_display"></h5>
+                            </div>
+                            <hr class="mb-3">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <p class="mb-1 text-muted"><small>Saldo Disponible</small></p>
+                                    <h4 class="text-success font-weight-bold" id="gc_saldo_display">$0.00</h4>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1 text-muted"><small>Vence</small></p>
+                                    <h5 class="text-info" id="gc_vence_display"></h5>
+                                </div>
+                            </div>
+                            <input type="hidden" id="gc_cgc_id_hidden">
+                            <input type="hidden" id="gc_saldo_hidden">
+                        </div>
+
+                        <!-- Datos del empleado (oculto hasta buscar) -->
+                        <div id="div_empleado" style="display:none;">
+                            <hr class="mt-3 mb-3">
+                            <div class="row">
+                                <div class="col-6">
+                                    <p class="mb-1"><small class="text-muted">Nombre</small></p>
+                                    <p class="font-weight-bold mb-3" id="emp_nombre"></p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1"><small class="text-muted">Cédula</small></p>
+                                    <p class="font-weight-bold mb-3" id="emp_cedula"></p>
+                                </div>
+                                <div class="col-8">
+                                    <p class="mb-1"><small class="text-muted">Empresa / Convenio</small></p>
+                                    <p class="text-primary mb-3" id="emp_empresa"></p>
+                                </div>
+                                <div class="col-4">
+                                    <p class="mb-1"><small class="text-muted">Tipo de beneficio</small></p>
+                                    <p class="mb-3" id="emp_tipo_beneficio"></p>
+                                </div>
+                            </div>
+                            <hr class="mt-0 mb-3">
+                            <!-- Cupos -->
+                            <div class="row text-center" id="fila_cupo">
+                                <div class="col-6">
+                                    <p class="mb-1 text-muted"><small>Cupo Asignado</small></p>
+                                    <h4 class="text-dark font-weight-bold" id="emp_cupo_asignado">$0.00</h4>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-1 text-muted"><small>Cupo Disponible</small></p>
+                                    <h4 class="text-success font-weight-bold" id="emp_cupo_disponible">$0.00</h4>
+                                </div>
+                            </div>
+                            <!-- Descuento solo si tipo=Porcentaje -->
+                            <div id="fila_descuento" style="display:none;" class="text-center mt-2">
+                                <p class="mb-1 text-muted"><small>Descuento aplicable</small></p>
+                                <h4 class="text-info font-weight-bold" id="emp_descuento"></h4>
+                            </div>
+                            <input type="hidden" id="per_id_hidden">
+                            <input type="hidden" id="cupo_disponible_hidden">
+                        </div>
+
                     </div>
                 </div>
+            </div>
 
-                <!-- DATOS DEL EMPLEADO (oculto hasta buscar) -->
-                <div class="card" id="card_empleado" style="display:none;">
-                    <h5 class="card-header bg-success text-white"><i class="icon dripicons-user"></i> Datos del Empleado</h5>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-1"><small class="text-muted">Nombre</small></p>
-                                <h5 id="emp_nombre" class="font-weight-bold"></h5>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1"><small class="text-muted">Cédula</small></p>
-                                <h5 id="emp_cedula"></h5>
-                            </div>
-                            <div class="col-md-6 mt-2">
-                                <p class="mb-1"><small class="text-muted">Empresa / Convenio</small></p>
-                                <h6 id="emp_empresa" class="text-primary"></h6>
-                            </div>
-                            <div class="col-md-6 mt-2">
-                                <p class="mb-1"><small class="text-muted">Tipo de beneficio</small></p>
-                                <h6 id="emp_tipo_beneficio"></h6>
-                            </div>
-                        </div>
-                        <!-- CUPO -->
-                        <hr>
-                        <div class="row text-center" id="fila_cupo">
-                            <div class="col-6">
-                                <p class="mb-0 text-muted small">Cupo Asignado</p>
-                                <h4 class="text-dark font-weight-bold" id="emp_cupo_asignado">$0.00</h4>
-                            </div>
-                            <div class="col-6">
-                                <p class="mb-0 text-muted small">Cupo Disponible</p>
-                                <h4 class="text-success font-weight-bold" id="emp_cupo_disponible">$0.00</h4>
-                            </div>
-                        </div>
-                        <!-- DESCUENTO (solo si tipo=Porcentaje) -->
-                        <div id="fila_descuento" style="display:none;" class="text-center mt-2">
-                            <p class="mb-0 text-muted small">Descuento aplicable</p>
-                            <h4 class="text-info font-weight-bold" id="emp_descuento"></h4>
-                        </div>
-                        <input type="hidden" id="per_id_hidden">
-                        <input type="hidden" id="cupo_disponible_hidden">
-                    </div>
-                </div>
-
-                <!-- FORMULARIO DE VENTA (oculto hasta buscar) -->
-                <div class="card" id="card_venta" style="display:none;">
-                    <h5 class="card-header"><i class="icon dripicons-shopping-bag"></i> Registrar Venta</h5>
+            <!-- ===== COL 2: REGISTRAR VENTA ===== -->
+            <div class="col-lg-6 mb-4">
+                <div class="card" id="card_venta" style="opacity:0.45; pointer-events:none;">
+                    <h5 class="card-header">
+                        <i class="icon dripicons-shopping-bag"></i> Registrar Venta
+                    </h5>
                     <div class="card-body">
 
-                        <!-- Monto convenio -->
+                        <!-- Descripción -->
                         <div class="form-group">
-                            <label for="monto_convenio">Monto a cargar al convenio <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                <input type="number" id="monto_convenio" class="form-control form-control-lg"
-                                       placeholder="0.00" min="0.01" step="0.01">
-                            </div>
-                            <small id="aviso_cupo" class="text-danger" style="display:none;"></small>
+                            <label for="con_descripcion">
+                                Descripción del consumo <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="con_descripcion" class="form-control form-control-lg"
+                                   placeholder="Ej: Almuerzo, cena, consumo en local..."
+                                   maxlength="200" autocomplete="off">
                         </div>
 
-                        <!-- Pago mixto (oculto por defecto) -->
-                        <div id="div_pago_mixto" style="display:none;">
+                        <!-- Monto convenio + Pago externo en una sola línea -->
+                        <div class="form-group">
+                            <label>Monto <span class="text-danger">*</span></label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">$</span>
+                                        </div>
+                                        <input type="number" id="monto_convenio" class="form-control form-control-lg"
+                                               placeholder="0.00" min="0.01" step="0.01">
+                                    </div>
+                                    <small class="text-muted">Cargo al convenio</small>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">$</span>
+                                        </div>
+                                        <input type="number" id="monto_externo" class="form-control form-control-lg"
+                                               placeholder="0.00" min="0" step="0.01" value="0">
+                                    </div>
+                                    <small class="text-muted">Pago externo</small>
+                                </div>
+                            </div>
+                            <small id="aviso_cupo" class="text-danger mt-1" style="display:none;"></small>
+                        </div>
+
+                        <!-- Aviso pago mixto -->
+                        <div id="div_aviso_mixto" style="display:none;">
                             <div class="alert alert-warning">
                                 <i class="icon dripicons-warning"></i>
-                                El monto supera el cupo disponible. Ingrese el diferencial con otro medio de pago.
-                            </div>
-                            <div class="form-group">
-                                <label for="monto_externo">Monto pago externo <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <div class="input-group-prepend"><span class="input-group-text">$</span></div>
-                                    <input type="number" id="monto_externo" class="form-control"
-                                           placeholder="0.00" min="0" step="0.01" value="0">
-                                </div>
+                                El monto supera el cupo. Complete el diferencial en "Pago externo".
                             </div>
                         </div>
 
                         <!-- Resumen -->
                         <div id="div_resumen" class="alert alert-light border" style="display:none;">
+                            <div class="row text-center mb-2">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Convenio</small>
+                                    <strong class="text-success" id="res_convenio">$0.00</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Externo</small>
+                                    <strong class="text-warning" id="res_externo">$0.00</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Total</small>
+                                    <strong class="text-dark" id="res_total">$0.00</strong>
+                                </div>
+                            </div>
+                            <hr class="my-1">
                             <div class="row text-center">
                                 <div class="col-4">
-                                    <small class="text-muted">Cargo convenio</small>
-                                    <h5 class="text-success" id="res_convenio">$0.00</h5>
+                                    <small class="text-muted d-block">Subtotal</small>
+                                    <span class="text-secondary" id="res_subtotal">$0.00</span>
                                 </div>
                                 <div class="col-4">
-                                    <small class="text-muted">Pago externo</small>
-                                    <h5 class="text-warning" id="res_externo">$0.00</h5>
+                                    <small class="text-muted d-block" id="lbl_iva_pct">IVA 15%</small>
+                                    <span class="text-secondary" id="res_iva">$0.00</span>
                                 </div>
                                 <div class="col-4">
-                                    <small class="text-muted">Total</small>
-                                    <h5 class="text-dark font-weight-bold" id="res_total">$0.00</h5>
+                                    <small class="text-muted d-block">IVA incluido</small>
+                                    <span class="badge badge-secondary" style="font-size:0.75rem;">En precio</span>
                                 </div>
                             </div>
                         </div>
@@ -157,19 +229,8 @@
                         <button class="btn btn-outline-secondary btn-block mt-2" id="btn_nueva">
                             <i class="icon dripicons-return"></i> Nueva búsqueda
                         </button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Link a historial completo -->
-            <div class="col-lg-5">
-                <div class="card text-center p-4">
-                    <i class="icon dripicons-clockwise" style="font-size:2.5rem; color:#6c757d;"></i>
-                    <h5 class="mt-3">Historial de Ventas</h5>
-                    <p class="text-muted">Consulta y filtra las ventas por fecha desde el módulo de historial.</p>
-                    <a href="?module=pos_historial" class="btn btn-outline-primary">
-                        <i class="icon dripicons-exit"></i> Ver Historial
-                    </a>
+                    </div>
                 </div>
             </div>
 
@@ -177,7 +238,7 @@
     </section>
 </div>
 
-<!-- MODAL VOUCHER -->
+<!-- ===== MODAL VOUCHER ===== -->
 <div class="modal fade" id="modal_voucher" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-sm" role="document">
         <div class="modal-content">
@@ -185,8 +246,7 @@
                 <h5 class="modal-title">Voucher de Venta</h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
-            <div class="modal-body" id="voucher_content">
-            </div>
+            <div class="modal-body" id="voucher_content"></div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="btn_imprimir_voucher">
                     <i class="icon dripicons-print"></i> Imprimir
@@ -203,48 +263,57 @@ $(document).ready(function () {
     var per_id_actual   = null;
     var cupo_disponible = 0;
     var con_id_actual   = null;
+    var modo            = null;   // 'empleado' | 'giftcard'
+    var gc_cgc_id       = null;
+    var gc_saldo        = 0;
+    var IVA_PCT         = 15;     // se actualiza desde el servidor al cargar
+
+    // Cargar % IVA configurado
+    $.getJSON('ajax/pos/pos.php?action=get_config', function(r) {
+        if (r.success) IVA_PCT = r.iva_porcentaje;
+    });
 
     // -------------------------------------------------------
-    // Buscar empleado
+    // Buscar (cédula o Gift Card)
     // -------------------------------------------------------
-    function buscarEmpleado() {
-        var cedula = $('#cedula_input').val().trim();
-        if (cedula === '') return;
-
+    function buscar() {
+        var input = $('#cedula_input').val().trim();
+        if (input === '') return;
         $('#btn_buscar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
         ocultarAlerta('alerta_busqueda');
 
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'GET',
-            data: { action: 'buscar', cedula: cedula },
+            data: { action: 'buscar', cedula: input },
             dataType: 'json',
             success: function (resp) {
-                if (resp.success) {
+                if (!resp.success) {
+                    // Notificación según tipo de error de GC
+                    var tipo_alerta = (resp.tipo === 'giftcard_vencida') ? 'warning' : 'danger';
+                    mostrarAlerta('alerta_busqueda', tipo_alerta, resp.mensaje);
+                    ocultarPaneles();
+                    return;
+                }
+                if (resp.tipo === 'empleado') {
                     mostrarEmpleado(resp.data);
-                } else {
-                    mostrarAlerta('alerta_busqueda', 'danger', resp.mensaje);
-                    ocultarVenta();
+                } else if (resp.tipo === 'giftcard') {
+                    mostrarGiftCard(resp.data);
                 }
             },
-            error: function () {
-                mostrarAlerta('alerta_busqueda', 'danger', 'Error de conexión');
-            },
-            complete: function () {
-                $('#btn_buscar').prop('disabled', false).html('<i class="icon dripicons-search"></i> Buscar');
-            }
+            error: function () { mostrarAlerta('alerta_busqueda', 'danger', 'Error de conexión'); },
+            complete: function () { $('#btn_buscar').prop('disabled', false).html('<i class="icon dripicons-search"></i> Buscar'); }
         });
     }
 
-    $('#btn_buscar').on('click', buscarEmpleado);
-    $('#cedula_input').on('keypress', function (e) {
-        if (e.which === 13) buscarEmpleado();
-    });
+    $('#btn_buscar').on('click', buscar);
+    $('#cedula_input').on('keypress', function (e) { if (e.which === 13) buscar(); });
 
     // -------------------------------------------------------
-    // Mostrar datos del empleado
+    // Mostrar empleado
     // -------------------------------------------------------
     function mostrarEmpleado(data) {
+        modo            = 'empleado';
         per_id_actual   = data.per_id;
         cupo_disponible = parseFloat(data.per_cupo_disponible) || 0;
 
@@ -267,85 +336,144 @@ $(document).ready(function () {
             $('#emp_cupo_disponible').text('$' + cupo_disponible.toFixed(2));
         }
 
-        $('#card_empleado').slideDown();
-        $('#card_venta').slideDown();
-        $('#monto_convenio').val('').focus();
-        $('#div_pago_mixto').hide();
+        // Labels para modo empleado
+        $('small.text-muted').filter(function(){ return $(this).text() === 'Cargo al convenio'; }).text('Cargo al convenio');
+        $('#monto_convenio').attr('placeholder', '0.00').attr('max', cupo_disponible.toFixed(2));
+
+        $('#div_empleado_vacio').hide();
+        $('#div_giftcard').hide();
+        $('#div_empleado').slideDown();
+        activarFormVenta();
+    }
+
+    // -------------------------------------------------------
+    // Mostrar Gift Card
+    // -------------------------------------------------------
+    function mostrarGiftCard(data) {
+        modo       = 'giftcard';
+        gc_cgc_id  = data.cgc_id;
+        gc_saldo   = parseFloat(data.saldo) || 0;
+
+        $('#gc_codigo_display').text(data.cgc_codigo);
+        $('#gc_saldo_display').text('$' + gc_saldo.toFixed(2));
+        $('#gc_vence_display').text(data.fecha_caducidad);
+        $('#gc_cgc_id_hidden').val(data.cgc_id);
+        $('#gc_saldo_hidden').val(gc_saldo);
+
+        // Ajustar labels del formulario para modo GC
+        $('#lbl_monto_convenio').text('Monto a usar de Gift Card');
+        $('#monto_convenio')
+            .attr('placeholder', '0.00 (máx $' + gc_saldo.toFixed(2) + ')')
+            .attr('max', gc_saldo.toFixed(2));
+
+        $('#div_empleado_vacio').hide();
+        $('#div_empleado').hide();
+        $('#div_giftcard').slideDown();
+        activarFormVenta();
+    }
+
+    function activarFormVenta() {
+        $('#card_venta').css({ opacity: '1', 'pointer-events': 'auto' });
+        $('#con_descripcion').val('').focus();
+        $('#monto_convenio').val('');
+        $('#monto_externo').val('0');
+        $('#div_aviso_mixto').hide();
         $('#div_resumen').hide();
         ocultarAlerta('alerta_venta');
     }
 
     // -------------------------------------------------------
-    // Validar monto mientras escribe
+    // Validar montos al escribir
     // -------------------------------------------------------
     $('#monto_convenio').on('input', function () {
-        var monto = parseFloat($(this).val()) || 0;
+        var monto   = parseFloat($(this).val()) || 0;
+        var limite  = (modo === 'giftcard') ? gc_saldo : cupo_disponible;
 
-        if (monto <= 0) {
-            $('#div_pago_mixto').hide();
-            $('#div_resumen').hide();
-            return;
-        }
+        if (monto <= 0) { $('#div_aviso_mixto').hide(); $('#div_resumen').hide(); return; }
 
-        if (monto > cupo_disponible) {
-            var diferencial = (monto - cupo_disponible).toFixed(2);
-            $('#aviso_cupo').text('Supera el cupo. Se usará $' + cupo_disponible.toFixed(2) + ' del convenio.').show();
-            $('#monto_externo').val(diferencial);
-            $('#div_pago_mixto').slideDown();
-            actualizarResumen(cupo_disponible, parseFloat(diferencial));
+        if (monto > limite) {
+            if (modo === 'giftcard') {
+                // En modo GC no se permite superar el saldo: se recorta al máximo
+                $(this).val(limite.toFixed(2));
+                monto = limite;
+            }
+            var dif = (monto - limite).toFixed(2);
+            if (parseFloat(dif) > 0) {
+                $('#aviso_cupo').text('Supera el cupo. Se usará $' + limite.toFixed(2) + '.').show();
+                $('#monto_externo').val(dif);
+                $('#div_aviso_mixto').slideDown();
+                actualizarResumen(limite, parseFloat(dif));
+            } else {
+                $('#aviso_cupo').hide();
+                $('#div_aviso_mixto').hide();
+                $('#monto_externo').val(0);
+                actualizarResumen(monto, 0);
+            }
         } else {
             $('#aviso_cupo').hide();
-            $('#div_pago_mixto').hide();
+            $('#div_aviso_mixto').hide();
             $('#monto_externo').val(0);
             actualizarResumen(monto, 0);
         }
-
         $('#div_resumen').slideDown();
     });
 
     $('#monto_externo').on('input', function () {
-        var monto     = parseFloat($('#monto_convenio').val()) || 0;
-        var externo   = parseFloat($(this).val()) || 0;
-        var convenio  = Math.min(monto, cupo_disponible);
-        actualizarResumen(convenio, externo);
+        var monto   = parseFloat($('#monto_convenio').val()) || 0;
+        var limite  = (modo === 'giftcard') ? gc_saldo : cupo_disponible;
+        var externo = parseFloat($(this).val()) || 0;
+        actualizarResumen(Math.min(monto, limite), externo);
     });
 
-    function actualizarResumen(convenio, externo) {
-        $('#res_convenio').text('$' + convenio.toFixed(2));
+    function actualizarResumen(principal, externo) {
+        var total    = principal + externo;
+        var subtotal = total / (1 + IVA_PCT / 100);
+        var iva      = total - subtotal;
+        $('#res_convenio').text('$' + principal.toFixed(2));
         $('#res_externo').text('$' + externo.toFixed(2));
-        $('#res_total').text('$' + (convenio + externo).toFixed(2));
+        $('#res_total').text('$' + total.toFixed(2));
+        $('#res_subtotal').text('$' + subtotal.toFixed(2));
+        $('#res_iva').text('$' + iva.toFixed(2));
+        $('#lbl_iva_pct').text('IVA ' + IVA_PCT + '%');
     }
 
     // -------------------------------------------------------
     // Confirmar venta
     // -------------------------------------------------------
     $('#btn_confirmar').on('click', function () {
-        var monto    = parseFloat($('#monto_convenio').val()) || 0;
-        var externo  = parseFloat($('#monto_externo').val()) || 0;
-        var convenio = Math.min(monto, cupo_disponible);
+        var descripcion = $('#con_descripcion').val().trim();
+        var monto       = parseFloat($('#monto_convenio').val()) || 0;
+        var externo     = parseFloat($('#monto_externo').val()) || 0;
+        var limite      = (modo === 'giftcard') ? gc_saldo : cupo_disponible;
+        var principal   = Math.min(monto, limite);
 
-        if (!per_id_actual || convenio <= 0) {
-            mostrarAlerta('alerta_venta', 'warning', 'Ingrese un monto válido');
-            return;
-        }
+        if (!descripcion) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese una descripción del consumo'); $('#con_descripcion').focus(); return; }
+        if (principal <= 0) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese un monto válido'); return; }
 
         $('#btn_confirmar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
         ocultarAlerta('alerta_venta');
 
+        var postData = { con_descripcion: descripcion, monto_externo: externo.toFixed(2) };
+
+        if (modo === 'giftcard') {
+            postData.action         = 'registrar_giftcard';
+            postData.cgc_id         = gc_cgc_id;
+            postData.monto_giftcard = principal.toFixed(2);
+        } else {
+            postData.action         = 'registrar';
+            postData.per_id         = per_id_actual;
+            postData.monto_convenio = principal.toFixed(2);
+        }
+
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'POST',
-            data: {
-                action:          'registrar',
-                per_id:          per_id_actual,
-                monto_convenio:  convenio.toFixed(2),
-                monto_externo:   externo.toFixed(2)
-            },
+            data: postData,
             dataType: 'json',
             success: function (resp) {
                 if (resp.success) {
                     con_id_actual = resp.con_id;
-                    cargarVoucher(resp.con_id);
+                    cargarVoucher(resp.con_id, false);
                 } else {
                     mostrarAlerta('alerta_venta', 'danger', resp.mensaje);
                     $('#btn_confirmar').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Confirmar Venta');
@@ -359,11 +487,9 @@ $(document).ready(function () {
     });
 
     // -------------------------------------------------------
-    // Cargar y mostrar voucher
+    // Voucher
     // -------------------------------------------------------
     function cargarVoucher(con_id, reimprimir) {
-        reimprimir = reimprimir || false;
-
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'GET',
@@ -373,98 +499,95 @@ $(document).ready(function () {
                 if (resp.success) {
                     renderVoucher(resp.data, reimprimir);
                     $('#modal_voucher').modal('show');
+                    if (!reimprimir) ocultarVenta();
                 }
             }
         });
     }
 
     function renderVoucher(d, reimprimir) {
-        var reimpresionBadge = reimprimir ? '<div class="text-center"><span class="badge badge-warning">REIMPRESIÓN</span><br><small>' + new Date().toLocaleString() + '</small></div><hr>' : '';
+        var reimpresionBadge = reimprimir
+            ? '<div class="text-center"><span class="badge badge-warning">REIMPRESIÓN</span><br><small>' + new Date().toLocaleString() + '</small></div><hr>'
+            : '';
+        var descripcionRow = d.con_descripcion
+            ? '<tr><td><strong>Descripción</strong></td><td class="text-right">' + htmlEsc(d.con_descripcion) + '</td></tr>'
+            : '';
+        // Sección beneficiario (empleado o gift card)
+        var beneficiarioSection = '';
+        if (d.per_nombre) {
+            beneficiarioSection = '<table class="table table-sm table-borderless mb-0" style="font-size:11px;">'
+                + '<tr><td><strong>Empleado</strong></td><td class="text-right">' + htmlEsc(d.per_nombre) + '</td></tr>'
+                + '<tr><td><strong>Cédula</strong></td><td class="text-right">' + d.per_documento + '</td></tr>'
+                + '<tr><td><strong>Empresa</strong></td><td class="text-right">' + htmlEsc(d.cli_descripcion) + '</td></tr>'
+                + '</table><hr>';
+        } else if (d.con_giftcard_codigo) {
+            beneficiarioSection = '<table class="table table-sm table-borderless mb-0" style="font-size:11px;">'
+                + '<tr><td><strong>Gift Card</strong></td><td class="text-right"><code>' + d.con_giftcard_codigo + '</code></td></tr>'
+                + '</table><hr>';
+        }
 
         var html = '<div id="voucher_print" style="font-family:monospace; font-size:12px; padding:10px;">'
             + reimpresionBadge
-            + '<div class="text-center mb-2"><strong>SGC ARGOS</strong><br>'
-            + '<strong>COMPROBANTE DE CONSUMO</strong></div>'
-            + '<hr>'
-            + '<table class="table table-sm table-borderless" style="font-size:11px;">'
+            + '<div class="text-center mb-2"><strong>SGC ARGOS</strong><br><strong>COMPROBANTE DE CONSUMO</strong></div><hr>'
+            + '<table class="table table-sm table-borderless mb-0" style="font-size:11px;">'
             + '<tr><td><strong>N° Comprobante</strong></td><td class="text-right">#' + d.con_id + '</td></tr>'
             + '<tr><td><strong>Fecha</strong></td><td class="text-right">' + d.con_fecha + '</td></tr>'
             + '<tr><td><strong>Hora</strong></td><td class="text-right">' + d.con_hora + '</td></tr>'
             + '<tr><td><strong>Local</strong></td><td class="text-right">' + (d.loc_direccion || 'N/A') + '</td></tr>'
             + '<tr><td><strong>Cajero</strong></td><td class="text-right">' + (d.cajero || 'N/A') + '</td></tr>'
             + '</table><hr>'
-            + '<table class="table table-sm table-borderless" style="font-size:11px;">'
-            + '<tr><td><strong>Empleado</strong></td><td class="text-right">' + d.per_nombre + '</td></tr>'
-            + '<tr><td><strong>Cédula</strong></td><td class="text-right">' + d.per_documento + '</td></tr>'
-            + '<tr><td><strong>Empresa</strong></td><td class="text-right">' + d.cli_descripcion + '</td></tr>'
-            + '</table><hr>'
-            + '<table class="table table-sm table-borderless" style="font-size:11px;">'
-            + '<tr><td>Cargo convenio</td><td class="text-right">$' + parseFloat(d.con_monto_convenio).toFixed(2) + '</td></tr>'
+            + beneficiarioSection
+            + '<table class="table table-sm table-borderless mb-0" style="font-size:11px;">'
+            + descripcionRow
+            + (parseFloat(d.con_monto_convenio) > 0 ? '<tr><td>Cargo convenio</td><td class="text-right">$' + parseFloat(d.con_monto_convenio).toFixed(2) + '</td></tr>' : '')
+            + (parseFloat(d.con_monto_giftcard) > 0 ? '<tr><td>Gift Card</td><td class="text-right">$' + parseFloat(d.con_monto_giftcard).toFixed(2) + '</td></tr>' : '')
             + (parseFloat(d.con_monto_externo) > 0 ? '<tr><td>Pago externo</td><td class="text-right">$' + parseFloat(d.con_monto_externo).toFixed(2) + '</td></tr>' : '')
+            + '<tr><td colspan="2"><hr style="margin:4px 0;"></td></tr>'
+            + '<tr><td>Subtotal</td><td class="text-right">$' + parseFloat(d.con_valor_neto).toFixed(2) + '</td></tr>'
+            + '<tr><td>IVA (' + IVA_PCT + '%)</td><td class="text-right">$' + parseFloat(d.con_iva || 0).toFixed(2) + '</td></tr>'
             + '<tr><td><strong>TOTAL</strong></td><td class="text-right"><strong>$' + parseFloat(d.con_valor_total).toFixed(2) + '</strong></td></tr>'
             + '</table><hr>'
-            + '<div class="mt-3" style="font-size:10px;">'
-            + '<p class="mb-1">Firma empleado: ___________________________</p>'
-            + '<p class="mb-1">N° Cédula: ___________________________</p>'
-            + '</div>'
+            + '<div class="mt-3" style="font-size:10px;"><p class="mb-1">Firma: ___________________________</p><p class="mb-1">N° Cédula: ___________________________</p></div>'
             + '<div class="text-center mt-2" style="font-size:9px;">El comprobante firmado constituye respaldo legal del consumo</div>'
             + '</div>';
-
         $('#voucher_content').html(html);
-
-        // Reset botón confirmar
         $('#btn_confirmar').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Confirmar Venta');
-        // Ocultar venta para nueva búsqueda
-        if (!reimprimir) {
-            ocultarVenta();
-        }
     }
 
-    // -------------------------------------------------------
-    // Imprimir voucher
-    // -------------------------------------------------------
     $('#btn_imprimir_voucher').on('click', function () {
         var contenido = document.getElementById('voucher_print').innerHTML;
         var ventana = window.open('', '_blank', 'width=400,height=600');
-        ventana.document.write('<html><head><title>Voucher SGC</title>');
-        ventana.document.write('<link rel="stylesheet" href="css/bootstrap.min.css">');
-        ventana.document.write('</head><body onload="window.print();window.close();">');
+        ventana.document.write('<html><head><title>Voucher SGC</title><link rel="stylesheet" href="assets/css/vendor/bootstrap.css"></head><body onload="window.print();window.close();">');
         ventana.document.write(contenido);
         ventana.document.write('</body></html>');
         ventana.document.close();
-
-        if (con_id_actual) {
-            $.post('ajax/pos/pos.php', { action: 'registrar', mark_printed: con_id_actual });
-        }
     });
 
-    // -------------------------------------------------------
-    // Nueva búsqueda
-    // -------------------------------------------------------
-    $('#btn_nueva').on('click', function () {
-        ocultarVenta();
-        $('#cedula_input').val('').focus();
-    });
+    $('#btn_nueva').on('click', function () { ocultarVenta(); $('#cedula_input').val('').focus(); });
 
     function ocultarVenta() {
-        $('#card_empleado').slideUp();
-        $('#card_venta').slideUp();
-        per_id_actual = null;
-        cupo_disponible = 0;
+        ocultarPaneles();
+        $('#card_venta').css({ opacity: '0.45', 'pointer-events': 'none' });
+        per_id_actual = null; cupo_disponible = 0;
+        gc_cgc_id = null; gc_saldo = 0; modo = null;
         ocultarAlerta('alerta_busqueda');
         ocultarAlerta('alerta_venta');
-        $('#div_pago_mixto').hide();
+        $('#div_aviso_mixto').hide();
         $('#div_resumen').hide();
+        $('#aviso_cupo').hide();
     }
 
-    // -------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------
-    function mostrarAlerta(id, tipo, msg) {
-        $('#' + id).html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show();
+    function ocultarPaneles() {
+        $('#div_empleado').slideUp();
+        $('#div_giftcard').slideUp();
+        $('#div_empleado_vacio').show();
     }
-    function ocultarAlerta(id) {
-        $('#' + id).hide().html('');
+
+    function mostrarAlerta(id, tipo, msg) { $('#' + id).html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show(); }
+    function ocultarAlerta(id) { $('#' + id).hide().html(''); }
+    function htmlEsc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     $('#cedula_input').focus();

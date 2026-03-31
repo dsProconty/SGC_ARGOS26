@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once('../../config/database.php');
+require_once '../../config/database.php';
 
 header('Content-Type: application/json');
 
@@ -26,7 +26,7 @@ switch ($action) {
     case 'list':
         $query = "SELECT cli_id, cli_descripcion, cli_ciudad, cli_contacto,
                          cli_email, cli_email2, cli_telefono, cli_dia_corte,
-                         cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera
+                         cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision
                   FROM cliente
                   ORDER BY cli_descripcion ASC";
 
@@ -50,7 +50,7 @@ switch ($action) {
 
         $query = "SELECT cli_id, cli_descripcion, cli_ciudad, cli_contacto,
                          cli_email, cli_email2, cli_telefono, cli_dia_corte,
-                         cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera
+                         cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision
                   FROM cliente WHERE cli_id = $cli_id LIMIT 1";
 
         $r   = mysqli_query($mysqli, $query);
@@ -74,9 +74,10 @@ switch ($action) {
         $contacto       = mysqli_real_escape_string($mysqli, trim($_POST['cli_contacto']       ?? ''));
         $telefono       = mysqli_real_escape_string($mysqli, trim($_POST['cli_telefono']       ?? ''));
         $dia_corte      = mysqli_real_escape_string($mysqli, trim($_POST['cli_dia_corte']      ?? '0'));
-        $tipo_beneficio = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_beneficio'] ?? ''));
+        $tipo_beneficio  = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_beneficio'] ?? ''));
         $valor_beneficio = (float)($_POST['cli_valor_beneficio'] ?? 0);
-        $tipo_cartera   = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_cartera']   ?? ''));
+        $tipo_cartera    = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_cartera']   ?? ''));
+        $comision        = (float)($_POST['cli_comision'] ?? 0);
 
         if (!$descripcion || !$email || !$tipo_beneficio || !$tipo_cartera) {
             echo json_encode(['success' => false, 'mensaje' => 'Campos requeridos incompletos']);
@@ -84,9 +85,9 @@ switch ($action) {
         }
 
         $query = "INSERT INTO cliente (cli_descripcion, cli_email, cli_email2, cli_ciudad, cli_contacto,
-                                       cli_telefono, cli_dia_corte, cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera)
+                                       cli_telefono, cli_dia_corte, cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision)
                   VALUES ('$descripcion', '$email', '$email2', '$ciudad', '$contacto',
-                          '$telefono', '$dia_corte', '$tipo_beneficio', $valor_beneficio, '$tipo_cartera')";
+                          '$telefono', '$dia_corte', '$tipo_beneficio', $valor_beneficio, '$tipo_cartera', $comision)";
 
         if (mysqli_query($mysqli, $query)) {
             echo json_encode(['success' => true, 'cli_id' => mysqli_insert_id($mysqli)]);
@@ -107,9 +108,10 @@ switch ($action) {
         $contacto       = mysqli_real_escape_string($mysqli, trim($_POST['cli_contacto']       ?? ''));
         $telefono       = mysqli_real_escape_string($mysqli, trim($_POST['cli_telefono']       ?? ''));
         $dia_corte      = mysqli_real_escape_string($mysqli, trim($_POST['cli_dia_corte']      ?? '0'));
-        $tipo_beneficio = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_beneficio'] ?? ''));
+        $tipo_beneficio  = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_beneficio'] ?? ''));
         $valor_beneficio = (float)($_POST['cli_valor_beneficio'] ?? 0);
-        $tipo_cartera   = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_cartera']   ?? ''));
+        $tipo_cartera    = mysqli_real_escape_string($mysqli, trim($_POST['cli_tipo_cartera']   ?? ''));
+        $comision        = (float)($_POST['cli_comision'] ?? 0);
 
         if ($cli_id <= 0 || !$descripcion || !$email || !$tipo_beneficio || !$tipo_cartera) {
             echo json_encode(['success' => false, 'mensaje' => 'Campos requeridos incompletos']);
@@ -117,22 +119,47 @@ switch ($action) {
         }
 
         $query = "UPDATE cliente SET
-                    cli_descripcion    = '$descripcion',
-                    cli_email          = '$email',
-                    cli_email2         = '$email2',
-                    cli_ciudad         = '$ciudad',
-                    cli_contacto       = '$contacto',
-                    cli_telefono       = '$telefono',
-                    cli_dia_corte      = '$dia_corte',
-                    cli_tipo_beneficio = '$tipo_beneficio',
+                    cli_descripcion     = '$descripcion',
+                    cli_email           = '$email',
+                    cli_email2          = '$email2',
+                    cli_ciudad          = '$ciudad',
+                    cli_contacto        = '$contacto',
+                    cli_telefono        = '$telefono',
+                    cli_dia_corte       = '$dia_corte',
+                    cli_tipo_beneficio  = '$tipo_beneficio',
                     cli_valor_beneficio = $valor_beneficio,
-                    cli_tipo_cartera   = '$tipo_cartera'
+                    cli_tipo_cartera    = '$tipo_cartera',
+                    cli_comision        = $comision
                   WHERE cli_id = $cli_id";
 
         if (mysqli_query($mysqli, $query)) {
             echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . mysqli_error($mysqli)]);
+        }
+        break;
+
+    // ----------------------------------------------------------
+    // Eliminar convenio
+    // ----------------------------------------------------------
+    case 'eliminar':
+        $cli_id = (int)($_POST['cli_id'] ?? 0);
+        if ($cli_id <= 0) {
+            echo json_encode(['success' => false, 'mensaje' => 'ID inválido']);
+            break;
+        }
+
+        // Verificar que no tenga personal asociado
+        $chk = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) AS total FROM personal WHERE cli_id = $cli_id"));
+        if ($chk['total'] > 0) {
+            echo json_encode(['success' => false, 'mensaje' => 'No se puede eliminar: el convenio tiene ' . $chk['total'] . ' empleado(s) asociado(s)']);
+            break;
+        }
+
+        if (mysqli_query($mysqli, "DELETE FROM cliente WHERE cli_id = $cli_id")) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al eliminar: ' . mysqli_error($mysqli)]);
         }
         break;
 
