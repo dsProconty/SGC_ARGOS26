@@ -1,0 +1,19 @@
+[25-Sep-2020 21:06:28 UTC] PHP Warning:  mysqli_fetch_array() expects parameter 1 to be mysqli_result, boolean given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 172
+[25-Sep-2020 21:06:37 UTC] PHP Warning:  mysqli_fetch_array() expects parameter 1 to be mysqli_result, boolean given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 172
+[02-Oct-2020 07:00:33 UTC] PHP Warning:  utf8_decode() expects parameter 1 to be string, array given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 263
+[02-Oct-2020 07:03:54 UTC] PHP Warning:  utf8_decode() expects parameter 1 to be string, array given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 263
+[02-Oct-2020 07:04:05 UTC] PHP Warning:  utf8_decode() expects parameter 1 to be string, array given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 263
+[02-Oct-2020 07:04:15 UTC] PHP Warning:  utf8_decode() expects parameter 1 to be string, array given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 263
+[02-Oct-2020 07:04:32 UTC] PHP Warning:  utf8_decode() expects parameter 1 to be string, array given in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 263
+[21-Oct-2020 09:02:51 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 09:02:53 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:38 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:40 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:40 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:41 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:42 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:42 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:42 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 10:12:42 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 13:21:15 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
+[21-Oct-2020 13:21:40 America/Guayaquil] PHP Warning:  mysqli_query(): Empty query in /home/sgipro/public_html/SGC_ARGOS/ajax/gestiones/gestiones.php on line 412
