@@ -342,6 +342,48 @@ switch ($permisos) {
                         <li class="nav-dropdown <?php if ($_GET['module'] == 'portal_empresa') { echo 'active'; } ?>">
                             <a href="?module=portal_empresa"><i class="icon dripicons-user-group"></i><span>Mi Nómina</span></a>
                         </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'giftcard') { echo 'active'; } ?>">
+                            <a href="?module=giftcard"><i class="icon dripicons-card"></i><span>Gift Cards</span></a>
+                        </li>
+                        <li class="sidebar-header"><span>CUENTA</span></li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'contrasena') { echo 'active'; } ?>">
+                            <a href="?module=contrasena"><i class="icon dripicons-lock"></i><span>Cambiar Contraseña</span></a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </aside>
+    <?php
+        break;
+    case 'cliente_giftcard':
+    ?>
+        <aside class="sidebar sidebar-left">
+            <div class="sidebar-content">
+                <div class="aside-toolbar">
+                    <ul class="site-logo">
+                        <li>
+                            <a href="?module=giftcard">
+                                <div class="logo">
+                                    <img src="images/icon.png" alt="" width="25" height="25">
+                                </div>
+                                <span class="brand-text">SGC ARGOS</span>
+                            </a>
+                        </li>
+                    </ul>
+                    <ul class="header-controls">
+                        <li class="nav-item">
+                            <button type="button" class="btn btn-link btn-menu" data-toggle-state="mini-sidebar">
+                                <i class="la la-dot-circle-o"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <nav class="main-menu">
+                    <ul class="nav metismenu">
+                        <li class="sidebar-header"><span>GIFT CARDS</span></li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'giftcard') { echo 'active'; } ?>">
+                            <a href="?module=giftcard"><i class="icon dripicons-card"></i><span>Mis Gift Cards</span></a>
+                        </li>
                         <li class="sidebar-header"><span>CUENTA</span></li>
                         <li class="nav-dropdown <?php if ($_GET['module'] == 'contrasena') { echo 'active'; } ?>">
                             <a href="?module=contrasena"><i class="icon dripicons-lock"></i><span>Cambiar Contraseña</span></a>
