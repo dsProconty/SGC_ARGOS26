@@ -4,6 +4,8 @@ $rol_gc = $_SESSION['permisos_acceso'] ?? '';
 $es_admin   = ($rol_gc === 'Super Admin');
 $es_cliente = in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']);
 ?>
+<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
+<script src="js/giftcard.js"></script>
 <div class="content" data-layout="tabbed">
     <header class="page-header">
         <div class="container">
@@ -235,6 +237,3 @@ $es_cliente = in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']);
     </div>
 </div>
 <?php endif; ?>
-
-<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
-<script src="js/giftcard.js"></script>
