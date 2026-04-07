@@ -21,37 +21,66 @@
         </div>
     </header>
 
-    <section class="container m-t-30">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="icon dripicons-document"></i> Lista de Convenios</span>
-                <span id="div_contador" class="text-muted small"></span>
-            </div>
-            <div class="card-body p-0">
-                <div id="div_loading" class="text-center p-5">
-                    <span class="spinner-border text-primary"></span>
-                    <p class="mt-2 text-muted">Cargando...</p>
-                </div>
-                <div id="div_tabla" style="display:none; overflow-x:auto;">
-                    <table class="table table-hover table-sm mb-0">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Nombre del convenio</th>
-                                <th>Correo contacto</th>
-                                <th>Tipo de beneficio</th>
-                                <th>Valor / Cupo</th>
-                                <th>Tipo cartera</th>
-                                <th>Día de corte</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody_convenios"></tbody>
-                    </table>
-                </div>
-                <div id="div_vacio" class="text-center p-5 text-muted" style="display:none;">
-                    <i class="icon dripicons-document" style="font-size:2rem;"></i>
-                    <p class="mt-2">No hay convenios registrados</p>
+    <section class="page-content container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="icon dripicons-document"></i> Lista de Convenios</span>
+                        <span id="div_contador" class="text-muted small"></span>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- Filtros -->
+                        <div class="row mb-3" id="div_filtros" style="display:none;">
+                            <div class="col-md-3">
+                                <select id="filtro_beneficio" class="form-control form-control-sm">
+                                    <option value="">Todos los beneficios</option>
+                                    <option value="Cupo">Cupo</option>
+                                    <option value="Porcentaje">Porcentaje</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="filtro_cartera" class="form-control form-control-sm">
+                                    <option value="">Todos los tipos de cartera</option>
+                                    <option value="30">30 días</option>
+                                    <option value="60">60 días</option>
+                                    <option value="90">90 días</option>
+                                    <option value="90+">90+ días</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-sm btn-secondary" id="btn_limpiar_filtros">
+                                    <i class="icon dripicons-cross"></i> Limpiar filtros
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="div_loading" class="text-center p-5">
+                            <span class="spinner-border text-primary"></span>
+                            <p class="mt-2 text-muted">Cargando...</p>
+                        </div>
+                        <div id="div_tabla" style="display:none;">
+                            <table id="table_convenios" class="table table-striped table-bordered" style="width:100%">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nombre del convenio</th>
+                                        <th>Correo contacto</th>
+                                        <th>Beneficio</th>
+                                        <th>Tipo cartera</th>
+                                        <th>Día de corte</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody_convenios"></tbody>
+                            </table>
+                        </div>
+                        <div id="div_vacio" class="text-center p-5 text-muted" style="display:none;">
+                            <i class="icon dripicons-document" style="font-size:2rem;"></i>
+                            <p class="mt-2">No hay convenios registrados</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -142,6 +171,16 @@
                             </select>
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Comisión (%)</label>
+                            <div class="input-group">
+                                <input type="number" id="cli_comision" class="form-control" min="0" max="100" step="0.01" placeholder="Ej: 4.35">
+                                <div class="input-group-append"><span class="input-group-text">%</span></div>
+                            </div>
+                            <small class="text-muted">Se descuenta del total venta en estado de cuenta</small>
+                        </div>
+                    </div>
                 </div>
                 <div id="alerta_modal" class="mt-2" style="display:none;"></div>
             </div>
@@ -211,33 +250,66 @@ $(document).ready(function () {
         var html = '';
         data.forEach(function (c, i) {
             var beneficio = c.cli_tipo_beneficio === 'Cupo'
-                ? '<span class="badge badge-success">Cupo $' + parseFloat(c.cli_valor_beneficio || 0).toFixed(2) + '</span>'
+                ? '<span class="badge badge-success">Cupo &nbsp;$' + parseFloat(c.cli_valor_beneficio || 0).toFixed(2) + '</span>'
                 : (c.cli_tipo_beneficio === 'Porcentaje'
-                    ? '<span class="badge badge-info">Descuento ' + c.cli_valor_beneficio + '%</span>'
+                    ? '<span class="badge badge-info">Descuento &nbsp;' + c.cli_valor_beneficio + '%</span>'
                     : '<span class="badge badge-secondary">Sin definir</span>');
 
             var cartera = c.cli_tipo_cartera
-                ? '<span class="badge badge-light border">' + c.cli_tipo_cartera + ' días</span>'
-                : '—';
+                ? '<span class="badge badge-warning">' + c.cli_tipo_cartera + ' días</span>'
+                : '<span class="text-muted">—</span>';
 
             html += '<tr>'
                 + '<td>' + (i + 1) + '</td>'
                 + '<td><strong>' + htmlEsc(c.cli_descripcion) + '</strong>'
-                + (c.cli_ciudad ? '<br><small class="text-muted">' + htmlEsc(c.cli_ciudad) + '</small>' : '')
+                + (c.cli_ciudad ? '<br><small class="text-muted"><i class="icon dripicons-location"></i> ' + htmlEsc(c.cli_ciudad) + '</small>' : '')
                 + '</td>'
-                + '<td>' + (c.cli_email ? htmlEsc(c.cli_email) : '—') + '</td>'
+                + '<td>' + (c.cli_email ? htmlEsc(c.cli_email) : '<span class="text-muted">—</span>') + '</td>'
                 + '<td>' + beneficio + '</td>'
-                + '<td>' + (c.cli_valor_beneficio ? (c.cli_tipo_beneficio === 'Cupo' ? '$' + parseFloat(c.cli_valor_beneficio).toFixed(2) : c.cli_valor_beneficio + '%') : '—') + '</td>'
                 + '<td>' + cartera + '</td>'
-                + '<td>' + (c.cli_dia_corte && c.cli_dia_corte != '0' ? 'Día ' + c.cli_dia_corte : '—') + '</td>'
-                + '<td>'
+                + '<td>' + (c.cli_dia_corte && c.cli_dia_corte != '0' ? '<span class="badge badge-light border">Día ' + c.cli_dia_corte + '</span>' : '<span class="text-muted">—</span>') + '</td>'
+                + '<td class="text-nowrap">'
                 + '<button class="btn btn-sm btn-primary btn-editar mr-1" data-id="' + c.cli_id + '" title="Editar">'
-                + '<i class="icon dripicons-document-edit"></i></button>'
+                + '<i class="icon dripicons-document-edit" style="color:#fff;"></i></button>'
+                + '<button class="btn btn-sm btn-danger btn-eliminar" data-id="' + c.cli_id + '" data-nombre="' + htmlEsc(c.cli_descripcion) + '" title="Eliminar">'
+                + '<i class="icon dripicons-trash" style="color:#fff;"></i></button>'
                 + '</td>'
                 + '</tr>';
         });
         $('#tbody_convenios').html(html);
+
+        // Destruir DataTable existente antes de re-inicializar
+        if ($.fn.DataTable.isDataTable('#table_convenios')) {
+            $('#table_convenios').DataTable().destroy();
+        }
+
+        var dt = $('#table_convenios').DataTable({
+            language: {
+                search:           'Buscar:',
+                lengthMenu:       'Mostrar _MENU_ registros',
+                info:             'Mostrando _START_ a _END_ de _TOTAL_ convenios',
+                infoEmpty:        'Sin resultados',
+                zeroRecords:      'No se encontraron coincidencias',
+                paginate: { first: '«', last: '»', next: '›', previous: '‹' }
+            },
+            pageLength: 10,
+            order: [[1, 'asc']]
+        });
+
+        // Filtros personalizados por columna
+        $('#filtro_beneficio').off('change').on('change', function () {
+            dt.column(3).search($(this).val()).draw();
+        });
+        $('#filtro_cartera').off('change').on('change', function () {
+            dt.column(4).search($(this).val()).draw();
+        });
+        $('#btn_limpiar_filtros').off('click').on('click', function () {
+            $('#filtro_beneficio, #filtro_cartera').val('');
+            dt.columns().search('').draw();
+        });
+
         $('#div_tabla').show();
+        $('#div_filtros').show();
     }
 
     // -------------------------------------------------------
@@ -246,7 +318,7 @@ $(document).ready(function () {
     window.abrirNuevo = function () {
         $('#modal_titulo').text('Registrar nuevo convenio');
         $('#cli_id').val('');
-        $('#cli_descripcion, #cli_email, #cli_email2, #cli_ciudad, #cli_contacto, #cli_telefono, #cli_valor_beneficio').val('');
+        $('#cli_descripcion, #cli_email, #cli_email2, #cli_ciudad, #cli_contacto, #cli_telefono, #cli_valor_beneficio, #cli_comision').val('');
         $('#cli_dia_corte').val('');
         $('#cli_tipo_beneficio, #cli_tipo_cartera').val('');
         $('#div_valor_beneficio').hide();
@@ -278,6 +350,7 @@ $(document).ready(function () {
                 $('#cli_tipo_beneficio').val(c.cli_tipo_beneficio).trigger('change');
                 $('#cli_valor_beneficio').val(c.cli_valor_beneficio);
                 $('#cli_tipo_cartera').val(c.cli_tipo_cartera);
+                $('#cli_comision').val(c.cli_comision);
                 ocultarAlerta();
                 $('#modal_convenio').modal('show');
             }
@@ -314,7 +387,8 @@ $(document).ready(function () {
             cli_dia_corte:     dia_corte,
             cli_tipo_beneficio: tipo_beneficio,
             cli_valor_beneficio: valor_beneficio,
-            cli_tipo_cartera:  tipo_cartera
+            cli_tipo_cartera:  tipo_cartera,
+            cli_comision:      parseFloat($('#cli_comision').val() || 0)
         };
 
         $('#btn_guardar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
@@ -340,6 +414,30 @@ $(document).ready(function () {
     });
 
     // -------------------------------------------------------
+    // Eliminar convenio
+    // -------------------------------------------------------
+    $(document).on('click', '.btn-eliminar', function () {
+        var id     = $(this).data('id');
+        var nombre = $(this).data('nombre');
+        if (!confirm('¿Eliminar el convenio "' + nombre + '"?\nEsta acción no se puede deshacer.')) return;
+
+        $.ajax({
+            url: 'ajax/convenio/convenio.php',
+            type: 'POST',
+            data: { action: 'eliminar', cli_id: id },
+            dataType: 'json',
+            success: function (resp) {
+                if (resp.success) {
+                    cargarConvenios();
+                } else {
+                    alert(resp.mensaje);
+                }
+            },
+            error: function () { alert('Error de conexión'); }
+        });
+    });
+
+    // -------------------------------------------------------
     // Helpers
     // -------------------------------------------------------
     function mostrarAlerta(tipo, msg) {
@@ -354,4 +452,5 @@ $(document).ready(function () {
     }
 
 });
+
 </script>

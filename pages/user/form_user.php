@@ -55,11 +55,43 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Permisos de acceso</label>
                                             <div class="col-sm-5">
-                                                <select class="form-control" name="permisos_acceso" required>
+                                                <select class="form-control" name="permisos_acceso" id="new_permisos" required>
                                                     <option value=""></option>
                                                     <option value="Super Admin">Super Admin</option>
                                                     <option value="Supervisor">Supervisor</option>
                                                     <option value="Operador">Operador</option>
+                                                    <option value="cajero">Cajero</option>
+                                                    <option value="empresa_cliente">Empresa Cliente</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="div_cli_id_new" style="display:none;">
+                                            <label class="col-sm-2 control-label">Empresa (Cliente)</label>
+                                            <div class="col-sm-5">
+                                                <select class="form-control" name="cli_id" id="new_cli_id">
+                                                    <option value="">— Seleccione empresa —</option>
+                                                    <?php
+                                                    $qCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                    while ($cl = mysqli_fetch_assoc($qCli)) {
+                                                        echo '<option value="' . $cl['cli_id'] . '">' . htmlspecialchars($cl['cli_descripcion']) . '</option>';
+                                                    }
+                                                    ?>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="div_loc_id_new" style="display:none;">
+                                            <label class="col-sm-2 control-label">Local asignado</label>
+                                            <div class="col-sm-5">
+                                                <select class="form-control" name="loc_id" id="new_loc_id">
+                                                    <option value="">— Seleccione local —</option>
+                                                    <?php
+                                                    $qLoc = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_nombre, l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_activo = 1 ORDER BY m.mar_descripcion ASC, l.loc_nombre ASC");
+                                                    while ($loc = mysqli_fetch_assoc($qLoc)) {
+                                                        echo '<option value="' . $loc['loc_id'] . '">' . htmlspecialchars($loc['mar_descripcion']) . ' — ' . htmlspecialchars($loc['loc_nombre'] ?: $loc['loc_direccion']) . '</option>';
+                                                    }
+                                                    ?>
                                                 </select>
                                             </div>
                                         </div>
@@ -140,11 +172,47 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Permisos de acceso</label>
                                             <div class="col-sm-5">
-                                                <select class="form-control" name="permisos_acceso" required>
-                                                    <option value="<?php echo $data['permisos_acceso']; ?>"><?php echo $data['permisos_acceso']; ?></option>
-                                                    <option value="Super Admin">Super Admin</option>
-                                                    <option value="Supervisor">Supervisor</option>
-                                                    <option value="CallCenter">Call Center</option>
+                                                <select class="form-control" name="permisos_acceso" id="edit_permisos" required>
+                                                    <?php
+                                                    $roles = ['Super Admin','Supervisor','Operador','cajero','empresa_cliente'];
+                                                    foreach ($roles as $r) {
+                                                        $sel = $data['permisos_acceso'] === $r ? 'selected' : '';
+                                                        $label = $r === 'empresa_cliente' ? 'Empresa Cliente' : ($r === 'cajero' ? 'Cajero' : $r);
+                                                        echo '<option value="' . $r . '" ' . $sel . '>' . $label . '</option>';
+                                                    }
+                                                    ?>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="div_cli_id_edit" style="<?= $data['permisos_acceso'] === 'empresa_cliente' ? '' : 'display:none;' ?>">
+                                            <label class="col-sm-2 control-label">Empresa (Cliente)</label>
+                                            <div class="col-sm-5">
+                                                <select class="form-control" name="cli_id" id="edit_cli_id">
+                                                    <option value="">— Seleccione empresa —</option>
+                                                    <?php
+                                                    $qCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                    while ($cl = mysqli_fetch_assoc($qCli)) {
+                                                        $sel = $data['cli_id'] == $cl['cli_id'] ? 'selected' : '';
+                                                        echo '<option value="' . $cl['cli_id'] . '" ' . $sel . '>' . htmlspecialchars($cl['cli_descripcion']) . '</option>';
+                                                    }
+                                                    ?>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="div_loc_id_edit" style="<?= $data['permisos_acceso'] === 'cajero' ? '' : 'display:none;' ?>">
+                                            <label class="col-sm-2 control-label">Local asignado</label>
+                                            <div class="col-sm-5">
+                                                <select class="form-control" name="loc_id" id="edit_loc_id">
+                                                    <option value="">— Seleccione local —</option>
+                                                    <?php
+                                                    $qLoc = mysqli_query($mysqli, "SELECT loc_id, loc_direccion FROM local WHERE loc_activo = 1 ORDER BY loc_id ASC");
+                                                    while ($loc = mysqli_fetch_assoc($qLoc)) {
+                                                        $sel = $data['loc_id'] == $loc['loc_id'] ? 'selected' : '';
+                                                        echo '<option value="' . $loc['loc_id'] . '" ' . $sel . '>Local ' . $loc['loc_id'] . ' — ' . htmlspecialchars($loc['loc_direccion']) . '</option>';
+                                                    }
+                                                    ?>
                                                 </select>
                                             </div>
                                         </div>
@@ -169,4 +237,13 @@
         </div>
     </section>
 </div>
-<script src="js\users.js"></script>
+<script src="js/users.js"></script>
+<script>
+function toggleCamposRol(selectEl, sufijo) {
+    var rol = $(selectEl).val();
+    $('#div_cli_id_' + sufijo).toggle(rol === 'empresa_cliente');
+    $('#div_loc_id_' + sufijo).toggle(rol === 'cajero');
+}
+$('#new_permisos').on('change',  function() { toggleCamposRol(this, 'new'); });
+$('#edit_permisos').on('change', function() { toggleCamposRol(this, 'edit'); });
+</script>

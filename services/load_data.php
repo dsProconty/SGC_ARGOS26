@@ -236,10 +236,15 @@ switch ($action) {
             }
         }
         session_start();
-        if($_SESSION['permisos_acceso']=='Operador'){
-            echo "<script language=Javascript> location.href=\"../main.php?module=gestiones&cartera=30\"; </script>"; 
-        }else{
-            echo "<script language=Javascript> location.href=\"../main.php?module=dashboard\"; </script>"; 
+        $rol = $_SESSION['permisos_acceso'] ?? '';
+        if ($rol === 'Operador') {
+            echo "<script>location.href='../main.php?module=gestiones&cartera=30';</script>";
+        } elseif ($rol === 'cajero') {
+            echo "<script>location.href='../main.php?module=pos';</script>";
+        } elseif ($rol === 'empresa_cliente') {
+            echo "<script>location.href='../main.php?module=portal_empresa';</script>";
+        } else {
+            echo "<script>location.href='../main.php?module=dashboard';</script>";
         }
         break;
     case 'carga_cartera':

@@ -26,6 +26,7 @@ else {
 		$_SESSION['name_user'] = $data['name_user'];
 		$_SESSION['permisos_acceso'] = $data['permisos_acceso'];
 		$_SESSION['loc_id']          = $data['loc_id'];
+		$_SESSION['cli_id']          = $data['cli_id'];
 		
 		header("Location: services/load_data.php?action=carga_data");
 	}

@@ -75,15 +75,28 @@ switch ($permisos) {
                         <li class="nav-dropdown <?php if ($_GET['module'] == 'convenios') { echo 'active'; } ?>">
                             <a href="?module=convenios"><i class="icon dripicons-document"></i><span>Convenios</span></a>
                         </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'giftcard') { echo 'active'; } ?>">
+                            <a href="?module=giftcard"><i class="icon dripicons-card"></i><span>Gift Cards</span></a>
+                        </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'venta_diferida') { echo 'active'; } ?>">
+                            <a href="?module=venta_diferida"><i class="icon dripicons-clock"></i><span>Ventas Diferidas</span></a>
+                        </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'estado_cuenta') { echo 'active'; } ?>">
+                            <a href="?module=estado_cuenta"><i class="icon dripicons-document"></i><span>Estados de Cuenta</span></a>
+                        </li>
                         <li class="sidebar-header"><span>ADMINISTRACIÓN</span></li>
-                        <li class="nav-dropdown <?php if ($_GET['module'] == 'administracion' || $_GET['module'] == 'usuarios' || $_GET['module'] == 'contrasena') {
-                                                    echo 'active';
-                                                } ?>">
+                        <li class="nav-dropdown <?php if (in_array($_GET['module'], ['administracion','usuarios','contrasena'])) { echo 'active'; } ?>">
                             <a class="has-arrow" href="#" aria-expanded="false"><i class="icon dripicons-user-group"></i><span>Usuarios</span></a>
                             <ul class="collapse nav-sub" aria-expanded="false">
                                 <li><a href="?module=usuarios"><span>Gestión Usuarios</span></a></li>
                                 <li><a href="?module=contrasena"><span>Cambiar Contraseña</span></a></li>
                             </ul>
+                        </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'configuracion') { echo 'active'; } ?>">
+                            <a href="?module=configuracion"><i class="icon dripicons-gear"></i><span>Configuración</span></a>
+                        </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'locales') { echo 'active'; } ?>">
+                            <a href="?module=locales"><i class="icon dripicons-store"></i><span>Locales</span></a>
                         </li>
                     </ul>
                 </nav>
@@ -201,6 +214,15 @@ switch ($permisos) {
                         <li class="nav-dropdown <?php if ($_GET['module'] == 'convenios') { echo 'active'; } ?>">
                             <a href="?module=convenios"><i class="icon dripicons-document"></i><span>Convenios</span></a>
                         </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'giftcard') { echo 'active'; } ?>">
+                            <a href="?module=giftcard"><i class="icon dripicons-card"></i><span>Gift Cards</span></a>
+                        </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'venta_diferida') { echo 'active'; } ?>">
+                            <a href="?module=venta_diferida"><i class="icon dripicons-clock"></i><span>Ventas Diferidas</span></a>
+                        </li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'estado_cuenta') { echo 'active'; } ?>">
+                            <a href="?module=estado_cuenta"><i class="icon dripicons-document"></i><span>Estados de Cuenta</span></a>
+                        </li>
                         <li class="sidebar-header"><span>ADMINISTRACIÓN</span></li>
                         <li class="nav-dropdown <?php if ($_GET['module'] == 'administracion' || $_GET['module'] == 'usuarios' || $_GET['module'] == 'contrasena') {
                                                     echo 'active';
@@ -290,6 +312,45 @@ switch ($permisos) {
         </aside>
         <!-- END MENU SIDEBAR WRAPPER -->
 <?php
+        break;
+    case 'empresa_cliente':
+    ?>
+        <aside class="sidebar sidebar-left">
+            <div class="sidebar-content">
+                <div class="aside-toolbar">
+                    <ul class="site-logo">
+                        <li>
+                            <a href="?module=portal_empresa">
+                                <div class="logo">
+                                    <img src="images/icon.png" alt="" width="25" height="25">
+                                </div>
+                                <span class="brand-text">SGC ARGOS</span>
+                            </a>
+                        </li>
+                    </ul>
+                    <ul class="header-controls">
+                        <li class="nav-item">
+                            <button type="button" class="btn btn-link btn-menu" data-toggle-state="mini-sidebar">
+                                <i class="la la-dot-circle-o"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <nav class="main-menu">
+                    <ul class="nav metismenu">
+                        <li class="sidebar-header"><span>PORTAL EMPRESA</span></li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'portal_empresa') { echo 'active'; } ?>">
+                            <a href="?module=portal_empresa"><i class="icon dripicons-user-group"></i><span>Mi Nómina</span></a>
+                        </li>
+                        <li class="sidebar-header"><span>CUENTA</span></li>
+                        <li class="nav-dropdown <?php if ($_GET['module'] == 'contrasena') { echo 'active'; } ?>">
+                            <a href="?module=contrasena"><i class="icon dripicons-lock"></i><span>Cambiar Contraseña</span></a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </aside>
+    <?php
         break;
     default:
 

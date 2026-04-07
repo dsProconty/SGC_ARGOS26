@@ -171,7 +171,7 @@
                                             <div class="row">
                                                 <div class="col-sm-4 offset-lg-5">
                                                     <button type="submit" class="btn btn-primary"><i class="icon dripicons-checkmark" style="color:white;"></i>Guardar</button>
-                                                    <a href="?module=gestiones&cartera=30" class="btn btn-warning"><i class="icon dripicons-forward" style="color:white;"></i>Cancelar</a>
+                                                    <a href="?module=gestiones&cartera=30" class="btn btn-warning"><i class="icon dripicons-forward"></i>Cancelar</a>
                                                 </div>
                                             </div>
 

@@ -53,5 +53,29 @@ else {
 		include "pages/convenio/view.php";
 	}
 
+	elseif ($_GET['module'] == 'giftcard') {
+		include "pages/giftcard/view.php";
+	}
+
+	elseif ($_GET['module'] == 'venta_diferida') {
+		include "pages/venta_diferida/view.php";
+	}
+
+	elseif ($_GET['module'] == 'estado_cuenta') {
+		include "pages/estado_cuenta/view.php";
+	}
+
+	elseif ($_GET['module'] == 'portal_empresa') {
+		include "pages/portal_empresa/view.php";
+	}
+
+	elseif ($_GET['module'] == 'configuracion') {
+		include "pages/configuracion/view.php";
+	}
+
+	elseif ($_GET['module'] == 'locales') {
+		include "pages/locales/view.php";
+	}
+
 }
 ?>
