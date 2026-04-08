@@ -53,15 +53,16 @@
                                         </div>
 
                                         <div class="form-group">
-                                            <label class="col-sm-2 control-label">Permisos de acceso</label>
+                                            <label class="col-sm-2 control-label">Perfil de acceso <span class="text-danger">*</span></label>
                                             <div class="col-sm-5">
-                                                <select class="form-control" name="permisos_acceso" id="new_permisos" required>
-                                                    <option value=""></option>
-                                                    <option value="Super Admin">Super Admin</option>
-                                                    <option value="Supervisor">Supervisor</option>
-                                                    <option value="Operador">Operador</option>
-                                                    <option value="cajero">Cajero</option>
-                                                    <option value="empresa_cliente">Empresa Cliente</option>
+                                                <select class="form-control" name="per_id" required>
+                                                    <option value="">— Seleccionar perfil —</option>
+                                                    <?php
+                                                    $pq = mysqli_query($mysqli, "SELECT per_id, per_nombre FROM perfil WHERE per_activo=1 ORDER BY per_nombre ASC");
+                                                    while ($pr = mysqli_fetch_assoc($pq)) {
+                                                        echo '<option value="' . $pr['per_id'] . '">' . htmlspecialchars($pr['per_nombre']) . '</option>';
+                                                    }
+                                                    ?>
                                                 </select>
                                             </div>
                                         </div>
@@ -170,15 +171,15 @@
                                         </div>
 
                                         <div class="form-group">
-                                            <label class="col-sm-2 control-label">Permisos de acceso</label>
+                                            <label class="col-sm-2 control-label">Perfil de acceso <span class="text-danger">*</span></label>
                                             <div class="col-sm-5">
-                                                <select class="form-control" name="permisos_acceso" id="edit_permisos" required>
+                                                <select class="form-control" name="per_id" required>
+                                                    <option value="">— Seleccionar perfil —</option>
                                                     <?php
-                                                    $roles = ['Super Admin','Supervisor','Operador','cajero','empresa_cliente'];
-                                                    foreach ($roles as $r) {
-                                                        $sel = $data['permisos_acceso'] === $r ? 'selected' : '';
-                                                        $label = $r === 'empresa_cliente' ? 'Empresa Cliente' : ($r === 'cajero' ? 'Cajero' : $r);
-                                                        echo '<option value="' . $r . '" ' . $sel . '>' . $label . '</option>';
+                                                    $pq = mysqli_query($mysqli, "SELECT per_id, per_nombre FROM perfil WHERE per_activo=1 ORDER BY per_nombre ASC");
+                                                    while ($pr = mysqli_fetch_assoc($pq)) {
+                                                        $sel = ($data['per_id'] == $pr['per_id']) ? ' selected' : '';
+                                                        echo '<option value="' . $pr['per_id'] . '"' . $sel . '>' . htmlspecialchars($pr['per_nombre']) . '</option>';
                                                     }
                                                     ?>
                                                 </select>
