@@ -15,7 +15,7 @@ $id_user = (int)$_SESSION['id_user'];
 // ─────────────────────────────────────────────
 // Helper: envío de email
 // ─────────────────────────────────────────────
-function enviar_email(string $para, string $asunto, string $cuerpo): void {
+function enviar_email(?string $para, string $asunto, string $cuerpo): void {
     if (!$para) return;
     $headers  = "MIME-Version: 1.0\r\n";
     $headers .= "Content-type: text/html; charset=utf-8\r\n";
