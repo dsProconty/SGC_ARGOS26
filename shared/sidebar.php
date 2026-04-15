@@ -50,7 +50,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
         <nav class="main-menu">
             <ul class="nav metismenu">
 
-                <?php if ($has('dashboard') || $has('gestiones') || $has('reportes') || $has('pos') || $has('convenios') || $has('giftcard') || $has('venta_diferida') || $has('estado_cuenta') || $has('portal_empresa')): ?>
+                <?php if ($has('dashboard') || $has('gestiones') || $has('reportes') || $has('pos') || $has('giftcard') || $has('venta_diferida') || $has('estado_cuenta') || $has('portal_empresa')): ?>
                 <li class="sidebar-header"><span>NAVEGACIÓN</span></li>
                 <?php endif; ?>
 
@@ -108,15 +108,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 </li>
                 <?php endif; ?>
 
-                <?php if ($has('convenios')): ?>
-                <li class="nav-dropdown <?php if ($cur === 'convenios') echo 'active'; ?>">
-                    <a href="?module=convenios">
-                        <i class="icon dripicons-document"></i><span>Convenios</span>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if ($has('giftcard')): ?>
+<?php if ($has('giftcard')): ?>
                 <li class="nav-dropdown <?php if ($cur === 'giftcard') echo 'active'; ?>">
                     <a href="?module=giftcard">
                         <i class="icon dripicons-card"></i><span>Gift Cards</span>

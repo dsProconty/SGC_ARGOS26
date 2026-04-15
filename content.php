@@ -65,8 +65,6 @@ if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
         include "pages/pos/view.php";
     } elseif ($module === 'pos_historial') {
         include "pages/pos/historial.php";
-    } elseif ($module === 'convenios') {
-        include "pages/convenio/view.php";
     } elseif ($module === 'giftcard') {
         include "pages/giftcard/view.php";
     } elseif ($module === 'venta_diferida') {
