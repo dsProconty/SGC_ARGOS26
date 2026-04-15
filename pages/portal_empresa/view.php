@@ -1,5 +1,5 @@
 <?php if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'empresa_cliente') {
-    echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit;
+    echo "<meta http-equiv='refresh' content='0; url=main.php?module=dashboard'>"; exit;
 } ?>
 <div class="content">
     <header class="page-header">

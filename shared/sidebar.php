@@ -132,7 +132,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 </li>
                 <?php endif; ?>
 
-                <?php if ($has('portal_empresa')): ?>
+                <?php if ($has('portal_empresa') && $_SESSION['permisos_acceso'] === 'empresa_cliente'): ?>
                 <li class="nav-dropdown <?php if ($cur === 'portal_empresa') echo 'active'; ?>">
                     <a href="?module=portal_empresa">
                         <i class="icon dripicons-briefcase"></i><span>Portal Empresa / Nómina</span>
