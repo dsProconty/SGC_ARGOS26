@@ -1,4 +1,4 @@
-<div class="content" data-layout="tabbed">
+<div class="content">
     <!-- PAGE HEADER -->
     <header class="page-header">
         <div class="container">
@@ -48,12 +48,12 @@
 <!-- ══════════════════════════════════════════════════
      MODAL — CREAR / EDITAR CLIENTE
 ══════════════════════════════════════════════════ -->
-<div class="modal fade" id="modalCliente" tabindex="-1" role="dialog" aria-labelledby="modalClienteLabel" aria-hidden="true">
+<div class="modal fade" id="modalCliente" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalClienteLabel">Nuevo Cliente</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                <button type="button" class="close" data-dismiss="modal">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -62,7 +62,6 @@
                     <input type="hidden" id="cli_id" name="cli_id">
 
                     <div class="row">
-                        <!-- Nombre -->
                         <div class="col-md-8">
                             <div class="form-group">
                                 <label>Nombre de la empresa / cliente <span class="text-danger">*</span></label>
@@ -70,7 +69,6 @@
                                        placeholder="Ej: EMPRESA XYZ S.A." required autocomplete="off">
                             </div>
                         </div>
-                        <!-- No. Convenio -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>N° Convenio</label>
@@ -81,7 +79,6 @@
                     </div>
 
                     <div class="row">
-                        <!-- Ciudad -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Ciudad</label>
@@ -89,7 +86,6 @@
                                        placeholder="Ej: Guayaquil" autocomplete="off">
                             </div>
                         </div>
-                        <!-- Contacto -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Persona de contacto</label>
@@ -100,7 +96,6 @@
                     </div>
 
                     <div class="row">
-                        <!-- Email principal -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Email principal</label>
@@ -108,7 +103,6 @@
                                        placeholder="correo@empresa.com" autocomplete="off">
                             </div>
                         </div>
-                        <!-- Email secundario -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Email secundario</label>
@@ -119,7 +113,6 @@
                     </div>
 
                     <div class="row">
-                        <!-- Teléfono 1 -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Teléfono</label>
@@ -127,7 +120,6 @@
                                        placeholder="Ej: 0990000000" autocomplete="off">
                             </div>
                         </div>
-                        <!-- Teléfono 2 -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Teléfono alternativo</label>
@@ -135,7 +127,6 @@
                                        placeholder="Ej: 042000000" autocomplete="off">
                             </div>
                         </div>
-                        <!-- Día de corte -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Día de corte</label>
@@ -153,7 +144,6 @@
                     <h6 class="text-muted mb-3"><i class="icon dripicons-graph-bar"></i> Configuración Comercial</h6>
 
                     <div class="row">
-                        <!-- Tipo de beneficio -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Tipo de beneficio</label>
@@ -164,7 +154,6 @@
                                 </select>
                             </div>
                         </div>
-                        <!-- Valor de beneficio -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label id="label_valor_beneficio">Valor del beneficio</label>
@@ -173,12 +162,10 @@
                                         <span class="input-group-text">$</span>
                                     </div>
                                     <input type="number" class="form-control" id="cli_valor_beneficio"
-                                           name="cli_valor_beneficio" min="0" step="0.01"
-                                           placeholder="0.00">
+                                           name="cli_valor_beneficio" min="0" step="0.01" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
-                        <!-- Tipo de cartera -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Tipo de cartera (días)</label>
@@ -194,7 +181,6 @@
                     </div>
 
                     <div class="row">
-                        <!-- Comisión -->
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Comisión (%)</label>
@@ -233,13 +219,11 @@
                     <i class="icon dripicons-briefcase"></i>
                     <span id="ver_nombre_empresa"></span>
                 </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                <button type="button" class="close" data-dismiss="modal">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="detalle_cliente_body">
-                <!-- Se rellena dinámicamente -->
-            </div>
+            <div class="modal-body" id="detalle_cliente_body"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
                 <button type="button" class="btn btn-primary" id="btn_editar_desde_ver">
@@ -256,7 +240,6 @@
 <script>
 var _cliIdEnVista = null;
 
-// ── Cargar tabla ─────────────────────────────────────────────────────────────
 function cargarClientes() {
     $('#loader_clientes').show();
     $('#tabla_clientes').empty();
@@ -266,12 +249,8 @@ function cargarClientes() {
         $('#tabla_clientes').html(html);
 
         var dt = $('#table_clientes').DataTable({
-            language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json'
-            },
-            columnDefs: [
-                { orderable: false, targets: [9] }
-            ],
+            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+            columnDefs: [{ orderable: false, targets: [9] }],
             pageLength: 15,
             order: [[1, 'asc']]
         });
@@ -280,7 +259,6 @@ function cargarClientes() {
     });
 }
 
-// ── Abrir modal nuevo ────────────────────────────────────────────────────────
 function abrirModalNuevo() {
     $('#formCliente')[0].reset();
     $('#cli_id').val('');
@@ -289,7 +267,6 @@ function abrirModalNuevo() {
     $('#modalCliente').modal('show');
 }
 
-// ── Editar cliente ───────────────────────────────────────────────────────────
 function editarCliente(id) {
     $.getJSON('ajax/clientes/clientes.php?action=get&id=' + id, function(res) {
         if (!res.success) { alert('No se pudo cargar el cliente.'); return; }
@@ -315,7 +292,6 @@ function editarCliente(id) {
     });
 }
 
-// ── Ver detalle ──────────────────────────────────────────────────────────────
 function verCliente(id) {
     _cliIdEnVista = id;
     $.getJSON('ajax/clientes/clientes.php?action=get&id=' + id, function(res) {
@@ -323,15 +299,20 @@ function verCliente(id) {
         var d = res.data;
         $('#ver_nombre_empresa').text(d.cli_descripcion);
 
-        var tipoBadge = d.cli_tipo_beneficio === 'Cupo' ? 'info' : 'primary';
-        var carteraBadge = {30:'success', 60:'warning', 90:'danger', '90+':'dark'}[d.cli_tipo_cartera] || 'secondary';
-        var valorLabel = d.cli_tipo_beneficio === 'Cupo'
+        var tipoBadge   = d.cli_tipo_beneficio === 'Cupo' ? 'info' : 'primary';
+        var carteraBadges = {'30':'success','60':'warning','90':'danger','90+':'dark'};
+        var carteraBadge = carteraBadges[d.cli_tipo_cartera] || 'secondary';
+        var valorLabel  = d.cli_tipo_beneficio === 'Cupo'
             ? '$ ' + parseFloat(d.cli_valor_beneficio || 0).toFixed(2)
             : (d.cli_valor_beneficio || 0) + '%';
 
+        function fila(label, valor) {
+            return '<tr><th class="text-muted font-weight-normal" style="width:45%">' + label + '</th>'
+                 + '<td><strong>' + valor + '</strong></td></tr>';
+        }
+
         var html = '<div class="row">'
-            + '<div class="col-md-6">'
-            + '<table class="table table-sm table-borderless">'
+            + '<div class="col-md-6"><table class="table table-sm table-borderless">'
             + fila('N° Convenio', d.cli_numero_convenio || '—')
             + fila('Ciudad', d.cli_ciudad || '—')
             + fila('Contacto', d.cli_contacto || '—')
@@ -340,50 +321,36 @@ function verCliente(id) {
             + fila('Teléfono', d.cli_telefono || '—')
             + fila('Teléfono alt.', d.cli_telefono2 || '—')
             + fila('Día de corte', d.cli_dia_corte == '0' ? '—' : 'Día ' + d.cli_dia_corte)
-            + '</table>'
-            + '</div>'
-            + '<div class="col-md-6">'
-            + '<div class="card bg-light mb-3"><div class="card-body">'
+            + '</table></div>'
+            + '<div class="col-md-6"><div class="card bg-light mb-3"><div class="card-body">'
             + '<h6 class="card-title text-muted">Configuración Comercial</h6>';
 
         if (d.cli_tipo_beneficio) {
-            html += '<p><strong>Tipo beneficio:</strong> '
-                + '<span class="badge badge-'+tipoBadge+'">'+d.cli_tipo_beneficio+'</span></p>'
-                + '<p><strong>Valor:</strong> ' + valorLabel + '</p>';
+            html += '<p><strong>Tipo beneficio:</strong> <span class="badge badge-' + tipoBadge + '">' + d.cli_tipo_beneficio + '</span></p>'
+                 + '<p><strong>Valor:</strong> ' + valorLabel + '</p>';
         } else {
             html += '<p class="text-muted">Sin beneficio configurado</p>';
         }
 
         if (d.cli_tipo_cartera) {
-            html += '<p><strong>Cartera:</strong> '
-                + '<span class="badge badge-'+carteraBadge+'">'+d.cli_tipo_cartera+' días</span></p>';
+            html += '<p><strong>Cartera:</strong> <span class="badge badge-' + carteraBadge + '">' + d.cli_tipo_cartera + ' días</span></p>';
         }
 
         html += '<p><strong>Comisión:</strong> ' + parseFloat(d.cli_comision || 0).toFixed(2) + '%</p>'
-            + '</div></div>'
-            + '</div>'
-            + '</div>';
+             + '</div></div></div></div>';
 
         $('#detalle_cliente_body').html(html);
         $('#modalVerCliente').modal('show');
     });
 }
 
-function fila(label, valor) {
-    return '<tr><th class="text-muted font-weight-normal" style="width:45%">'+label+'</th>'
-         + '<td><strong>'+valor+'</strong></td></tr>';
-}
-
-// ── Prefijo $ o % en beneficio ────────────────────────────────────────────────
 function actualizarPrefijoBeneficio(tipo) {
     if (tipo === 'Porcentaje') {
         $('#prefix_beneficio').html('<span class="input-group-text">%</span>');
         $('#label_valor_beneficio').text('Porcentaje de descuento');
-        $('#cli_valor_beneficio').attr('placeholder', '0.00');
     } else {
         $('#prefix_beneficio').html('<span class="input-group-text">$</span>');
         $('#label_valor_beneficio').text('Cupo máximo');
-        $('#cli_valor_beneficio').attr('placeholder', '0.00');
     }
 }
 
@@ -391,12 +358,10 @@ $('#cli_tipo_beneficio').on('change', function() {
     actualizarPrefijoBeneficio($(this).val());
 });
 
-// ── Botón Editar desde modal Ver ──────────────────────────────────────────────
 $('#btn_editar_desde_ver').on('click', function() {
     if (_cliIdEnVista) editarCliente(_cliIdEnVista);
 });
 
-// ── Submit form ───────────────────────────────────────────────────────────────
 $('#formCliente').on('submit', function(e) {
     e.preventDefault();
     var id     = $('#cli_id').val();
@@ -419,7 +384,6 @@ $('#formCliente').on('submit', function(e) {
     });
 });
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 $(document).ready(function() {
     cargarClientes();
 });
