@@ -1,7 +1,9 @@
 <?php
+ob_start();
 session_start();
 require_once '../../config/database.php';
 header('Content-Type: application/json');
+ob_clean(); // descartar cualquier output previo (PHP notices/warnings) antes del JSON
 
 if (empty($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admin') {
     echo json_encode(['success' => false, 'mensaje' => 'Acceso no autorizado']);
@@ -33,7 +35,11 @@ switch ($action) {
         $chk = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT mar_id FROM marca WHERE mar_descripcion = '$nombre' LIMIT 1"));
         if ($chk) { echo json_encode(['success' => false, 'mensaje' => 'Ya existe una marca con ese nombre']); break; }
         $ins = mysqli_query($mysqli, "INSERT INTO marca (mar_descripcion) VALUES ('$nombre')");
-        if (!$ins) { echo json_encode(['success' => false, 'mensaje' => 'Error al crear marca: ' . mysqli_error($mysqli)]); break; }
+        if (!$ins) {
+            $err = @iconv('latin1', 'utf-8//IGNORE', mysqli_error($mysqli)) ?: 'Error interno al guardar la marca.';
+            echo json_encode(['success' => false, 'mensaje' => 'Error al crear marca: ' . $err]);
+            break;
+        }
         echo json_encode(['success' => true, 'mar_id' => mysqli_insert_id($mysqli)]);
         break;
 
