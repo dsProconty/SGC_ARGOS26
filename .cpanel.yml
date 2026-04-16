@@ -1,5 +1,4 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/sgipro/public_html/SGC_Argos
-    - /bin/cp -R / $DEPLOYPATH
+    - echo "Deploy SGC_ARGOS26 completado"
