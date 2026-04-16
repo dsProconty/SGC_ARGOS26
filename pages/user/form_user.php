@@ -55,12 +55,12 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Perfil de acceso <span class="text-danger">*</span></label>
                                             <div class="col-sm-5">
-                                                <select class="form-control" name="per_id" required>
+                                                <select class="form-control" name="per_id" id="new_per_id" required>
                                                     <option value="">— Seleccionar perfil —</option>
                                                     <?php
                                                     $pq = mysqli_query($mysqli, "SELECT per_id, per_nombre FROM perfil WHERE per_activo=1 ORDER BY per_nombre ASC");
                                                     while ($pr = mysqli_fetch_assoc($pq)) {
-                                                        echo '<option value="' . $pr['per_id'] . '">' . htmlspecialchars($pr['per_nombre']) . '</option>';
+                                                        echo '<option value="' . $pr['per_id'] . '" data-nombre="' . htmlspecialchars($pr['per_nombre']) . '">' . htmlspecialchars($pr['per_nombre']) . '</option>';
                                                     }
                                                     ?>
                                                 </select>
@@ -68,7 +68,7 @@
                                         </div>
 
                                         <div class="form-group" id="div_cli_id_new" style="display:none;">
-                                            <label class="col-sm-2 control-label">Empresa (Cliente)</label>
+                                            <label class="col-sm-2 control-label">Cliente / Empresa asignada <span class="text-danger">*</span></label>
                                             <div class="col-sm-5">
                                                 <select class="form-control" name="cli_id" id="new_cli_id">
                                                     <option value="">— Seleccione empresa —</option>
@@ -173,13 +173,13 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Perfil de acceso <span class="text-danger">*</span></label>
                                             <div class="col-sm-5">
-                                                <select class="form-control" name="per_id" required>
+                                                <select class="form-control" name="per_id" id="edit_per_id" required>
                                                     <option value="">— Seleccionar perfil —</option>
                                                     <?php
                                                     $pq = mysqli_query($mysqli, "SELECT per_id, per_nombre FROM perfil WHERE per_activo=1 ORDER BY per_nombre ASC");
                                                     while ($pr = mysqli_fetch_assoc($pq)) {
                                                         $sel = ($data['per_id'] == $pr['per_id']) ? ' selected' : '';
-                                                        echo '<option value="' . $pr['per_id'] . '"' . $sel . '>' . htmlspecialchars($pr['per_nombre']) . '</option>';
+                                                        echo '<option value="' . $pr['per_id'] . '"' . $sel . ' data-nombre="' . htmlspecialchars($pr['per_nombre']) . '">' . htmlspecialchars($pr['per_nombre']) . '</option>';
                                                     }
                                                     ?>
                                                 </select>
@@ -240,11 +240,19 @@
 </div>
 <script src="js/users.js"></script>
 <script>
+var PERFILES_CLIENTE  = ['Empresa Cliente', 'Cliente GiftCard'];
+var PERFILES_SUCURSAL = ['Cajero', 'Operador'];
+
 function toggleCamposRol(selectEl, sufijo) {
-    var rol = $(selectEl).val();
-    $('#div_cli_id_' + sufijo).toggle(rol === 'empresa_cliente');
-    $('#div_loc_id_' + sufijo).toggle(rol === 'cajero');
+    var nombre = $(selectEl).find('option:selected').data('nombre') || '';
+    $('#div_cli_id_' + sufijo).toggle(PERFILES_CLIENTE.indexOf(nombre) >= 0);
+    $('#div_loc_id_' + sufijo).toggle(PERFILES_SUCURSAL.indexOf(nombre) >= 0);
 }
-$('#new_permisos').on('change',  function() { toggleCamposRol(this, 'new'); });
-$('#edit_permisos').on('change', function() { toggleCamposRol(this, 'edit'); });
+$('#new_per_id').on('change',  function() { toggleCamposRol(this, 'new'); });
+$('#edit_per_id').on('change', function() { toggleCamposRol(this, 'edit'); });
+
+// Disparar al cargar para el formulario de edición (por si ya tiene perfil asignado)
+$(document).ready(function() {
+    if ($('#edit_per_id').length) toggleCamposRol('#edit_per_id', 'edit');
+});
 </script>

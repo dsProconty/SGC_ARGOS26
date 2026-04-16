@@ -20,14 +20,15 @@ else {
 			$name_user   = mysqli_real_escape_string($mysqli, trim($_POST['name_user']));
 			$per_id_form = (int)($_POST['per_id'] ?? 0);
 			$cli_id_val  = !empty($_POST['cli_id']) ? (int)$_POST['cli_id'] : 'NULL';
+			$loc_id_val  = !empty($_POST['loc_id']) ? (int)$_POST['loc_id'] : 'NULL';
 
 			// Derive permisos_acceso from profile name (session compatibility)
 			$pr_res = mysqli_query($mysqli, "SELECT per_nombre FROM perfil WHERE per_id=$per_id_form AND per_activo=1");
 			$pr_row = $pr_res ? mysqli_fetch_assoc($pr_res) : null;
 			$permisos_acceso = $pr_row ? mysqli_real_escape_string($mysqli, $pr_row['per_nombre']) : '';
 
-            $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,permisos_acceso,per_id,cli_id)
-                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val)");
+            $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,permisos_acceso,per_id,cli_id,loc_id)
+                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val,$loc_id_val)");
 
             if ($query) {
                 header("location: ../../main.php?module=usuarios&alert=1");

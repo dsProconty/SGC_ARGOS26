@@ -731,14 +731,17 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
         var id = $('#marca_id').val();
         var btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
         $.ajax({
-            url: AJAX_URL, type: 'POST',
-            data: { action: id ? 'editar_marca' : 'crear_marca', mar_id: id, mar_descripcion: nombre },
+            url: AJAX_URL + '?action=' + (id ? 'editar_marca' : 'crear_marca'),
+            type: 'POST',
+            data: { mar_id: id, mar_descripcion: nombre },
             dataType: 'json',
             success: function (r) {
                 if (r.success) { $('#modal_marca').modal('hide'); cargarMarcas(); }
                 else alert(r.mensaje);
             },
-            error: function () { alert('Error de conexión'); },
+            error: function (xhr, status, err) {
+                alert('DEBUG – status: ' + status + '\nHTTP: ' + xhr.status + '\nRespuesta:\n' + xhr.responseText.substring(0, 500));
+            },
             complete: function () { btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar'); }
         });
     });
