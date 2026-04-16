@@ -346,9 +346,8 @@ switch ($action) {
         $tipo_gestion = $_POST['tipo_gestion'];
         $tipo_contacto = $_POST['tipo_contacto'];
         $respuesta = $_POST['respuesta'];
-        if(isset($_POST['numero_contacto'])){
-            $numero_contacto = $_POST['numero_contacto'];
-        }
+        $numero_contacto = $_POST['numero_contacto'] ?? '';
+        $email_contacto  = $_POST['email_contacto']  ?? '';
         $observacion_gestion = $_POST['observacion_gestion'];
         $us_id = $_SESSION['id_user'];
         if ($respuesta == 'pago') {
@@ -361,7 +360,6 @@ switch ($action) {
             $estado = 'compromiso';
         } else if($respuesta == 'notificacion'){
             $estado = 'notificacion';
-            $email_contacto = $_POST['email_contacto'];
         }
         $id_pago = '';
         $id_com = '';

@@ -32,7 +32,8 @@ switch ($action) {
         if (!$nombre) { echo json_encode(['success' => false, 'mensaje' => 'Nombre requerido']); break; }
         $chk = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT mar_id FROM marca WHERE mar_descripcion = '$nombre' LIMIT 1"));
         if ($chk) { echo json_encode(['success' => false, 'mensaje' => 'Ya existe una marca con ese nombre']); break; }
-        mysqli_query($mysqli, "INSERT INTO marca (mar_descripcion) VALUES ('$nombre')");
+        $ins = mysqli_query($mysqli, "INSERT INTO marca (mar_descripcion) VALUES ('$nombre')");
+        if (!$ins) { echo json_encode(['success' => false, 'mensaje' => 'Error al crear marca: ' . mysqli_error($mysqli)]); break; }
         echo json_encode(['success' => true, 'mar_id' => mysqli_insert_id($mysqli)]);
         break;
 

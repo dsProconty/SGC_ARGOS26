@@ -208,7 +208,67 @@ switch ($tipo) {
         break;
     case 'dinero por edades de cartera':
     ?>
+        <table border="1" class="table table-bordered">
+            <tr>
+                <td colspan="6" style="background-color:LIGHTSTEELBLUE">
+                    <?php echo utf8_decode('DINERO POR EDADES DE CARTERA') ?>
+                </td>
+            </tr>
+            <tr>
+                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
+                <td style="background-color:LIGHTSTEELBLUE">CARTERA 30 DÍAS</td>
+                <td style="background-color:LIGHTSTEELBLUE">CARTERA 60 DÍAS</td>
+                <td style="background-color:LIGHTSTEELBLUE">CARTERA 90 DÍAS</td>
+                <td style="background-color:LIGHTSTEELBLUE">CARTERA +90 DÍAS</td>
+                <td style="background-color:LIGHTSTEELBLUE">TOTAL</td>
+            </tr>
+            <?php
+            $query = "SELECT cli.cli_descripcion,
+                        SUM(CASE WHEN c.car_tipo = '30' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_30,
+                        SUM(CASE WHEN c.car_tipo = '60' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_60,
+                        SUM(CASE WHEN c.car_tipo = '90' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_90,
+                        SUM(CASE WHEN c.car_tipo = '91' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_91,
+                        SUM(COALESCE(c.cli_valor_pagar, 0)) AS total
+                      FROM cartera c
+                      JOIN cliente cli ON c.cli_id = cli.cli_id
+                      WHERE c.car_estado IN ('pendiente', 'notificacion', 'compromiso')
+                      GROUP BY cli.cli_id, cli.cli_descripcion
+                      ORDER BY cli.cli_descripcion ASC";
 
+            $result = mysqli_query($mysqli, $query);
+            $total_30 = $total_60 = $total_90 = $total_91 = $grand_total = 0;
+            $hay_datos = false;
+
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $total_30     += $row['cartera_30'];
+                $total_60     += $row['cartera_60'];
+                $total_90     += $row['cartera_90'];
+                $total_91     += $row['cartera_91'];
+                $grand_total  += $row['total'];
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo number_format($row['cartera_30'], 2) ?></td>
+                    <td><?php echo number_format($row['cartera_60'], 2) ?></td>
+                    <td><?php echo number_format($row['cartera_90'], 2) ?></td>
+                    <td><?php echo number_format($row['cartera_91'], 2) ?></td>
+                    <td><?php echo number_format($row['total'], 2) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$hay_datos): ?>
+                <tr><td colspan="6">Sin datos de cartera activa.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td style="background-color:LIGHTSTEELBLUE"><strong>TOTALES</strong></td>
+                    <td><strong><?php echo number_format($total_30, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($total_60, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($total_90, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($total_91, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($grand_total, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
     <?php
         break;
     case 'cartera recuperada':
@@ -432,19 +492,29 @@ switch ($tipo) {
             $result = mysqli_query($mysqli, $query);
 
             $total = 0.00;
+            $hay_datos = false;
 
             while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
             ?>
                 <tr>
                     <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
                     <td><?php echo utf8_decode($row['per_nombre']) ?></td>
                     <td><?php echo utf8_decode($row['con_fecha'] . ' / ' . $row['con_hora']) ?></td>
-                    <td><?php echo $row['con_valor_total'] ?></td>
+                    <td><?php echo $row['con_valor_total']; $total += $row['con_valor_total']; ?></td>
                     <td></td>
                 </tr>
             <?php
             }
-            ?>
+            if (!$hay_datos): ?>
+                <tr><td colspan="5">No hay consumos registrados para el mes en curso con la marca seleccionada.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="3" style="background-color:LIGHTSTEELBLUE"><strong>TOTAL</strong></td>
+                    <td><strong><?php echo number_format($total, 2); ?></strong></td>
+                    <td></td>
+                </tr>
+            <?php endif; ?>
         </table>
 <?php
         break;

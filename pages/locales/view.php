@@ -566,7 +566,7 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
     // ═══════════════════════════════════════════════
     // CARGA DE MARCAS
     // ═══════════════════════════════════════════════
-    function cargarMarcas() {
+    function cargarMarcas(callback) {
         $.getJSON(AJAX_URL + '?action=list_marcas', function (r) {
             if (!r.success) return;
             marcasData = r.data;
@@ -579,6 +579,8 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
             $('#suc_mar_id').html(opts);
 
             renderMarcas(r.data);
+
+            if (typeof callback === 'function') callback();
         });
     }
 
@@ -819,14 +821,13 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
             success: function (r) {
                 if (r.success) {
                     $('#modal_sucursal').modal('hide');
-                    cargarMarcas();
-                    // Reabrir la marca correspondiente
-                    setTimeout(function () {
+                    cargarMarcas(function () {
+                        // Reabrir la marca correspondiente una vez que el DOM esté listo
                         expandedId = parseInt(mar_id);
                         $('#marca-row-' + mar_id).addClass('expanded');
                         $('#detail-row-' + mar_id).addClass('open');
                         cargarSucursales(mar_id);
-                    }, 300);
+                    });
                 } else { alert(r.mensaje); }
             },
             error: function () { alert('Error de conexión'); },

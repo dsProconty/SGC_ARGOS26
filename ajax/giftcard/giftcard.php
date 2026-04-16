@@ -189,6 +189,10 @@ switch ($action) {
         }
 
         $stmt = $mysqli->prepare("INSERT INTO giftcard_solicitud (id_user, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion, sol_fecha_caducidad, sol_estado) VALUES (?, ?, ?, ?, ?, 'PENDING')");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'mensaje' => 'Funcionalidad no disponible. Contacte al administrador para activar el módulo de solicitudes.']);
+            break;
+        }
         $stmt->bind_param('iidss', $id_user, $cantidad, $cupo, $periodo, $caducidad);
         if (!$stmt->execute()) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al registrar solicitud']);

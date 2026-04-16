@@ -1,6 +1,5 @@
-
-
 <?php
+ob_start();
 session_start();
 
 
@@ -28,14 +27,15 @@ else {
 			$permisos_acceso = $pr_row ? mysqli_real_escape_string($mysqli, $pr_row['per_nombre']) : '';
 
             $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,permisos_acceso,per_id,cli_id)
-                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val)")
-                                            or die('error: '.mysqli_error($mysqli));    
+                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val)");
 
-          
             if ($query) {
                 header("location: ../../main.php?module=usuarios&alert=1");
+                exit;
+            } else {
+                echo "<script>alert('Error al crear usuario: " . addslashes(mysqli_error($mysqli)) . "'); history.back();</script>";
             }
-		}	
+		}
 	}
 	
 	elseif ($_GET['act']=='update') {
