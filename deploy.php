@@ -4,20 +4,19 @@
  * Colocar en: /home/sgipro/public_html/SGC_ARGOS26/deploy.php
  */
 
-$secret  = 'argos26_deploy_2026';
+$token   = 'argos26_deploy_2026';
 $branch  = 'feature/nuevas-funcionalidades';
 $repoDir = '/home/sgipro/public_html/SGC_ARGOS26';
 $logFile = $repoDir . '/deploy.log';
 
-// Verificar firma GitHub
-$payload   = file_get_contents('php://input');
-$signature = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
-$expected  = 'sha256=' . hash_hmac('sha256', $payload, $secret);
-
-if (!hash_equals($expected, $signature)) {
+// Verificar token en query string
+$receivedToken = $_GET['token'] ?? '';
+if (!hash_equals($token, $receivedToken)) {
     http_response_code(403);
-    exit('Forbidden: firma inválida');
+    exit('Forbidden: token inválido');
 }
+
+$payload = file_get_contents('php://input');
 
 // Solo disparar en push a la rama correcta
 $data = json_decode($payload, true);
