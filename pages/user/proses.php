@@ -92,14 +92,16 @@ else {
 				}
 		
 				elseif (!empty($_POST['password']) && empty($_FILES['foto']['name'])) {
-					
+
                     $query = mysqli_query($mysqli, "UPDATE usuario SET username='$username',
                                                                   name_user='$name_user',
                                                                   password='$password',
                                                                   email='$email',
                                                                   telefono='$telefono',
                                                                   permisos_acceso='$permisos_acceso',
-                                                                  per_id=$per_id_form
+                                                                  per_id=$per_id_form,
+                                                                  cli_id=$cli_id_val,
+                                                                  loc_id=$loc_id_val
                                                                   WHERE id_user='$id_user'")
                                                     or die('error : '.mysqli_error($mysqli));
 
@@ -124,7 +126,9 @@ else {
 			                                                                  telefono='$telefono',
 			                                                                  foto='$name_file',
 			                                                                  permisos_acceso='$permisos_acceso',
-			                                                                  per_id=$per_id_form
+			                                                                  per_id=$per_id_form,
+			                                                                  cli_id=$cli_id_val,
+			                                                                  loc_id=$loc_id_val
 			                                                                  WHERE id_user='$id_user'")
 			                                                    or die('error : '.mysqli_error($mysqli));
 
@@ -161,7 +165,9 @@ else {
 			                                                                  telefono='$telefono',
 			                                                                  foto='$name_file',
 			                                                                  permisos_acceso='$permisos_acceso',
-			                                                                  per_id=$per_id_form
+			                                                                  per_id=$per_id_form,
+			                                                                  cli_id=$cli_id_val,
+			                                                                  loc_id=$loc_id_val
 			                                                                  WHERE id_user='$id_user'")
 			                                                    or die('error: '.mysqli_error($mysqli));
 

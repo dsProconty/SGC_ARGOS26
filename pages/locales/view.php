@@ -740,7 +740,7 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
                 else alert(r.mensaje);
             },
             error: function (xhr, status, err) {
-                alert('DEBUG – status: ' + status + '\nHTTP: ' + xhr.status + '\nRespuesta:\n' + xhr.responseText.substring(0, 500));
+                alert('Error al guardar la marca. Por favor intente nuevamente.');
             },
             complete: function () { btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar'); }
         });
