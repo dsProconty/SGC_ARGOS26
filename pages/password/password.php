@@ -1,5 +1,5 @@
 <?php
-require_once "../../config/database.php";
+require_once __DIR__ . "/../../config/database.php";
 $rol        = $_SESSION['permisos_acceso'] ?? '';
 $es_admin   = in_array($rol, ['Super Admin', 'Supervisor']);
 
