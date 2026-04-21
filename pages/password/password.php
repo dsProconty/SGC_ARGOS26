@@ -64,8 +64,8 @@ if ($es_admin) {
                                 <?php if ($es_admin): ?>
                                     <!-- Admins pueden seleccionar cualquier usuario -->
                                     <div class="alert alert-info">
-                                        <i class="icon dripicons-information"></i>
-                                        Como administrador puedes restablecer la contraseña de cualquier usuario sin conocer la contraseña anterior.
+                                        <span class="icon"><i class="dripicons-information"></i></span>
+                                        <span class="text">Como administrador puedes restablecer la contraseña de cualquier usuario sin conocer la contraseña anterior.</span>
                                     </div>
                                     <div class="form-group row">
                                         <label class="col-sm-4 col-form-label">Usuario a modificar <span class="text-danger">*</span></label>

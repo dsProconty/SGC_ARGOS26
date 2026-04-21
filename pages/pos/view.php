@@ -183,8 +183,8 @@
                         <!-- Aviso pago mixto -->
                         <div id="div_aviso_mixto" style="display:none;">
                             <div class="alert alert-warning">
-                                <i class="icon dripicons-warning"></i>
-                                El monto supera el cupo. Complete el diferencial en "Pago externo".
+                                <span class="icon"><i class="dripicons-warning"></i></span>
+                                <span class="text">El monto supera el cupo. Complete el diferencial en "Pago externo".</span>
                             </div>
                         </div>
 

@@ -46,7 +46,6 @@
                         <button class="btn btn-sm btn-outline-secondary" onclick="limpiarFiltros()">
                             <i class="icon dripicons-cross"></i> Limpiar
                         </button>
-                        <span class="ml-auto text-muted small" id="total_clientes"></span>
                     </div>
                 </div>
             </div>
@@ -466,7 +465,6 @@ function cargarClientes() {
             pageLength: 15,
             order: [[1,'asc']]
         });
-        $('#total_clientes').text(dt.data().count() + ' clientes');
     });
 }
 

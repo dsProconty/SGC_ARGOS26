@@ -151,9 +151,9 @@ $tipo = $_GET['tipo'];
                                 <div class="row">
                                     <div class="col-sm-10 offset-sm-1">
                                         <div class="alert alert-info">
-                                            <i class="icon dripicons-information"></i>
-                                            Este reporte muestra la deuda agrupada por cliente según la edad de la cartera (30, 60, 90 y más de 90 días).
-                                            Solo incluye carteras con estado <strong>pendiente</strong>, <strong>notificación</strong> o <strong>compromiso</strong>.
+                                            <span class="icon"><i class="dripicons-information"></i></span>
+                                            <span class="text">Este reporte muestra la deuda agrupada por cliente según la edad de la cartera (30, 60, 90 y más de 90 días).
+                                            Solo incluye carteras con estado <strong>pendiente</strong>, <strong>notificación</strong> o <strong>compromiso</strong>.</span>
                                         </div>
                                         <form action="./pages/reportes/excel.php">
                                             <input type="hidden" name="tipo" value="<?php echo $tipo; ?>">
