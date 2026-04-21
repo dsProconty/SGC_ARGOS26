@@ -73,7 +73,7 @@ switch ($action) {
                                     <i class="icon dripicons-checkmark"></i>
                                 </a>
                             <?php endif; ?>
-                            <a class="btn btn-primary btn-sm" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
+                            <a class="btn btn-info btn-sm" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
                                 <i class="icon dripicons-document-edit"></i>
                             </a>
                         </td>
