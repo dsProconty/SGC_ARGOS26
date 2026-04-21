@@ -20,7 +20,7 @@ $payload = file_get_contents('php://input');
 
 // Solo disparar en push a la rama correcta
 $data = json_decode($payload, true);
-$pushedBranch = basename($data['ref'] ?? '');
+$pushedBranch = str_replace('refs/heads/', '', $data['ref'] ?? '');
 if ($pushedBranch !== $branch && $branch !== '*') {
     http_response_code(200);
     exit("Ignorado: rama $pushedBranch");
