@@ -92,12 +92,9 @@ switch ($action) {
     case 'list_codigos':
         header('Content-Type: text/html');
         $lgc_id = (int)($_GET['lgc_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
+        $result = mysqli_query($mysqli, "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
                                            cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad, cgc_fecha_uso
-                                    FROM codigo_gift_card WHERE lgc_id = ? ORDER BY cgc_id ASC");
-        $stmt->bind_param('i', $lgc_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
+                                    FROM codigo_gift_card WHERE lgc_id = $lgc_id ORDER BY cgc_id ASC");
         $badges = ['activo' => 'success', 'consumido' => 'secondary', 'vencido' => 'warning', 'anulado' => 'danger'];
         ?>
         <table id="table_codigos" class="table table-striped table-bordered" style="width:100%">
@@ -108,7 +105,7 @@ switch ($action) {
                 </tr>
             </thead>
             <tbody>
-                <?php $no = 1; while ($row = $result->fetch_assoc()) {
+                <?php $no = 1; while ($row = mysqli_fetch_assoc($result)) {
                     $color = $badges[$row['cgc_estado']] ?? 'info'; ?>
                 <tr>
                     <td><?php echo $no; ?></td>
@@ -259,7 +256,7 @@ switch ($action) {
         }
         $query  = "SELECT s.sol_id, s.sol_cantidad, s.sol_cupo_codigo, s.sol_periodo_facturacion,
                           s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
-                          u.name_user, u.email
+                          u.name_user
                    FROM giftcard_solicitud s
                    JOIN usuario u ON s.id_user = u.id_user
                    ORDER BY FIELD(s.sol_estado,'PENDING','APPROVED','REJECTED'), s.sol_fecha_solicitud DESC";
@@ -319,15 +316,13 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'mis_solicitudes':
         header('Content-Type: text/html');
-        $stmt = $mysqli->prepare("SELECT sol_id, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion,
+        $result = mysqli_query($mysqli, "SELECT sol_id, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion,
                                          sol_fecha_caducidad, sol_estado, sol_fecha_solicitud
-                                  FROM giftcard_solicitud WHERE id_user = ? ORDER BY sol_fecha_solicitud DESC");
-        $stmt->bind_param('i', $id_user);
-        $stmt->execute();
-        $result = $stmt->get_result();
+                                  FROM giftcard_solicitud WHERE id_user = $id_user ORDER BY sol_fecha_solicitud DESC");
         $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
         $labels = ['PENDING' => 'Pendiente', 'APPROVED' => 'Aprobado', 'REJECTED' => 'Rechazado'];
-        $rows   = $result->fetch_all(MYSQLI_ASSOC);
+        $rows   = [];
+        if ($result) { while ($r = mysqli_fetch_assoc($result)) $rows[] = $r; }
         if (empty($rows)): ?>
             <div class="text-center py-5 text-muted">
                 <i class="icon dripicons-inbox" style="font-size:2.5rem; display:block; margin-bottom:10px; opacity:.4;"></i>
@@ -373,12 +368,12 @@ switch ($action) {
         header('Content-Type: application/json');
         if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT s.*, u.name_user, u.email
+        $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
+                                    u.name_user
                                     FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
-                                    WHERE s.sol_id = ?");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
+                                    WHERE s.sol_id = $sol_id");
+        $row = $result ? mysqli_fetch_assoc($result) : null;
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
         echo json_encode(['success' => true, 'data' => $row]);
         break;
@@ -393,10 +388,12 @@ switch ($action) {
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
 
-        $stmt = $mysqli->prepare("SELECT s.*, u.name_user, u.email FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = ? AND s.sol_estado = 'PENDING'");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $sol = $stmt->get_result()->fetch_assoc();
+        $res_sol = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad,
+                                    u.name_user, COALESCE(u.email,'') as email
+                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
+        $sol = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
 
         if (!$sol) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada o ya procesada']); break; }
 
@@ -455,10 +452,12 @@ switch ($action) {
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
 
-        $stmt = $mysqli->prepare("SELECT s.*, u.name_user, u.email FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = ? AND s.sol_estado = 'PENDING'");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $sol = $stmt->get_result()->fetch_assoc();
+        $res_sol2 = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad,
+                                    u.name_user, COALESCE(u.email,'') as email
+                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
+        $sol = $res_sol2 ? mysqli_fetch_assoc($res_sol2) : null;
 
         if (!$sol) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada o ya procesada']); break; }
 
@@ -497,12 +496,11 @@ switch ($action) {
         header('Content-Type: application/json');
         if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
+        $res_h  = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                     FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
-                                    WHERE h.sol_id = ? ORDER BY h.aph_timestamp DESC");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                                    WHERE h.sol_id = $sol_id ORDER BY h.aph_timestamp DESC");
+        $rows = [];
+        if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
