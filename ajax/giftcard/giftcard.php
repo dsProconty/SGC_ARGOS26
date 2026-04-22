@@ -159,6 +159,12 @@ switch ($action) {
         $errors = 0;
 
         $ins = $mysqli->prepare("INSERT INTO codigo_gift_card (lgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad) VALUES (?, ?, ?, ?, 'activo', ?, ?)");
+        if (!$ins) {
+            // La columna cgc_fecha_caducidad no existe — ejecutar migrations/bloque2_giftcard_pos.sql
+            $mysqli->query("DELETE FROM lote_gift_card WHERE lgc_id = $lgc_id");
+            echo json_encode(['success' => false, 'mensaje' => 'Error de estructura BD: ejecute la migración bloque2_giftcard_pos.sql en phpMyAdmin.']);
+            break;
+        }
         for ($i = 0; $i < $cantidad; $i++) {
             $codigo = strtoupper(bin2hex(random_bytes(6)));
             $ins->bind_param('isddss', $lgc_id, $codigo, $cupo, $cupo, $now, $caducidad);

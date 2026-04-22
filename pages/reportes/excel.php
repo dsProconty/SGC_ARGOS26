@@ -30,13 +30,22 @@ switch ($tipo) {
             $iva = 0.00;
 
             if($marca == 'TODOS'){
-                $query = "SELECT loc_direccion, con_valor_total,con_iva,mar_descripcion from consumo c,local l,marca m 
-                where c.loc_id = l.loc_id and c.con_fecha >= '$fechaini' and c.con_fecha<='$fechafin'
-                and l.mar_id = m.mar_id group by l.loc_id";
+                $query = "SELECT l.loc_direccion, SUM(c.con_valor_total) as con_valor_total, SUM(c.con_iva) as con_iva, m.mar_descripcion
+                FROM consumo c
+                JOIN local l ON c.loc_id = l.loc_id
+                JOIN marca m ON l.mar_id = m.mar_id
+                WHERE c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
+                GROUP BY l.loc_id, m.mar_id
+                ORDER BY m.mar_descripcion, l.loc_direccion";
             }else{
-                $query = "SELECT loc_direccion, con_valor_total,con_iva,mar_descripcion from consumo c,local l,marca m 
-                where c.loc_id = l.loc_id and c.con_fecha >= '$fechaini' and c.con_fecha<='$fechafin'
-                and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' group by l.loc_id";
+                $query = "SELECT l.loc_direccion, SUM(c.con_valor_total) as con_valor_total, SUM(c.con_iva) as con_iva, m.mar_descripcion
+                FROM consumo c
+                JOIN local l ON c.loc_id = l.loc_id
+                JOIN marca m ON l.mar_id = m.mar_id
+                WHERE c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
+                AND m.mar_descripcion = '$marca'
+                GROUP BY l.loc_id
+                ORDER BY l.loc_direccion";
             }
 
             
@@ -101,7 +110,7 @@ switch ($tipo) {
                             c.cli_valor_pagar,g.ges_observacion,u.name_user,sum(p.pag_monto) as pag_monto
             from pago p,gestion g,cartera c,cliente cli,usuario u
             where p.pag_id = g.pag_id and g.us_id = u.id_user
-            and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+            and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
             group by c.car_id order by g.ges_id asc";
 
             $result = mysqli_query($mysqli, $query);
@@ -144,7 +153,7 @@ switch ($tipo) {
             $query = "SELECT c.car_id,cli.cli_descripcion,sum(p.pag_monto) as pag_monto,c.car_tipo
             from pago p,gestion g,cartera c,cliente cli
             where p.pag_id = g.pag_id
-            and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+            and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
             group by c.car_id order by g.ges_id asc";
 
             $result = mysqli_query($mysqli, $query);
@@ -180,7 +189,7 @@ switch ($tipo) {
             $query = "SELECT c.car_id,cli.cli_descripcion,sum(p.pag_monto) as pag_monto,c.car_fecha_inicio,c.car_fecha_fin
             from pago p,gestion g,cartera c,cliente cli
             where p.pag_id = g.pag_id
-            and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+            and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
             group by c.car_id order by g.ges_id asc";
 
             $result = mysqli_query($mysqli, $query);
@@ -422,7 +431,7 @@ switch ($tipo) {
                     c.cli_valor_pagar,g.ges_observacion,u.name_user,p.pag_monto,p.pag_observacion,p.pag_fecha
                     from pago p,gestion g,cartera c,cliente cli,usuario u
                     where p.pag_id = g.pag_id and g.us_id = u.id_user
-                    and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+                    and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
                     group by c.car_id order by name_user";
 
             $result = mysqli_query($mysqli, $query);

@@ -89,9 +89,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=reportes&tipo=dinero por edades de cartera"><span>Dinero por edades de cartera</span></a></li>
                         <li><a href="?module=reportes&tipo=cartera recuperada"><span>Cartera recuperada</span></a></li>
                         <li><a href="?module=reportes&tipo=cliente consumos"><span>Cliente + Consumos</span></a></li>
-                        <li><a href="?module=reportes&tipo=cliente - consumos"><span>Cliente - Consumos</span></a></li>
                         <li><a href="?module=reportes&tipo=cobranza por gestor"><span>Detalle de cobranza por gestores</span></a></li>
-                        <li><a href="?module=reportes&tipo=consumos del mes"><span>Consumos del mes</span></a></li>
                     </ul>
                 </li>
                 <?php endif; ?>

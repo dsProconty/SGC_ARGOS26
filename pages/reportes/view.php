@@ -46,11 +46,15 @@ $tipo = $_GET['tipo'];
                                                 <div class="col-sm-4">
                                                     <label for="">Marca</label>
                                                     <select name="marca" id="marca" class="form-control">
-                                                        <option value="0">Seleccione una marca</option>
-                                                        <option value="PIZZA HUT">PIZZA HUT</option>
-                                                        <option value="FRIDAYS">FRIDAYS</option>
-                                                        <option value="OTROS">OTROS</option>
-                                                        <option value="TODOS">TODOS</option>
+                                                        <option value="TODOS">— Todas las marcas —</option>
+                                                        <?php
+                                                        $resMarcas = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE mar_id != 9999 ORDER BY mar_descripcion ASC");
+                                                        while ($m = mysqli_fetch_assoc($resMarcas)):
+                                                        ?>
+                                                            <option value="<?php echo htmlspecialchars($m['mar_descripcion']); ?>">
+                                                                <?php echo htmlspecialchars($m['mar_descripcion']); ?>
+                                                            </option>
+                                                        <?php endwhile; ?>
                                                     </select>
                                                 </div>
                                             </div>

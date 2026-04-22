@@ -66,11 +66,11 @@ switch ($action) {
                         <td class="text-nowrap">
                             <?php if ($row['status'] === 'activo'): ?>
                                 <a class="btn btn-danger btn-sm mr-1" onclick="bloquear_usuario(<?php echo $row['id_user']; ?>)" title="Bloquear" style="color:#fff;">
-                                    <i class="icon dripicons-wrong"></i>
+                                    <i class="dripicons-wrong"></i>
                                 </a>
                             <?php else: ?>
-                                <a class="btn btn-success btn-sm mr-1" onclick="desbloquear_usuario(<?php echo $row['id_user']; ?>)" title="Activar" style="color:#fff;">
-                                    <i class="icon dripicons-checkmark"></i>
+                                <a class="btn btn-warning btn-sm mr-1" onclick="desbloquear_usuario(<?php echo $row['id_user']; ?>)" title="Activar" style="color:#212529;">
+                                    <i class="dripicons-checkmark"></i>
                                 </a>
                             <?php endif; ?>
                             <a class="btn btn-info btn-sm" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
