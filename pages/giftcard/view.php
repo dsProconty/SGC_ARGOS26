@@ -18,11 +18,6 @@ $es_cliente = in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']);
                     </nav>
                 </div>
                 <div class="d-flex" style="gap:8px;">
-                    <?php if ($es_admin): ?>
-                    <button class="btn btn-info" data-toggle="modal" data-target="#modal_nuevo_lote" style="color:#fff;">
-                        <i class="icon dripicons-plus"></i> Nuevo Lote
-                    </button>
-                    <?php endif; ?>
                     <?php if ($es_cliente): ?>
                     <button class="btn btn-success" data-toggle="modal" data-target="#modal_solicitar" style="color:#fff;">
                         <i class="icon dripicons-mail"></i> Solicitar Códigos
@@ -104,44 +99,6 @@ $es_cliente = in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']);
 </div>
 
 <?php if ($es_admin): ?>
-<!-- Modal Nuevo Lote -->
-<div class="modal fade" id="modal_nuevo_lote" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="icon dripicons-plus"></i> Nuevo Lote de Gift Cards</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <div class="modal-body">
-                <div id="alerta_lote"></div>
-                <div class="form-group">
-                    <label>Cantidad de códigos</label>
-                    <input type="number" class="form-control" id="lgc_cantidad" min="1" max="1000" placeholder="Ej: 50">
-                </div>
-                <div class="form-group">
-                    <label>Cupo por código ($)</label>
-                    <input type="number" class="form-control" id="lgc_cupo_codigo" step="0.01" min="0.01" placeholder="Ej: 25.00">
-                </div>
-                <div class="form-group">
-                    <label>Período de facturación</label>
-                    <input type="date" class="form-control" id="lgc_periodo_facturacion">
-                </div>
-                <div class="form-group">
-                    <label>Fecha de caducidad</label>
-                    <input type="date" class="form-control" id="lgc_fecha_caducidad">
-                    <small class="text-muted">Después de esta fecha los códigos no podrán usarse.</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-info" id="btn_crear_lote" style="color:#fff;">
-                    <i class="icon dripicons-checkmark"></i> Crear Lote
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Preview Aprobar/Rechazar -->
 <div class="modal fade" id="modal_preview_sol" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -256,30 +213,6 @@ $(document).ready(function () {
         XLSX.writeFile(wb, 'giftcards_' + titulo + '.xlsx');
     });
 
-    // Crear Lote (Admin)
-    $('#btn_crear_lote').on('click', function () {
-        var cantidad  = parseInt($('#lgc_cantidad').val()) || 0;
-        var cupo      = parseFloat($('#lgc_cupo_codigo').val()) || 0;
-        var periodo   = $('#lgc_periodo_facturacion').val();
-        var caducidad = $('#lgc_fecha_caducidad').val();
-        if (cantidad <= 0 || cupo <= 0 || !periodo || !caducidad) {
-            $('#alerta_lote').html('<div class="alert alert-warning mb-0">Complete todos los campos.</div>');
-            return;
-        }
-        $('#alerta_lote').html('');
-        $('#btn_crear_lote').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Creando...');
-        $.ajax({
-            url: 'ajax/giftcard/giftcard.php', type: 'POST', dataType: 'json',
-            data: { action: 'crear_lote', cantidad: cantidad, cupo_codigo: cupo, periodo_facturacion: periodo, fecha_caducidad: caducidad },
-            success: function (r) {
-                if (r.success) { $('#modal_nuevo_lote').modal('hide'); $('#lgc_cantidad,#lgc_cupo_codigo,#lgc_periodo_facturacion,#lgc_fecha_caducidad').val(''); cargarLotes(); }
-                else { $('#alerta_lote').html('<div class="alert alert-danger mb-0">' + r.mensaje + '</div>'); }
-            },
-            error:    function () { $('#alerta_lote').html('<div class="alert alert-danger mb-0">Error de conexión.</div>'); },
-            complete: function () { $('#btn_crear_lote').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Crear Lote'); }
-        });
-    });
-
     // Enviar Solicitud (Cliente)
     $('#btn_enviar_solicitud').on('click', function () {
         var cantidad  = parseInt($('#sol_cantidad').val()) || 0;
@@ -328,7 +261,6 @@ $(document).ready(function () {
     });
 
     // Limpiar modales
-    $('#modal_nuevo_lote').on('hidden.bs.modal',  function () { $('#alerta_lote').html(''); });
     $('#modal_solicitar').on('hidden.bs.modal',   function () { $('#alerta_solicitar').html(''); });
     $('#modal_preview_sol').on('hidden.bs.modal', function () { $('#alerta_preview').html(''); $('#preview_notas').val(''); });
 });
