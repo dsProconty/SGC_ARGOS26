@@ -206,10 +206,18 @@ switch ($action) {
         }
         $sol_id = $mysqli->insert_id;
 
-        $ru = $mysqli->prepare("SELECT name_user, email FROM usuario WHERE id_user = ?");
-        $ru->bind_param('i', $id_user);
-        $ru->execute();
-        $solicitante = $ru->get_result()->fetch_assoc();
+        // Obtener datos del solicitante (email puede no existir en la tabla)
+        $solicitante = ['name_user' => '', 'email' => ''];
+        $ru = $mysqli->prepare("SELECT name_user FROM usuario WHERE id_user = ?");
+        if ($ru) {
+            $ru->bind_param('i', $id_user);
+            $ru->execute();
+            $row_ru = $ru->get_result()->fetch_assoc();
+            if ($row_ru) $solicitante['name_user'] = $row_ru['name_user'];
+        }
+        // Intentar obtener email si la columna existe
+        $re = @$mysqli->query("SELECT email FROM usuario WHERE id_user = $id_user LIMIT 1");
+        if ($re && $row_re = $re->fetch_assoc()) $solicitante['email'] = $row_re['email'] ?? '';
 
         $admin_email  = get_superadmin_email($mysqli);
         $asunto_admin = "Nueva solicitud de Gift Cards #$sol_id";
