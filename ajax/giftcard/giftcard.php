@@ -19,7 +19,7 @@ $id_user = (int)$_SESSION['id_user'];
 // ─────────────────────────────────────────────
 // Helper: envío de email
 // ─────────────────────────────────────────────
-function enviar_email(?string $para, string $asunto, string $cuerpo): void {
+function enviar_email($para, $asunto, $cuerpo) {
     if (!$para) return;
     $headers  = "MIME-Version: 1.0\r\n";
     $headers .= "Content-type: text/html; charset=utf-8\r\n";
@@ -523,14 +523,20 @@ switch ($action) {
         );
         $stmt->bind_param('s', $codigo);
         $stmt->execute();
-        $gc = $stmt->get_result()->fetch_assoc();
+        $gc_res = mysqli_query($mysqli,
+            "SELECT c.cgc_id, c.cgc_codigo, c.cgc_cupo_disponible, c.cgc_estado, c.cgc_fecha_caducidad
+             FROM codigo_gift_card c
+             JOIN lote_gift_card l ON c.lgc_id = l.lgc_id
+             JOIN giftcard_solicitud s ON l.lgc_id = s.sol_lgc_id
+             WHERE c.cgc_codigo = '" . mysqli_real_escape_string($mysqli, $codigo) . "' AND s.sol_estado = 'APPROVED'
+             LIMIT 1");
+        $gc = $gc_res ? mysqli_fetch_assoc($gc_res) : null;
+        $stmt->close();
 
         if (!$gc) {
             // Verificar si el código existe pero la solicitud no está aprobada
-            $chk = $mysqli->prepare("SELECT cgc_estado FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1");
-            $chk->bind_param('s', $codigo);
-            $chk->execute();
-            $existe = $chk->get_result()->fetch_assoc();
+            $chk_res = mysqli_query($mysqli, "SELECT cgc_estado FROM codigo_gift_card WHERE cgc_codigo = '" . mysqli_real_escape_string($mysqli, $codigo) . "' LIMIT 1");
+            $existe = $chk_res ? mysqli_fetch_assoc($chk_res) : null;
             if ($existe) {
                 echo json_encode(['success' => false, 'mensaje' => 'Código no disponible — solicitud pendiente de aprobación']);
             } else {
