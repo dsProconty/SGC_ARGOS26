@@ -170,7 +170,7 @@ switch ($action) {
 
                 <?php
                 $query = "SELECT c.*,cli.* FROM cartera c, cliente cli,gestion g
-                where c.cli_id = cli.cli_id and c.car_estado = '$case' and g.car_id = c.car_id and c.car_tipo = '$cartera' group by c.car_id ";
+                where c.cli_id = cli.cli_id and c.car_estado IN ('cobrada','pendiente_confirmacion') and g.car_id = c.car_id and c.car_tipo = '$cartera' group by c.car_id ";
 
                 $result = mysqli_query($mysqli, $query); ?>
 
@@ -216,8 +216,10 @@ switch ($action) {
                             $totalPago = $rowPag['total_pago'];
                             $pagEstado = $rowPag['pag_estado'] ?? null;
 
-                            if ($pagEstado === 'confirmado') {
-                                $badgeFinanciero = "<span class='badge badge-pill badge-success'><i class='icon dripicons-checkmark'></i> Aprobado</span>";
+                            if ($row['car_estado'] === 'pendiente_confirmacion') {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-warning'>⏳ Pend. Confirmación</span>";
+                            } elseif ($pagEstado === 'confirmado') {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-success'>✓ Aprobado</span>";
                             } else {
                                 $badgeFinanciero = "<span class='badge badge-pill badge-secondary'>Directo</span>";
                             }
@@ -368,7 +370,7 @@ switch ($action) {
             case 'pendiente_confirmacion':
                 // Migración automática: crear columna si no existe
                 $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
-                $esFinanciero = in_array(strtolower($_SESSION['permisos_acceso'] ?? ''), ['financiero', 'super admin', 'administrador']);
+                $esFinanciero = strtolower($_SESSION['permisos_acceso'] ?? '') === 'financiero';
                 $query = "SELECT c.*, cli.*, g.ges_id, g.us_id,
                                  p.pag_id, p.pag_monto, p.pag_fecha AS pag_fecha_reg, p.pag_observacion,
                                  p.pag_estado, u.name_user AS gestor_nombre
