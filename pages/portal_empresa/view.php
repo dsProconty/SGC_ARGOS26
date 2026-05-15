@@ -1,4 +1,4 @@
-<?php if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'empresa_cliente') {
+<?php if (!isset($_SESSION['id_user'])) {
     echo "<meta http-equiv='refresh' content='0; url=main.php?module=dashboard'>"; exit;
 } ?>
 <div class="content">
