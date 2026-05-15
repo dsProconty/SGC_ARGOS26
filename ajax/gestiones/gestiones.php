@@ -201,23 +201,29 @@ switch ($action) {
 
                             $rowUltGes = mysqli_fetch_array($resultUltGes);
 
-                            $queryPagos = "SELECT sum(p.pag_monto) as total_pago, p.pag_estado
+                            $queryPagos = "SELECT sum(p.pag_monto) as total_pago, p.pag_estado,
+                                p.pag_fecha_confirmacion, p.pag_confirmado_por
                             FROM pago p
                             JOIN gestion g ON p.pag_id = g.pag_id
                             JOIN cartera c ON g.car_id = c.car_id
                             WHERE c.car_id = '$row[car_id]'
-                            GROUP BY c.car_id, p.pag_estado
+                            GROUP BY c.car_id, p.pag_estado, p.pag_fecha_confirmacion, p.pag_confirmado_por
                             ORDER BY p.pag_id DESC LIMIT 1";
 
                             $resPagos = mysqli_query($mysqli, $queryPagos);
 
                             $rowPag = mysqli_fetch_array($resPagos);
 
-                            $totalPago = $rowPag['total_pago'];
-                            $pagEstado = $rowPag['pag_estado'] ?? null;
+                            $totalPago    = $rowPag['total_pago'];
+                            $pagEstado    = $rowPag['pag_estado'] ?? null;
+                            $fechaConf    = $rowPag['pag_fecha_confirmacion'] ?? null;
+                            $confirmadoPor = $rowPag['pag_confirmado_por'] ?? null;
 
                             if ($row['car_estado'] === 'pendiente_confirmacion') {
                                 $badgeFinanciero = "<span class='badge badge-pill badge-warning'>⏳ Pend. Confirmación</span>";
+                            } elseif ($pagEstado === 'confirmado' && $fechaConf) {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-success'>✓ Aprobado</span>"
+                                    . "<br><small class='text-muted' style='font-size:10px;'>" . htmlspecialchars($confirmadoPor) . "<br>" . $fechaConf . "</small>";
                             } elseif ($pagEstado === 'confirmado') {
                                 $badgeFinanciero = "<span class='badge badge-pill badge-success'>✓ Aprobado</span>";
                             } else {
@@ -742,7 +748,11 @@ switch ($action) {
         $pag_id = (int)($_POST['pag_id'] ?? 0);
         $car_id = (int)($_POST['car_id'] ?? 0);
         if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
-        $mysqli->query("UPDATE pago SET pag_estado = 'confirmado' WHERE pag_id = $pag_id");
+        $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
+        $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
+        $fechaConf  = date('Y-m-d H:i:s');
+        $confirmador = mysqli_real_escape_string($mysqli, $_SESSION['name_user'] ?? 'Financiero');
+        $mysqli->query("UPDATE pago SET pag_estado = 'confirmado', pag_fecha_confirmacion = '$fechaConf', pag_confirmado_por = '$confirmador' WHERE pag_id = $pag_id");
         $mysqli->query("UPDATE cartera SET car_estado = 'cobrada' WHERE car_id = $car_id");
         echo json_encode(['success' => true, 'mensaje' => 'Pago confirmado correctamente']);
         break;
