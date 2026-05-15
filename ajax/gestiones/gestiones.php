@@ -305,6 +305,58 @@ switch ($action) {
 
         <?php
                 break;
+            case 'pendiente_confirmacion':
+                $esFinanciero = in_array(strtolower($_SESSION['permisos_acceso'] ?? ''), ['financiero', 'super admin', 'administrador']);
+                $query = "SELECT c.*, cli.*, g.ges_id, g.us_id,
+                                 p.pag_id, p.pag_monto, p.pag_fecha AS pag_fecha_reg, p.pag_observacion,
+                                 u.name_user AS gestor_nombre
+                          FROM cartera c
+                          JOIN cliente cli ON c.cli_id = cli.cli_id
+                          JOIN gestion g ON g.car_id = c.car_id AND g.pag_id IS NOT NULL
+                          JOIN pago p ON g.pag_id = p.pag_id AND p.pag_estado = 'pendiente'
+                          JOIN usuario u ON g.us_id = u.id_user
+                          WHERE c.car_estado = 'pendiente_confirmacion'
+                          AND c.car_tipo = '$cartera'
+                          ORDER BY g.ges_fecha DESC";
+                $result = mysqli_query($mysqli, $query); ?>
+                <table id="table_pendiente_confirmacion" class="table table-striped table-bordered" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>No.</th><th>Ciudad</th><th>Cliente</th><th>Monto a Pagar</th>
+                            <th>Monto Pagado</th><th>Obs. Pago</th><th>Fecha Registro</th>
+                            <th>Gestor</th><th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php $no = 1; while ($row = mysqli_fetch_array($result)) { ?>
+                            <tr>
+                                <td><?php echo $no; ?></td>
+                                <td><?php echo $row['cli_ciudad']; ?></td>
+                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
+                                <td><?php echo $row['cli_valor_pagar']; ?></td>
+                                <td><?php echo $row['pag_monto']; ?></td>
+                                <td><?php echo $row['pag_observacion']; ?></td>
+                                <td><?php echo $row['pag_fecha_reg']; ?></td>
+                                <td><?php echo $row['gestor_nombre']; ?></td>
+                                <td>
+                                    <?php if ($esFinanciero): ?>
+                                    <a class='btn btn-success btn-md' onclick="confirmarPago(<?php echo $row['pag_id']; ?>, <?php echo $row['car_id']; ?>)" title='Confirmar' data-toggle='tooltip'>
+                                        <i style='color:#fff' class='icon dripicons-checkmark'></i>
+                                    </a>
+                                    <a class='btn btn-danger btn-md' onclick="rechazarPago(<?php echo $row['pag_id']; ?>, <?php echo $row['car_id']; ?>)" title='Rechazar' data-toggle='tooltip'>
+                                        <i style='color:#fff' class='icon dripicons-wrong'></i>
+                                    </a>
+                                    <?php endif; ?>
+                                    <a class='btn btn-info btn-md' onclick="ver_observacion(<?php echo $row['ges_id']; ?>)" title='Ver Observación' data-toggle='tooltip'>
+                                        <i style='color:#fff' class='icon dripicons-blog'></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php $no++; } ?>
+                    </tbody>
+                </table>
+<?php
+                break;
             default:
                 # code...
                 break;
@@ -353,7 +405,7 @@ switch ($action) {
         if ($respuesta == 'pago') {
             $monto = $_POST['monto'];
             $observacion = $_POST['observacion'];
-            $estado = 'cobrada';
+            $estado = 'pendiente_confirmacion';
         } else if ($respuesta == 'compromiso') {
             $monto_compromiso = $_POST['monto_compromiso'];
             $fecha_compromiso = $_POST['fecha_compromiso'];
@@ -373,7 +425,8 @@ switch ($action) {
             } else {
                 $id_pago = 1;
             }
-            $queryPago = "INSERT into pago(pag_id,pag_monto,pag_fecha,pag_observacion)values('$id_pago','$monto','$fecha_actual','$observacion')";
+            $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+            $queryPago = "INSERT into pago(pag_id,pag_monto,pag_fecha,pag_observacion,pag_estado)values('$id_pago','$monto','$fecha_actual','$observacion','pendiente')";
             $resPago = mysqli_query($mysqli, $queryPago) or die('error pago:' . mysqli_error($mysqli));
         }
 
@@ -394,7 +447,7 @@ switch ($action) {
         if ($estado == 'pendiente') {
             $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_contacto,ges_observacion,us_id,car_id,ges_fecha)
                         values('$tipo_gestion','$tipo_contacto','$respuesta','$numero_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
-        } elseif ($estado == 'cobrada') {
+        } elseif ($estado == 'cobrada' || $estado == 'pendiente_confirmacion') {
             $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_contacto,ges_observacion,us_id,car_id,pag_id,ges_fecha)
                         values('$tipo_gestion','$tipo_contacto','$respuesta','$numero_contacto','$observacion_gestion','$us_id','$car_id','$id_pago','$fecha_actual')";
         } elseif ($estado == 'compromiso') {
@@ -409,7 +462,7 @@ switch ($action) {
             if ($estado == 'pendiente') {
                 $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,ges_fecha)
                             values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
-            } elseif ($estado == 'cobrada') {
+            } elseif ($estado == 'cobrada' || $estado == 'pendiente_confirmacion') {
                 $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,pag_id,ges_fecha)
                             values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$id_pago','$fecha_actual')";
             } elseif ($estado == 'compromiso') {
@@ -589,16 +642,27 @@ switch ($action) {
                     <th>Monto</th>
                     <th>Observación</th>
                     <th>Gestor</th>
+                    <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                while ($row = mysqli_fetch_array($res)) { ?>
+                while ($row = mysqli_fetch_array($res)) {
+                    $pag_estado_val = $row['pag_estado'] ?? 'confirmado';
+                    if ($pag_estado_val === 'pendiente') {
+                        $pag_estado_badge = "<span class='badge badge-warning'>Pendiente</span>";
+                    } elseif ($pag_estado_val === 'rechazado') {
+                        $pag_estado_badge = "<span class='badge badge-danger'>Rechazado</span>";
+                    } else {
+                        $pag_estado_badge = "<span class='badge badge-success'>Confirmado</span>";
+                    }
+                ?>
                     <tr>
                         <td><?php echo $row['pag_fecha']; ?></td>
                         <td><?php echo $row['pag_monto']; ?></td>
                         <td><?php echo $row['pag_observacion']; ?></td>
                         <td><?php echo $row['name_user']; ?></td>
+                        <td><?php echo $pag_estado_badge; ?></td>
                     </tr>
 
                 <?php
@@ -608,6 +672,26 @@ switch ($action) {
         </table>
 <?php
         break;
+    case 'confirmar_pago':
+        header('Content-Type: application/json');
+        $pag_id = (int)($_POST['pag_id'] ?? 0);
+        $car_id = (int)($_POST['car_id'] ?? 0);
+        if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+        $mysqli->query("UPDATE pago SET pag_estado = 'confirmado' WHERE pag_id = $pag_id");
+        $mysqli->query("UPDATE cartera SET car_estado = 'cobrada' WHERE car_id = $car_id");
+        echo json_encode(['success' => true, 'mensaje' => 'Pago confirmado correctamente']);
+        break;
+
+    case 'rechazar_pago':
+        header('Content-Type: application/json');
+        $pag_id = (int)($_POST['pag_id'] ?? 0);
+        $car_id = (int)($_POST['car_id'] ?? 0);
+        if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+        $mysqli->query("UPDATE pago SET pag_estado = 'rechazado' WHERE pag_id = $pag_id");
+        $mysqli->query("UPDATE cartera SET car_estado = 'pendiente' WHERE car_id = $car_id");
+        echo json_encode(['success' => true, 'mensaje' => 'Pago rechazado. La cartera vuelve a Pendiente.']);
+        break;
+
     default:
         # code...
         break;
