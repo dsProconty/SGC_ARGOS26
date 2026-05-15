@@ -32,9 +32,10 @@
                                     <div class="box-body">
 
                                         <div class="form-group">
-                                            <label class="col-sm-2 control-label">Nombre de usuario</label>
+                                            <label class="col-sm-2 control-label">Cédula / Usuario</label>
                                             <div class="col-sm-5">
                                                 <input type="text" class="form-control" name="username" autocomplete="off" required>
+                                                <small class="text-muted">La cédula será usada para iniciar sesión</small>
                                             </div>
                                         </div>
 
@@ -124,9 +125,10 @@
                                         <input type="hidden" name="id_user" value="<?php echo $data['id_user']; ?>">
 
                                         <div class="form-group">
-                                            <label class="col-sm-2 control-label">Nombre de Usuario</label>
+                                            <label class="col-sm-2 control-label">Cédula / Usuario</label>
                                             <div class="col-sm-5">
                                                 <input type="text" class="form-control" name="username" autocomplete="off" value="<?php echo $data['username']; ?>" required>
+                                                <small class="text-muted">La cédula será usada para iniciar sesión</small>
                                             </div>
                                         </div>
 

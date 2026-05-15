@@ -1,4 +1,5 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once "../../config/database.php";
 
 $action = $_GET['action'] ?? '';
@@ -53,7 +54,12 @@ switch ($action) {
                     <tr>
                         <td><?php echo $no; ?></td>
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
-                        <td><?php echo htmlspecialchars($row['name_user']); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars($row['name_user']); ?>
+                            <?php if ($rol === 'cajero'): ?>
+                                <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
+                            <?php endif; ?>
+                        </td>
                         <td><span class="badge badge-<?php echo $color; ?>"><?php echo htmlspecialchars($row['perfil_nombre'] ?? $label); ?></span></td>
                         <td><?php echo $asignacion; ?></td>
                         <td>
@@ -73,9 +79,14 @@ switch ($action) {
                                     <i class="dripicons-checkmark"></i>
                                 </a>
                             <?php endif; ?>
-                            <a class="btn btn-info btn-sm" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
+                            <a class="btn btn-info btn-sm mr-1" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
                                 <i class="icon dripicons-document-edit"></i>
                             </a>
+                            <?php if ($rol === 'cajero'): ?>
+                                <a class="btn btn-secondary btn-sm" onclick="cambiarLocal(<?php echo $row['id_user']; ?>, <?php echo (int)$row['loc_id']; ?>)" title="Cambiar Local" style="color:#fff;">
+                                    <i class="icon dripicons-location"></i>
+                                </a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php
@@ -103,6 +114,44 @@ switch ($action) {
         $data = [];
         while ($row = $res->fetch_assoc()) $data[] = $row;
         echo json_encode(['success' => true, 'data' => $data]);
+        break;
+
+    // ── REASIGNAR LOCAL — US-02: cambio rápido de local para cajeros ──
+    case 'reasignar_local':
+        header('Content-Type: application/json');
+        $id_user = (int)($_POST['id_user'] ?? 0);
+        $loc_id  = (int)($_POST['loc_id']  ?? 0);
+
+        if (!$id_user || !$loc_id) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        // Validar que el usuario existe
+        $chkUser = $mysqli->prepare("SELECT id_user FROM usuario WHERE id_user = ?");
+        $chkUser->bind_param('i', $id_user);
+        $chkUser->execute();
+        if (!$chkUser->get_result()->num_rows) {
+            echo json_encode(['success' => false, 'mensaje' => 'Usuario no encontrado']);
+            break;
+        }
+
+        // Validar que el local existe y está activo
+        $chkLoc = $mysqli->prepare("SELECT loc_id FROM local WHERE loc_id = ? AND loc_activo = 1");
+        $chkLoc->bind_param('i', $loc_id);
+        $chkLoc->execute();
+        if (!$chkLoc->get_result()->num_rows) {
+            echo json_encode(['success' => false, 'mensaje' => 'Local no encontrado o inactivo']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare("UPDATE usuario SET loc_id = ? WHERE id_user = ?");
+        $stmt->bind_param('ii', $loc_id, $id_user);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'mensaje' => 'Local actualizado correctamente']);
+        } else {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . $mysqli->error]);
+        }
         break;
 
     default:
