@@ -306,17 +306,20 @@ switch ($action) {
         <?php
                 break;
             case 'pendiente_confirmacion':
+                // Migración automática: crear columna si no existe
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
                 $esFinanciero = in_array(strtolower($_SESSION['permisos_acceso'] ?? ''), ['financiero', 'super admin', 'administrador']);
                 $query = "SELECT c.*, cli.*, g.ges_id, g.us_id,
                                  p.pag_id, p.pag_monto, p.pag_fecha AS pag_fecha_reg, p.pag_observacion,
-                                 u.name_user AS gestor_nombre
+                                 p.pag_estado, u.name_user AS gestor_nombre
                           FROM cartera c
                           JOIN cliente cli ON c.cli_id = cli.cli_id
                           JOIN gestion g ON g.car_id = c.car_id AND g.pag_id IS NOT NULL
-                          JOIN pago p ON g.pag_id = p.pag_id AND p.pag_estado = 'pendiente'
+                          JOIN pago p ON g.pag_id = p.pag_id
                           JOIN usuario u ON g.us_id = u.id_user
                           WHERE c.car_estado = 'pendiente_confirmacion'
                           AND c.car_tipo = '$cartera'
+                          AND p.pag_estado = 'pendiente'
                           ORDER BY g.ges_fecha DESC";
                 $result = mysqli_query($mysqli, $query); ?>
                 <table id="table_pendiente_confirmacion" class="table table-striped table-bordered" style="width:100%">
