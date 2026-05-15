@@ -123,6 +123,52 @@ switch ($action) {
             <?php
                 break;
             case 'cobrada':
+                // Migración automática
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+
+                // Resumen financiero: cobrado confirmado vs pendiente de confirmación
+                $qResumen = "SELECT
+                    COALESCE(SUM(CASE WHEN c.car_estado = 'cobrada' THEN p.pag_monto ELSE 0 END), 0) AS total_confirmado,
+                    COALESCE(SUM(CASE WHEN c.car_estado = 'pendiente_confirmacion' THEN p.pag_monto ELSE 0 END), 0) AS total_pendiente
+                    FROM cartera c
+                    JOIN gestion g ON g.car_id = c.car_id AND g.pag_id IS NOT NULL
+                    JOIN pago p ON g.pag_id = p.pag_id
+                    WHERE c.car_tipo = '$cartera'
+                    AND c.car_estado IN ('cobrada','pendiente_confirmacion')";
+                $rowRes = mysqli_fetch_assoc(mysqli_query($mysqli, $qResumen));
+                $totalConfirmado = (float)$rowRes['total_confirmado'];
+                $totalPendConf   = (float)$rowRes['total_pendiente'];
+                $totalGlobal     = $totalConfirmado + $totalPendConf;
+                ?>
+                <!-- WIDGET RESUMEN -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card text-center border-left border-secondary" style="border-left:4px solid #6c757d!important;">
+                            <div class="card-body py-2">
+                                <h5 class="text-secondary font-weight-bold mb-0">$<?php echo number_format($totalGlobal,2); ?></h5>
+                                <small class="text-muted">Total cobrado</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center" style="border-left:4px solid #28a745!important;">
+                            <div class="card-body py-2">
+                                <h5 class="text-success font-weight-bold mb-0">$<?php echo number_format($totalConfirmado,2); ?></h5>
+                                <small class="text-muted">Confirmado Financiero</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center" style="border-left:4px solid #ffc107!important;">
+                            <div class="card-body py-2">
+                                <h5 class="text-warning font-weight-bold mb-0">$<?php echo number_format($totalPendConf,2); ?></h5>
+                                <small class="text-muted">Pend. Confirmación</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <?php
                 $query = "SELECT c.*,cli.* FROM cartera c, cliente cli,gestion g
                 where c.cli_id = cli.cli_id and c.car_estado = '$case' and g.car_id = c.car_id and c.car_tipo = '$cartera' group by c.car_id ";
 
@@ -140,6 +186,7 @@ switch ($action) {
                             <th>Pago</th>
                             <th>Valor Pendiente</th>
                             <th>Estado</th>
+                            <th>Financiero</th>
                             <th>Fecha Ult. Gestión</th>
                             <th>Acciones</th>
                         </tr>
@@ -154,14 +201,26 @@ switch ($action) {
 
                             $rowUltGes = mysqli_fetch_array($resultUltGes);
 
-                            $queryPagos = "SELECT sum(pag_monto) as total_pago from pago p, gestion g, cartera c 
-                            where p.pag_id = g.pag_id and g.car_id = c.car_id and c.car_id = '$row[car_id]'";
+                            $queryPagos = "SELECT sum(p.pag_monto) as total_pago, p.pag_estado
+                            FROM pago p
+                            JOIN gestion g ON p.pag_id = g.pag_id
+                            JOIN cartera c ON g.car_id = c.car_id
+                            WHERE c.car_id = '$row[car_id]'
+                            GROUP BY c.car_id, p.pag_estado
+                            ORDER BY p.pag_id DESC LIMIT 1";
 
                             $resPagos = mysqli_query($mysqli, $queryPagos);
 
                             $rowPag = mysqli_fetch_array($resPagos);
 
                             $totalPago = $rowPag['total_pago'];
+                            $pagEstado = $rowPag['pag_estado'] ?? null;
+
+                            if ($pagEstado === 'confirmado') {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-success'><i class='icon dripicons-checkmark'></i> Aprobado</span>";
+                            } else {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-secondary'>Directo</span>";
+                            }
 
                             if ($totalPago < $row['cli_valor_pagar']) {
                                 $estado = "<span class='badge badge-pill badge-primary border-radius'>Abono</span>";
@@ -179,6 +238,7 @@ switch ($action) {
                                 <td><?php echo $totalPago; ?></td>
                                 <td><?php echo $row['cli_valor_pagar'] - $totalPago ?></td>
                                 <td><?php echo $estado ?></td>
+                                <td><?php echo $badgeFinanciero ?></td>
                                 <td><?php echo $rowUltGes['ges_fecha']; ?></td>
                                 <td>
                                     <a data-toggle='tooltip' data-placement='top' title='Gestionar' class='btn btn-success btn-md' href='?module=nueva_gestion&id=<?php echo $row['car_id'] ?>'>
