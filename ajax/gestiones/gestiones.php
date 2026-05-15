@@ -125,6 +125,8 @@ switch ($action) {
             case 'cobrada':
                 // Migración automática
                 $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
 
                 // Resumen financiero: cobrado confirmado vs pendiente de confirmación
                 $qResumen = "SELECT
