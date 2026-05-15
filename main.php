@@ -65,6 +65,14 @@ session_start();
 	<!-- ================== GLOBAL APP SCRIPTS ==================-->
 	<script src="./assets/js/global/app.js"></script>
 
+	<script>
+	// Limpia cualquier modal-backdrop huérfano que quede de la redirección post-login
+	$(document).ready(function () {
+		$('.modal-backdrop').remove();
+		$('body').removeClass('modal-open').css('overflow', '');
+	});
+	</script>
+
 	<script src="./assets/vendor/jvectormap-next/jquery-jvectormap.min.js"></script>
 	<script src="./assets/vendor/jvectormap-next/jquery-jvectormap-world-mill.js"></script>
 	<!-- ================== PAGE LEVEL VENDOR SCRIPTS ==================-->
