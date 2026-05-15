@@ -32,21 +32,25 @@ switch ($action) {
                 <?php
                 $no = 1;
                 $badges = [
-                    'Super Admin'     => 'danger',
-                    'Supervisor'      => 'warning',
-                    'Operador'        => 'info',
+                    'super admin'     => 'danger',
+                    'supervisor'      => 'warning',
+                    'operador'        => 'info',
                     'cajero'          => 'primary',
                     'empresa_cliente' => 'success',
+                    'administrador'   => 'danger',
                 ];
                 while ($row = mysqli_fetch_array($result)) {
-                    $rol    = $row['permisos_acceso'];
-                    $color  = $badges[$rol] ?? 'secondary';
-                    $label  = $rol === 'empresa_cliente' ? 'Empresa Cliente' : ($rol === 'cajero' ? 'Cajero' : $rol);
+                    $rol      = $row['permisos_acceso'];
+                    $rolLower = strtolower($rol);
+                    $color    = $badges[$rolLower] ?? 'secondary';
+                    $label    = $rolLower === 'empresa_cliente' ? 'Empresa Cliente' : ($rolLower === 'cajero' ? 'Cajero' : $rol);
 
-                    if ($rol === 'empresa_cliente' && $row['cli_descripcion']) {
+                    if ($rolLower === 'empresa_cliente' && $row['cli_descripcion']) {
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
-                    } elseif ($rol === 'cajero' && $row['loc_direccion']) {
+                    } elseif ($rolLower === 'cajero' && $row['loc_direccion']) {
                         $asignacion = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($row['loc_direccion']) . '</small>';
+                    } elseif ($rolLower === 'cajero') {
+                        $asignacion = '<small class="text-muted">Sin local asignado</small>';
                     } else {
                         $asignacion = '<span class="text-muted">—</span>';
                     }
@@ -56,7 +60,7 @@ switch ($action) {
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
                         <td>
                             <?php echo htmlspecialchars($row['name_user']); ?>
-                            <?php if ($rol === 'cajero'): ?>
+                            <?php if ($rolLower === 'cajero'): ?>
                                 <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
                             <?php endif; ?>
                         </td>
@@ -82,7 +86,7 @@ switch ($action) {
                             <a class="btn btn-info btn-sm mr-1" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
                                 <i class="icon dripicons-document-edit"></i>
                             </a>
-                            <?php if ($rol === 'cajero'): ?>
+                            <?php if ($rolLower === 'cajero'): ?>
                                 <a class="btn btn-secondary btn-sm" onclick="cambiarLocal(<?php echo $row['id_user']; ?>, <?php echo (int)$row['loc_id']; ?>)" title="Cambiar Local" style="color:#fff;">
                                     <i class="icon dripicons-location"></i>
                                 </a>
