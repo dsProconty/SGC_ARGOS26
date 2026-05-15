@@ -48,6 +48,12 @@
            <h4>  <i class='icon fa fa-check-circle'></i> Exito!!</h4>
             Has salido con éxito.
             </div>";
+        } elseif ($_GET['alert'] == 3) {
+            echo "<div class='alert alert-warning alert-dismissable'>
+           <button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>
+           <h4><i class='icon dripicons-location'></i> Local reasignado</h4>
+            Tu local de trabajo fue actualizado. Ingresa nuevamente para continuar.
+            </div>";
         }
         ?>
         <form class="sign-in-form" action="login-check.php" method="POST">

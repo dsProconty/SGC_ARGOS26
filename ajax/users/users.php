@@ -149,10 +149,13 @@ switch ($action) {
             break;
         }
 
-        $stmt = $mysqli->prepare("UPDATE usuario SET loc_id = ? WHERE id_user = ?");
+        // Asegurar que la columna session_version existe (migración automática)
+        $mysqli->query("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS session_version INT NOT NULL DEFAULT 0");
+
+        $stmt = $mysqli->prepare("UPDATE usuario SET loc_id = ?, session_version = session_version + 1 WHERE id_user = ?");
         $stmt->bind_param('ii', $loc_id, $id_user);
         if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'mensaje' => 'Local actualizado correctamente']);
+            echo json_encode(['success' => true, 'mensaje' => 'Local actualizado. La sesión activa del cajero será cerrada automáticamente.']);
         } else {
             echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . $mysqli->error]);
         }

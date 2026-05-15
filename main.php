@@ -1,5 +1,18 @@
 <?php
 session_start();
+if (isset($_SESSION['id_user'])) {
+    require_once "config/database.php";
+    $_sv = $mysqli->prepare("SELECT session_version FROM usuario WHERE id_user = ? LIMIT 1");
+    $_sv->bind_param('i', $_SESSION['id_user']);
+    $_sv->execute();
+    $_svRow = $_sv->get_result()->fetch_assoc();
+    if ($_svRow && isset($_SESSION['session_version']) && (int)$_svRow['session_version'] !== (int)$_SESSION['session_version']) {
+        session_unset();
+        session_destroy();
+        header('Location: index.php?alert=3');
+        exit;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
