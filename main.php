@@ -66,6 +66,17 @@ session_start();
 	<script src="./assets/js/global/app.js"></script>
 
 	<script>
+	// Elimina overlay de Pace.js si queda atascado
+	window.addEventListener('load', function() {
+		setTimeout(function() {
+			document.querySelectorAll('.pace, .pace-progress, .pace-progress-inner, .pace-activity').forEach(function(el) {
+				el.style.display = 'none';
+				el.style.opacity = '0';
+				el.style.visibility = 'hidden';
+			});
+		}, 800);
+	});
+
 	// Elimina backdrop huérfano si no hay ningún modal real abierto
 	function _limpiarBackdropHuerfano() {
 		if (document.querySelectorAll('.modal.show').length === 0 &&
