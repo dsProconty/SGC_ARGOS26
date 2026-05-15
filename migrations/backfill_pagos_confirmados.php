@@ -11,15 +11,13 @@ $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20)
 $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
 $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
 
-// Actualizar pagos ligados a carteras en estado 'cobrada' que aún no tienen confirmación registrada
-$sql = "UPDATE pago p
-        JOIN gestion g ON p.pag_id = g.pag_id
-        JOIN cartera c ON g.car_id = c.car_id
-        SET p.pag_estado            = 'confirmado',
-            p.pag_fecha_confirmacion = COALESCE(p.pag_fecha, NOW()),
-            p.pag_confirmado_por    = 'Aprobado - Registro histórico'
-        WHERE c.car_estado = 'cobrada'
-          AND (p.pag_estado != 'confirmado' OR p.pag_estado IS NULL)";
+// Actualizar TODOS los pagos históricos que no han pasado por el flujo de confirmación
+$sql = "UPDATE pago
+        SET pag_estado            = 'confirmado',
+            pag_fecha_confirmacion = COALESCE(pag_fecha, NOW()),
+            pag_confirmado_por    = 'Aprobado - Registro histórico'
+        WHERE pag_estado = 'pendiente'
+          AND pag_fecha_confirmacion IS NULL";
 
 $ok = $mysqli->query($sql);
 $afectados = $mysqli->affected_rows;
