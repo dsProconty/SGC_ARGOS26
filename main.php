@@ -66,11 +66,46 @@ session_start();
 	<script src="./assets/js/global/app.js"></script>
 
 	<script>
-	// Limpia cualquier modal-backdrop huérfano que quede de la redirección post-login
-	$(document).ready(function () {
-		$('.modal-backdrop').remove();
-		$('body').removeClass('modal-open').css('overflow', '');
+	// Elimina backdrop huérfano si no hay ningún modal real abierto
+	function _limpiarBackdropHuerfano() {
+		if (document.querySelectorAll('.modal.show').length === 0 &&
+			document.querySelectorAll('.modal[style*="display: block"]').length === 0) {
+			document.querySelectorAll('.modal-backdrop').forEach(function(el){ el.remove(); });
+			document.body.classList.remove('modal-open');
+			document.body.style.overflow = '';
+			document.body.style.paddingRight = '';
+		}
+	}
+
+	// Ejecutar en carga y en restauración desde caché del navegador
+	document.addEventListener('DOMContentLoaded', function() {
+		_limpiarBackdropHuerfano();
+		setTimeout(_limpiarBackdropHuerfano, 400);
+		setTimeout(_limpiarBackdropHuerfano, 1200);
 	});
+	window.addEventListener('pageshow', function(e) {
+		_limpiarBackdropHuerfano();
+	});
+
+	// MutationObserver: si alguien agrega un .modal-backdrop sin abrir un modal real, lo borra
+	var _backdropObserver = new MutationObserver(function(mutations) {
+		mutations.forEach(function(m) {
+			m.addedNodes.forEach(function(node) {
+				if (node.classList && node.classList.contains('modal-backdrop')) {
+					setTimeout(function() {
+						if (document.querySelectorAll('.modal.show').length === 0 &&
+							document.querySelectorAll('.modal[style*="display: block"]').length === 0) {
+							node.remove();
+							document.body.classList.remove('modal-open');
+							document.body.style.overflow = '';
+							document.body.style.paddingRight = '';
+						}
+					}, 50);
+				}
+			});
+		});
+	});
+	_backdropObserver.observe(document.body, { childList: true, subtree: false });
 	</script>
 
 	<script src="./assets/vendor/jvectormap-next/jquery-jvectormap.min.js"></script>
