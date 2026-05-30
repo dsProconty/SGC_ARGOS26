@@ -5,7 +5,7 @@ $token = $_GET['t'] ?? '';
 if ($token !== 'argos26pull') { die('Forbidden'); }
 
 $repoDir = '/home/sgipro/public_html/SGC_ARGOS26';
-$branch  = 'feature/nuevas-funcionalidades';
+$branch  = 'nuevas-funcionalidades-v2';
 
 $cmd    = "cd $repoDir && git fetch origin && git reset --hard origin/$branch 2>&1";
 $output = shell_exec($cmd);
