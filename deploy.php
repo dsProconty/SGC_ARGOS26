@@ -4,14 +4,16 @@
  * Colocar en: /home/sgipro/public_html/SGC_ARGOS26/deploy.php
  */
 
-$token   = 'argos26_deploy_2026';
+require_once __DIR__ . '/env.php';
+
+$token   = env('DEPLOY_WEBHOOK_TOKEN');
 $branch  = 'feature/nuevas-funcionalidades';
 $repoDir = '/home/sgipro/public_html/SGC_ARGOS26';
 $logFile = $repoDir . '/deploy.log';
 
 // Verificar token en query string
 $receivedToken = $_GET['token'] ?? '';
-if (!hash_equals($token, $receivedToken)) {
+if (!$token || !hash_equals($token, $receivedToken)) {
     http_response_code(403);
     exit('Forbidden: token inválido');
 }
