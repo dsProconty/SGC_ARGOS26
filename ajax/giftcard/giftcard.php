@@ -390,7 +390,7 @@ switch ($action) {
 
         $res_sol = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
                                     s.sol_periodo_facturacion, s.sol_fecha_caducidad,
-                                    u.name_user, COALESCE(u.email,'') as email
+                                    u.name_user, COALESCE(u.email,'') as email, u.cli_id
                                     FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
                                     WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
         $sol = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
@@ -423,6 +423,19 @@ switch ($action) {
             $s4 = $mysqli->prepare("INSERT INTO giftcard_approval_history (sol_id, admin_id, aph_accion, aph_notas) VALUES (?, ?, 'APPROVE', ?)");
             $s4->bind_param('iis', $sol_id, $id_user, $notas);
             if (!$s4->execute()) throw new Exception('Error al registrar historial');
+
+            // 5. CO-01: registrar cobranza del lote en Gestiones (car_tipo='GC'),
+            // independiente de las carteras 30/60/90. Requiere que el cliente
+            // que solicitó el lote tenga cli_id asignado (usuario.cli_id).
+            if (!empty($sol['cli_id'])) {
+                $valorLote = $sol['sol_cantidad'] * $sol['sol_cupo_codigo'];
+                $s5 = $mysqli->prepare(
+                    "INSERT INTO cartera (car_fecha_inicio, car_fecha_fin, car_fecha_ingreso, car_estado, car_tipo, cli_valor_pagar, cli_id, lgc_id)
+                     VALUES (?, ?, CURDATE(), 'sin_gestion', 'GC', ?, ?, ?)"
+                );
+                $s5->bind_param('ssdii', $sol['sol_periodo_facturacion'], $sol['sol_periodo_facturacion'], $valorLote, $sol['cli_id'], $lgc_id);
+                if (!$s5->execute()) throw new Exception('Error al registrar cobranza del lote');
+            }
 
             $mysqli->commit();
 

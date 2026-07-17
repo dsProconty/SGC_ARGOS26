@@ -5,8 +5,9 @@ $action = $_GET['action'];
 
 switch ($action) {
     case 'total_cartera':
-        $queryTotGestionesMes = "SELECT count(car_id) as cartera 
-                                from cartera";
+        // CO-01: excluir GC, es cobranza independiente de la cartera 30/60/90
+        $queryTotGestionesMes = "SELECT count(car_id) as cartera
+                                from cartera where car_tipo != 'GC'";
 
         $resTotal = mysqli_query($mysqli, $queryTotGestionesMes);
 
@@ -26,8 +27,9 @@ switch ($action) {
         break;
     case 'gestiones':
         $arr = array();
-        $queryTotGestionesMes = "SELECT count(car_id) as sin_gestiones 
-                                        from cartera where car_estado = 'sin_gestion'";
+        // CO-01: excluir GC, es cobranza independiente de la cartera 30/60/90
+        $queryTotGestionesMes = "SELECT count(car_id) as sin_gestiones
+                                        from cartera where car_estado = 'sin_gestion' and car_tipo != 'GC'";
 
         $resTotal = mysqli_query($mysqli, $queryTotGestionesMes);
 
