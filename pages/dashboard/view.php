@@ -239,6 +239,47 @@
                                     </div>
                                 </div>
                                 <!-- End Cards Cartera -->
+                                <?php if (in_array($_SESSION['permisos_acceso'] ?? '', ['Super Admin', 'financiero', 'Operador'])): ?>
+                                <!-- Start CO-03: Panel Financiero -->
+                                <div class="row" id="panel_financiero">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <h5 class="card-header">Panel Financiero</h5>
+                                            <div class="card-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <div class="card text-center" style="border-left:4px solid #28a745!important;">
+                                                            <div class="card-body py-2">
+                                                                <h5 class="text-success font-weight-bold mb-0" id="fin_confirmado">$0.00</h5>
+                                                                <small class="text-muted">Cobrado Confirmado</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="card text-center" style="border-left:4px solid #ffc107!important;">
+                                                            <div class="card-body py-2">
+                                                                <h5 class="text-warning font-weight-bold mb-0" id="fin_pendiente">$0.00</h5>
+                                                                <small class="text-muted">Pendiente por Confirmar</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <h6>Top 5 Deudores</h6>
+                                                <table id="tabla_top_deudores" class="table table-sm table-striped table-bordered" style="width:100%">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Cliente</th>
+                                                            <th class="text-right">Deuda Pendiente</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- End CO-03: Panel Financiero -->
+                                <?php endif; ?>
                                 <div class="row">
                                     <div class="col-lg-6">
                                         <div class="card">
@@ -489,6 +530,7 @@
 <script src="./ajax/dashboard/cartera.js"></script>
 <script src="./ajax/dashboard/ventas.js"></script>
 <script src="./ajax/dashboard/estadisticas.js"></script>
+<script src="./ajax/dashboard/financiero.js"></script>
 
 
 <script src="./assets/js/charts/chartjs-init.js"></script>
