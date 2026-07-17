@@ -1,4 +1,5 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once "../../config/database.php";
 
 $action = $_GET['action'] ?? '';
@@ -31,21 +32,25 @@ switch ($action) {
                 <?php
                 $no = 1;
                 $badges = [
-                    'Super Admin'     => 'danger',
-                    'Supervisor'      => 'warning',
-                    'Operador'        => 'info',
+                    'super admin'     => 'danger',
+                    'supervisor'      => 'warning',
+                    'operador'        => 'info',
                     'cajero'          => 'primary',
                     'empresa_cliente' => 'success',
+                    'administrador'   => 'danger',
                 ];
                 while ($row = mysqli_fetch_array($result)) {
-                    $rol    = $row['permisos_acceso'];
-                    $color  = $badges[$rol] ?? 'secondary';
-                    $label  = $rol === 'empresa_cliente' ? 'Empresa Cliente' : ($rol === 'cajero' ? 'Cajero' : $rol);
+                    $rol      = $row['permisos_acceso'];
+                    $rolLower = strtolower($rol);
+                    $color    = $badges[$rolLower] ?? 'secondary';
+                    $label    = $rolLower === 'empresa_cliente' ? 'Empresa Cliente' : ($rolLower === 'cajero' ? 'Cajero' : $rol);
 
-                    if ($rol === 'empresa_cliente' && $row['cli_descripcion']) {
+                    if ($rolLower === 'empresa_cliente' && $row['cli_descripcion']) {
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
-                    } elseif ($rol === 'cajero' && $row['loc_direccion']) {
+                    } elseif ($rolLower === 'cajero' && $row['loc_direccion']) {
                         $asignacion = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($row['loc_direccion']) . '</small>';
+                    } elseif ($rolLower === 'cajero') {
+                        $asignacion = '<small class="text-muted">Sin local asignado</small>';
                     } else {
                         $asignacion = '<span class="text-muted">—</span>';
                     }
@@ -53,7 +58,12 @@ switch ($action) {
                     <tr>
                         <td><?php echo $no; ?></td>
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
-                        <td><?php echo htmlspecialchars($row['name_user']); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars($row['name_user']); ?>
+                            <?php if ($rolLower === 'cajero'): ?>
+                                <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
+                            <?php endif; ?>
+                        </td>
                         <td><span class="badge badge-<?php echo $color; ?>"><?php echo htmlspecialchars($row['perfil_nombre'] ?? $label); ?></span></td>
                         <td><?php echo $asignacion; ?></td>
                         <td>
@@ -65,17 +75,22 @@ switch ($action) {
                         </td>
                         <td class="text-nowrap">
                             <?php if ($row['status'] === 'activo'): ?>
-                                <a class="btn btn-warning btn-md mr-1" onclick="bloquear_usuario(<?php echo $row['id_user']; ?>)" title="Bloquear" style="color:#212529;">
-                                    <i class="icon dripicons-wrong"></i>
+                                <a class="btn btn-danger btn-sm mr-1" onclick="bloquear_usuario(<?php echo $row['id_user']; ?>)" title="Bloquear" style="color:#fff;">
+                                    <i class="dripicons-wrong"></i>
                                 </a>
                             <?php else: ?>
-                                <a class="btn btn-success btn-md mr-1" onclick="desbloquear_usuario(<?php echo $row['id_user']; ?>)" title="Activar" style="color:#fff;">
-                                    <i class="icon dripicons-checkmark"></i>
+                                <a class="btn btn-warning btn-sm mr-1" onclick="desbloquear_usuario(<?php echo $row['id_user']; ?>)" title="Activar" style="color:#212529;">
+                                    <i class="dripicons-checkmark"></i>
                                 </a>
                             <?php endif; ?>
-                            <a class="btn btn-primary btn-md" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
+                            <a class="btn btn-info btn-sm mr-1" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
                                 <i class="icon dripicons-document-edit"></i>
                             </a>
+                            <?php if ($rolLower === 'cajero'): ?>
+                                <a class="btn btn-secondary btn-sm" onclick="cambiarLocal(<?php echo $row['id_user']; ?>, <?php echo (int)$row['loc_id']; ?>)" title="Cambiar Local" style="color:#fff;">
+                                    <i class="icon dripicons-location"></i>
+                                </a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php
@@ -103,6 +118,47 @@ switch ($action) {
         $data = [];
         while ($row = $res->fetch_assoc()) $data[] = $row;
         echo json_encode(['success' => true, 'data' => $data]);
+        break;
+
+    // ── REASIGNAR LOCAL — US-02: cambio rápido de local para cajeros ──
+    case 'reasignar_local':
+        header('Content-Type: application/json');
+        $id_user = (int)($_POST['id_user'] ?? 0);
+        $loc_id  = (int)($_POST['loc_id']  ?? 0);
+
+        if (!$id_user || !$loc_id) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        // Validar que el usuario existe
+        $chkUser = $mysqli->prepare("SELECT id_user FROM usuario WHERE id_user = ?");
+        $chkUser->bind_param('i', $id_user);
+        $chkUser->execute();
+        if (!$chkUser->get_result()->num_rows) {
+            echo json_encode(['success' => false, 'mensaje' => 'Usuario no encontrado']);
+            break;
+        }
+
+        // Validar que el local existe y está activo
+        $chkLoc = $mysqli->prepare("SELECT loc_id FROM local WHERE loc_id = ? AND loc_activo = 1");
+        $chkLoc->bind_param('i', $loc_id);
+        $chkLoc->execute();
+        if (!$chkLoc->get_result()->num_rows) {
+            echo json_encode(['success' => false, 'mensaje' => 'Local no encontrado o inactivo']);
+            break;
+        }
+
+        // Asegurar que la columna session_version existe (migración automática)
+        $mysqli->query("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS session_version INT NOT NULL DEFAULT 0");
+
+        $stmt = $mysqli->prepare("UPDATE usuario SET loc_id = ?, session_version = session_version + 1 WHERE id_user = ?");
+        $stmt->bind_param('ii', $loc_id, $id_user);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'mensaje' => 'Local actualizado. La sesión activa del cajero será cerrada automáticamente.']);
+        } else {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . $mysqli->error]);
+        }
         break;
 
     default:

@@ -182,7 +182,45 @@ switch ($action) {
             return strcmp($a['con_fecha'] . ($a['con_hora'] ?? ''), $b['con_fecha'] . ($b['con_hora'] ?? ''));
         });
 
-        echo json_encode(['success' => true, 'ec' => $ec, 'detalles' => $detalles]);
+        // Get all brands with consumptions for this client in this period
+        $q_marcas = "SELECT DISTINCT m.mar_id, m.mar_descripcion
+                     FROM consumo con
+                     JOIN personal per ON con.per_id = per.per_id
+                     JOIN local l ON con.loc_id = l.loc_id
+                     JOIN marca m ON l.mar_id = m.mar_id
+                     WHERE per.cli_id = $cli_id
+                       AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
+                     ORDER BY m.mar_descripcion ASC";
+        $r_marcas = mysqli_query($mysqli, $q_marcas);
+        $marcas = [];
+        while ($m = mysqli_fetch_assoc($r_marcas)) $marcas[] = $m;
+
+        // Get pivot: per_id, per_nombre, per_documento + sum per brand in period
+        $q_pivot = "SELECT per.per_id, per.per_nombre, per.per_documento,
+                           m.mar_id, SUM(con.con_valor_total) AS total_marca
+                    FROM consumo con
+                    JOIN personal per ON con.per_id = per.per_id
+                    JOIN local l ON con.loc_id = l.loc_id
+                    JOIN marca m ON l.mar_id = m.mar_id
+                    WHERE per.cli_id = $cli_id
+                      AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
+                    GROUP BY per.per_id, m.mar_id
+                    ORDER BY per.per_nombre ASC";
+        $r_pivot = mysqli_query($mysqli, $q_pivot);
+        $pivot_rows = [];
+        while ($row = mysqli_fetch_assoc($r_pivot)) $pivot_rows[] = $row;
+
+        // Get saldo acumulado: total consumption per employee across ALL history
+        $q_saldo = "SELECT per.per_id, SUM(con.con_valor_total) AS saldo_acumulado
+                    FROM consumo con
+                    JOIN personal per ON con.per_id = per.per_id
+                    WHERE per.cli_id = $cli_id
+                    GROUP BY per.per_id";
+        $r_saldo = mysqli_query($mysqli, $q_saldo);
+        $saldos = [];
+        while ($row = mysqli_fetch_assoc($r_saldo)) $saldos[$row['per_id']] = (float)$row['saldo_acumulado'];
+
+        echo json_encode(['success' => true, 'ec' => $ec, 'detalles' => $detalles, 'marcas' => $marcas, 'pivot_rows' => $pivot_rows, 'saldos' => $saldos]);
         break;
 
     default:

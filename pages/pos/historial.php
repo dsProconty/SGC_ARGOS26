@@ -92,7 +92,12 @@ $hoy     = date('Y-m-d');
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="icon dripicons-list"></i> Ventas</span>
-                <span id="div_contador" class="text-muted small"></span>
+                <div class="d-flex align-items-center">
+                    <span id="div_contador" class="text-muted small mr-3"></span>
+                    <button class="btn btn-sm btn-outline-success" id="btn_exportar_excel" style="display:none;" title="Exportar a Excel">
+                        <i class="icon dripicons-download"></i> Exportar Excel
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div id="div_loading" class="text-center p-5 text-muted" style="display:none;">
@@ -168,6 +173,7 @@ $(document).ready(function () {
         $('#div_vacio').hide();
         $('#div_tabla').hide();
         $('#div_resumen').hide();
+        $('#btn_exportar_excel').hide();
         $('#div_loading').show();
 
         var data = { action: 'historial_filtro', fecha_inicio: inicio, fecha_fin: fin };
@@ -202,7 +208,11 @@ $(document).ready(function () {
         });
     }
 
+    // Datos en memoria para exportación Excel
+    var _datosActuales = [];
+
     function renderTabla(data) {
+        _datosActuales = data;
         var html = '';
         data.forEach(function (v) {
             var impreso = v.con_voucher_impreso == 1
@@ -212,8 +222,8 @@ $(document).ready(function () {
                 + '<td>#' + v.con_id + '</td>'
                 + '<td>' + v.con_fecha + '</td>'
                 + '<td>' + v.con_hora + '</td>'
-                + '<td><strong>' + v.per_nombre + '</strong><br><small class="text-muted">' + v.per_documento + '</small></td>'
-                + '<td>' + v.cli_descripcion + '</td>'
+                + '<td><strong>' + htmlEsc(v.per_nombre) + '</strong><br><small class="text-muted">' + v.per_documento + '</small></td>'
+                + '<td>' + htmlEsc(v.cli_descripcion) + '</td>'
                 + '<td class="text-success">$' + parseFloat(v.con_monto_convenio).toFixed(2) + '</td>'
                 + '<td class="text-warning">' + (parseFloat(v.con_monto_externo) > 0 ? '$' + parseFloat(v.con_monto_externo).toFixed(2) : '—') + '</td>'
                 + '<td><strong>$' + parseFloat(v.con_valor_total).toFixed(2) + '</strong></td>'
@@ -224,6 +234,7 @@ $(document).ready(function () {
         });
         $('#tbody_ventas').html(html);
         $('#div_tabla').show();
+        $('#btn_exportar_excel').show();
     }
 
     function renderResumen(data) {
@@ -296,5 +307,39 @@ $(document).ready(function () {
         ventana.document.close();
     });
 
+    // PV-02: Exportar historial a Excel respetando el filtro activo
+    $('#btn_exportar_excel').on('click', function () {
+        if (!_datosActuales.length) return;
+
+        var inicio = $('#f_inicio').val();
+        var fin    = $('#f_fin').val();
+
+        var filas = _datosActuales.map(function (v) {
+            return {
+                'N° Comprobante': '#' + v.con_id,
+                'Fecha':          v.con_fecha,
+                'Hora':           v.con_hora,
+                'Empleado':       v.per_nombre,
+                'Cédula':         v.per_documento,
+                'Empresa':        v.cli_descripcion,
+                'Convenio ($)':   parseFloat(v.con_monto_convenio).toFixed(2),
+                'Externo ($)':    parseFloat(v.con_monto_externo).toFixed(2),
+                'Total ($)':      parseFloat(v.con_valor_total).toFixed(2),
+                'Voucher':        v.con_voucher_impreso == 1 ? 'Impreso' : 'Sin imprimir'
+            };
+        });
+
+        var ws = XLSX.utils.json_to_sheet(filas);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
+        XLSX.writeFile(wb, 'historial_ventas_' + inicio + '_a_' + fin + '.xlsx');
+    });
+
+    function htmlEsc(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
 });
 </script>
+<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>

@@ -92,7 +92,7 @@ function ver_ec(ec_id) {
         dataType: 'json',
         success: function (resp) {
             if (resp.success) {
-                $('#ec_content').html(renderEC(resp.ec, resp.detalles));
+                $('#ec_content').html(renderEC(resp.ec, resp.detalles, resp.marcas || [], resp.pivot_rows || [], resp.saldos || {}));
             } else {
                 $('#ec_content').html('<div class="alert alert-danger">' + resp.mensaje + '</div>');
             }
@@ -103,7 +103,7 @@ function ver_ec(ec_id) {
     });
 }
 
-function renderEC(ec, detalles) {
+function renderEC(ec, detalles, marcas, pivotRows, saldos) {
     var filas       = '';
     var ventaNeta   = 0;
     var totalIva    = 0;
@@ -147,6 +147,108 @@ function renderEC(ec, detalles) {
         '  </tbody>' +
         '</table>';
 
+    // ── EC-01 / EC-02: Pivot table (one row per employee, one column per brand) ──
+    var pivotTable = '';
+    if (!marcas || marcas.length === 0) {
+        pivotTable = '<div class="alert alert-info mt-3">Sin consumos en el período</div>';
+    } else {
+        // Build pivot data structure
+        var empleados = {};
+        pivotRows.forEach(function(row) {
+            if (!empleados[row.per_id]) {
+                empleados[row.per_id] = {
+                    per_nombre: row.per_nombre,
+                    per_documento: row.per_documento,
+                    brands: {},
+                    total_periodo: 0
+                };
+            }
+            var t = parseFloat(row.total_marca) || 0;
+            empleados[row.per_id].brands[row.mar_id] = t;
+            empleados[row.per_id].total_periodo += t;
+        });
+
+        // Grand totals per brand
+        var brandTotals = {};
+        marcas.forEach(function(m) { brandTotals[m.mar_id] = 0; });
+        var grandTotalPeriodo = 0;
+        var grandTotalSaldo = 0;
+
+        // Header row
+        var thMarcas = marcas.map(function(m) {
+            return '<th class="text-right">' + m.mar_descripcion + '</th>';
+        }).join('');
+        var pivotHeader = '<tr><th>Cédula</th><th>Nombre</th>' + thMarcas +
+            '<th class="text-right bg-light">Consumido período</th>' +
+            '<th class="text-right bg-warning text-dark">Saldo acumulado</th></tr>';
+
+        // Body rows
+        var pivotBody = '';
+        Object.keys(empleados).forEach(function(per_id) {
+            var emp = empleados[per_id];
+            var saldo = parseFloat(saldos[per_id]) || 0;
+            var tdMarcas = marcas.map(function(m) {
+                var val = emp.brands[m.mar_id] || 0;
+                brandTotals[m.mar_id] += val;
+                return '<td class="text-right">' +
+                    (val > 0 ? '$' + val.toFixed(2) : '<span class="text-muted">—</span>') +
+                    '</td>';
+            }).join('');
+            grandTotalPeriodo += emp.total_periodo;
+            grandTotalSaldo += saldo;
+            pivotBody += '<tr>' +
+                '<td><small>' + (emp.per_documento || '-') + '</small></td>' +
+                '<td>' + emp.per_nombre + '</td>' +
+                tdMarcas +
+                '<td class="text-right bg-light"><strong>$' + emp.total_periodo.toFixed(2) + '</strong></td>' +
+                '<td class="text-right"><strong>$' + saldo.toFixed(2) + '</strong></td>' +
+                '</tr>';
+        });
+
+        // Footer totals row
+        var tfMarcas = marcas.map(function(m) {
+            return '<td class="text-right"><strong>$' + (brandTotals[m.mar_id] || 0).toFixed(2) + '</strong></td>';
+        }).join('');
+        var pivotFooter = '<tr class="table-active"><td colspan="2"><strong>TOTALES</strong></td>' + tfMarcas +
+            '<td class="text-right bg-light"><strong>$' + grandTotalPeriodo.toFixed(2) + '</strong></td>' +
+            '<td class="text-right"><strong>$' + grandTotalSaldo.toFixed(2) + '</strong></td></tr>';
+
+        pivotTable =
+            '<h6 class="mt-3 mb-2"><strong>Resumen por Beneficiario y Marca</strong></h6>' +
+            '<div style="overflow-x:auto;">' +
+            '<table class="table table-sm table-bordered" style="font-size:12px;">' +
+            '<thead class="thead-dark">' + pivotHeader + '</thead>' +
+            '<tbody>' + pivotBody + '</tbody>' +
+            '<tfoot>' + pivotFooter + '</tfoot>' +
+            '</table></div>';
+    }
+
+    // ── Detail table (collapsible) ──
+    var detalleTable =
+        '<div class="mt-3">' +
+        '<button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#detalle_consumos" aria-expanded="false">' +
+        '<i class="icon dripicons-list"></i> Ver detalle de consumos (' + detalles.length + ' transacciones)' +
+        '</button></div>' +
+        '<div class="collapse" id="detalle_consumos">' +
+        '  <table class="table table-sm table-bordered mt-2" style="font-size:11px;">' +
+        '    <thead class="thead-light">' +
+        '      <tr>' +
+        '        <th>Fecha</th><th>Hora</th><th>Nombres</th><th>Cédula</th><th>Tarjeta/Convenio</th><th>Local</th><th>Descripción</th>' +
+        '        <th class="text-right">Neto</th><th class="text-right">IVA</th><th class="text-right">Total</th>' +
+        '      </tr>' +
+        '    </thead>' +
+        '    <tbody>' + filas + '</tbody>' +
+        '    <tfoot>' +
+        '      <tr class="table-active">' +
+        '        <td colspan="7" class="text-right"><strong>TOTALES</strong></td>' +
+        '        <td class="text-right"><strong>$' + ventaNeta.toFixed(2) + '</strong></td>' +
+        '        <td class="text-right"><strong>$' + totalIva.toFixed(2)  + '</strong></td>' +
+        '        <td class="text-right"><strong>$' + totalVenta.toFixed(2) + '</strong></td>' +
+        '      </tr>' +
+        '    </tfoot>' +
+        '  </table>' +
+        '</div>';
+
     var html =
         '<div style="font-family:Arial,sans-serif; font-size:13px;">' +
         '  <div class="text-center mb-3">' +
@@ -168,23 +270,8 @@ function renderEC(ec, detalles) {
         '    </div>' +
         '  </div>' +
         '  <hr>' +
-        '  <table class="table table-sm table-bordered" style="font-size:12px;">' +
-        '    <thead class="thead-light">' +
-        '      <tr>' +
-        '        <th>Fecha</th><th>Hora</th><th>Nombres</th><th>Cédula</th><th>Tarjeta/Convenio</th><th>Local</th><th>Descripción</th>' +
-        '        <th class="text-right">Neto</th><th class="text-right">IVA</th><th class="text-right">Total</th>' +
-        '      </tr>' +
-        '    </thead>' +
-        '    <tbody>' + filas + '</tbody>' +
-        '    <tfoot>' +
-        '      <tr class="table-active">' +
-        '        <td colspan="7" class="text-right"><strong>TOTALES</strong></td>' +
-        '        <td class="text-right"><strong>$' + ventaNeta.toFixed(2) + '</strong></td>' +
-        '        <td class="text-right"><strong>$' + totalIva.toFixed(2)  + '</strong></td>' +
-        '        <td class="text-right"><strong>$' + totalVenta.toFixed(2) + '</strong></td>' +
-        '      </tr>' +
-        '    </tfoot>' +
-        '  </table>' +
+        pivotTable +
+        detalleTable +
         resumen +
         '  <div class="mt-4 row">' +
         '    <div class="col-6"><p>Firma autorizada: ___________________________</p></div>' +

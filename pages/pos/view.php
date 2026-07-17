@@ -183,8 +183,8 @@
                         <!-- Aviso pago mixto -->
                         <div id="div_aviso_mixto" style="display:none;">
                             <div class="alert alert-warning">
-                                <i class="icon dripicons-warning"></i>
-                                El monto supera el cupo. Complete el diferencial en "Pago externo".
+                                <span class="icon"><i class="dripicons-warning"></i></span>
+                                <span class="text">El monto supera el cupo. Complete el diferencial en "Pago externo".</span>
                             </div>
                         </div>
 
@@ -236,6 +236,65 @@
 
         </div><!-- /row -->
     </section>
+</div>
+
+<!-- ===== MODAL CONFIRMACIÓN DE VENTA (PV-01) ===== -->
+<div class="modal fade" id="modal_confirmar_venta" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="icon dripicons-checkmark"></i> Confirmar Venta</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Revise los datos antes de procesar. Esta acción no se puede deshacer.</p>
+                <table class="table table-sm table-borderless mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted" style="width:40%;">Beneficiario</td>
+                            <td><strong id="conf_nombre"></strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Cédula / Código</td>
+                            <td id="conf_cedula"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Empresa</td>
+                            <td id="conf_empresa"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Local</td>
+                            <td id="conf_local"></td>
+                        </tr>
+                        <tr><td colspan="2"><hr class="my-2"></td></tr>
+                        <tr>
+                            <td class="text-muted">Descripción</td>
+                            <td id="conf_descripcion"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Cargo convenio</td>
+                            <td class="text-success font-weight-bold" id="conf_convenio"></td>
+                        </tr>
+                        <tr id="conf_fila_externo" style="display:none;">
+                            <td class="text-muted">Pago externo</td>
+                            <td class="text-warning" id="conf_externo"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total</td>
+                            <td class="font-weight-bold" id="conf_total"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="icon dripicons-cross"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-success" id="btn_procesar_venta">
+                    <i class="icon dripicons-checkmark"></i> Sí, procesar venta
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ===== MODAL VOUCHER ===== -->
@@ -438,8 +497,11 @@ $(document).ready(function () {
     }
 
     // -------------------------------------------------------
-    // Confirmar venta
+    // PV-01: Mostrar modal de confirmación antes de procesar
     // -------------------------------------------------------
+    var _postDataPendiente = null;
+    var _principalPendiente = 0;
+
     $('#btn_confirmar').on('click', function () {
         var descripcion = $('#con_descripcion').val().trim();
         var monto       = parseFloat($('#monto_convenio').val()) || 0;
@@ -450,25 +512,66 @@ $(document).ready(function () {
         if (!descripcion) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese una descripción del consumo'); $('#con_descripcion').focus(); return; }
         if (principal <= 0) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese un monto válido'); return; }
 
-        $('#btn_confirmar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
-        ocultarAlerta('alerta_venta');
+        // Poblar modal de confirmación
+        if (modo === 'giftcard') {
+            $('#conf_nombre').text('Gift Card');
+            $('#conf_cedula').text($('#gc_codigo_display').text());
+            $('#conf_empresa').text('—');
+        } else {
+            $('#conf_nombre').text($('#emp_nombre').text());
+            $('#conf_cedula').text($('#emp_cedula').text());
+            $('#conf_empresa').text($('#emp_empresa').text());
+        }
 
-        var postData = { con_descripcion: descripcion, monto_externo: externo.toFixed(2) };
+        <?php
+        $loc_id_ses = (int)($_SESSION['loc_id'] ?? 0);
+        $loc_label  = 'N/A';
+        if ($loc_id_ses) {
+            require_once 'config/database.php';
+            $rL = mysqli_query($mysqli, "SELECT l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id_ses LIMIT 1");
+            if ($rL && $rowL = mysqli_fetch_assoc($rL)) {
+                $loc_label = htmlspecialchars($rowL['mar_descripcion'] . ' – ' . $rowL['loc_direccion']);
+            }
+        }
+        ?>
+        $('#conf_local').text('<?= addslashes($loc_label) ?>');
+        $('#conf_descripcion').text(descripcion);
+        $('#conf_convenio').text('$' + principal.toFixed(2));
+        if (externo > 0) {
+            $('#conf_externo').text('$' + externo.toFixed(2));
+            $('#conf_fila_externo').show();
+        } else {
+            $('#conf_fila_externo').hide();
+        }
+        $('#conf_total').text('$' + (principal + externo).toFixed(2));
+
+        // Guardar datos para procesar tras confirmación
+        _principalPendiente = principal;
+        _postDataPendiente  = { con_descripcion: descripcion, monto_externo: externo.toFixed(2) };
 
         if (modo === 'giftcard') {
-            postData.action         = 'registrar_giftcard';
-            postData.cgc_id         = gc_cgc_id;
-            postData.monto_giftcard = principal.toFixed(2);
+            _postDataPendiente.action         = 'registrar_giftcard';
+            _postDataPendiente.cgc_id         = gc_cgc_id;
+            _postDataPendiente.monto_giftcard = principal.toFixed(2);
         } else {
-            postData.action         = 'registrar';
-            postData.per_id         = per_id_actual;
-            postData.monto_convenio = principal.toFixed(2);
+            _postDataPendiente.action         = 'registrar';
+            _postDataPendiente.per_id         = per_id_actual;
+            _postDataPendiente.monto_convenio = principal.toFixed(2);
         }
+
+        $('#modal_confirmar_venta').modal('show');
+    });
+
+    // Botón "Sí, procesar venta" dentro del modal de confirmación
+    $('#btn_procesar_venta').on('click', function () {
+        $('#modal_confirmar_venta').modal('hide');
+        $('#btn_confirmar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
+        ocultarAlerta('alerta_venta');
 
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'POST',
-            data: postData,
+            data: _postDataPendiente,
             dataType: 'json',
             success: function (resp) {
                 if (resp.success) {

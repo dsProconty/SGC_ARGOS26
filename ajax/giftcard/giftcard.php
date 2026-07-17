@@ -1,4 +1,8 @@
 <?php
+// Suprimir warnings/notices en producción para no corromper respuestas JSON
+error_reporting(0);
+ob_start();
+
 session_start();
 require_once '../../config/database.php';
 
@@ -15,7 +19,7 @@ $id_user = (int)$_SESSION['id_user'];
 // ─────────────────────────────────────────────
 // Helper: envío de email
 // ─────────────────────────────────────────────
-function enviar_email(?string $para, string $asunto, string $cuerpo): void {
+function enviar_email($para, $asunto, $cuerpo) {
     if (!$para) return;
     $headers  = "MIME-Version: 1.0\r\n";
     $headers .= "Content-type: text/html; charset=utf-8\r\n";
@@ -88,12 +92,9 @@ switch ($action) {
     case 'list_codigos':
         header('Content-Type: text/html');
         $lgc_id = (int)($_GET['lgc_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
+        $result = mysqli_query($mysqli, "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
                                            cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad, cgc_fecha_uso
-                                    FROM codigo_gift_card WHERE lgc_id = ? ORDER BY cgc_id ASC");
-        $stmt->bind_param('i', $lgc_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
+                                    FROM codigo_gift_card WHERE lgc_id = $lgc_id ORDER BY cgc_id ASC");
         $badges = ['activo' => 'success', 'consumido' => 'secondary', 'vencido' => 'warning', 'anulado' => 'danger'];
         ?>
         <table id="table_codigos" class="table table-striped table-bordered" style="width:100%">
@@ -104,7 +105,7 @@ switch ($action) {
                 </tr>
             </thead>
             <tbody>
-                <?php $no = 1; while ($row = $result->fetch_assoc()) {
+                <?php $no = 1; while ($row = mysqli_fetch_assoc($result)) {
                     $color = $badges[$row['cgc_estado']] ?? 'info'; ?>
                 <tr>
                     <td><?php echo $no; ?></td>
@@ -159,6 +160,12 @@ switch ($action) {
         $errors = 0;
 
         $ins = $mysqli->prepare("INSERT INTO codigo_gift_card (lgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad) VALUES (?, ?, ?, ?, 'activo', ?, ?)");
+        if (!$ins) {
+            // La columna cgc_fecha_caducidad no existe — ejecutar migrations/bloque2_giftcard_pos.sql
+            $mysqli->query("DELETE FROM lote_gift_card WHERE lgc_id = $lgc_id");
+            echo json_encode(['success' => false, 'mensaje' => 'Error de estructura BD: ejecute la migración bloque2_giftcard_pos.sql en phpMyAdmin.']);
+            break;
+        }
         for ($i = 0; $i < $cantidad; $i++) {
             $codigo = strtoupper(bin2hex(random_bytes(6)));
             $ins->bind_param('isddss', $lgc_id, $codigo, $cupo, $cupo, $now, $caducidad);
@@ -189,6 +196,10 @@ switch ($action) {
         }
 
         $stmt = $mysqli->prepare("INSERT INTO giftcard_solicitud (id_user, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion, sol_fecha_caducidad, sol_estado) VALUES (?, ?, ?, ?, ?, 'PENDING')");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'mensaje' => 'Funcionalidad no disponible. Contacte al administrador para activar el módulo de solicitudes.']);
+            break;
+        }
         $stmt->bind_param('iidss', $id_user, $cantidad, $cupo, $periodo, $caducidad);
         if (!$stmt->execute()) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al registrar solicitud']);
@@ -196,10 +207,21 @@ switch ($action) {
         }
         $sol_id = $mysqli->insert_id;
 
-        $ru = $mysqli->prepare("SELECT name_user, email FROM usuario WHERE id_user = ?");
-        $ru->bind_param('i', $id_user);
-        $ru->execute();
-        $solicitante = $ru->get_result()->fetch_assoc();
+        // Obtener datos del solicitante (bind_result, no requiere mysqlnd)
+        $solicitante = ['name_user' => '', 'email' => ''];
+        $ru = $mysqli->prepare("SELECT name_user FROM usuario WHERE id_user = ?");
+        if ($ru) {
+            $ru->bind_param('i', $id_user);
+            $ru->execute();
+            $name_user_val = '';
+            $ru->bind_result($name_user_val);
+            $ru->fetch();
+            $ru->close();
+            $solicitante['name_user'] = $name_user_val;
+        }
+        // Email: query directa con supresión de error si columna no existe
+        $re = @$mysqli->query("SELECT email FROM usuario WHERE id_user = " . (int)$id_user . " LIMIT 1");
+        if ($re && $row_re = mysqli_fetch_assoc($re)) $solicitante['email'] = $row_re['email'] ?? '';
 
         $admin_email  = get_superadmin_email($mysqli);
         $asunto_admin = "Nueva solicitud de Gift Cards #$sol_id";
@@ -234,7 +256,7 @@ switch ($action) {
         }
         $query  = "SELECT s.sol_id, s.sol_cantidad, s.sol_cupo_codigo, s.sol_periodo_facturacion,
                           s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
-                          u.name_user, u.email
+                          u.name_user
                    FROM giftcard_solicitud s
                    JOIN usuario u ON s.id_user = u.id_user
                    ORDER BY FIELD(s.sol_estado,'PENDING','APPROVED','REJECTED'), s.sol_fecha_solicitud DESC";
@@ -294,15 +316,13 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'mis_solicitudes':
         header('Content-Type: text/html');
-        $stmt = $mysqli->prepare("SELECT sol_id, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion,
+        $result = mysqli_query($mysqli, "SELECT sol_id, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion,
                                          sol_fecha_caducidad, sol_estado, sol_fecha_solicitud
-                                  FROM giftcard_solicitud WHERE id_user = ? ORDER BY sol_fecha_solicitud DESC");
-        $stmt->bind_param('i', $id_user);
-        $stmt->execute();
-        $result = $stmt->get_result();
+                                  FROM giftcard_solicitud WHERE id_user = $id_user ORDER BY sol_fecha_solicitud DESC");
         $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
         $labels = ['PENDING' => 'Pendiente', 'APPROVED' => 'Aprobado', 'REJECTED' => 'Rechazado'];
-        $rows   = $result->fetch_all(MYSQLI_ASSOC);
+        $rows   = [];
+        if ($result) { while ($r = mysqli_fetch_assoc($result)) $rows[] = $r; }
         if (empty($rows)): ?>
             <div class="text-center py-5 text-muted">
                 <i class="icon dripicons-inbox" style="font-size:2.5rem; display:block; margin-bottom:10px; opacity:.4;"></i>
@@ -348,12 +368,12 @@ switch ($action) {
         header('Content-Type: application/json');
         if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT s.*, u.name_user, u.email
+        $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
+                                    u.name_user
                                     FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
-                                    WHERE s.sol_id = ?");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
+                                    WHERE s.sol_id = $sol_id");
+        $row = $result ? mysqli_fetch_assoc($result) : null;
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
         echo json_encode(['success' => true, 'data' => $row]);
         break;
@@ -368,10 +388,12 @@ switch ($action) {
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
 
-        $stmt = $mysqli->prepare("SELECT s.*, u.name_user, u.email FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = ? AND s.sol_estado = 'PENDING'");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $sol = $stmt->get_result()->fetch_assoc();
+        $res_sol = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad,
+                                    u.name_user, COALESCE(u.email,'') as email
+                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
+        $sol = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
 
         if (!$sol) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada o ya procesada']); break; }
 
@@ -430,10 +452,12 @@ switch ($action) {
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
 
-        $stmt = $mysqli->prepare("SELECT s.*, u.name_user, u.email FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = ? AND s.sol_estado = 'PENDING'");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $sol = $stmt->get_result()->fetch_assoc();
+        $res_sol2 = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad,
+                                    u.name_user, COALESCE(u.email,'') as email
+                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
+        $sol = $res_sol2 ? mysqli_fetch_assoc($res_sol2) : null;
 
         if (!$sol) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada o ya procesada']); break; }
 
@@ -472,12 +496,11 @@ switch ($action) {
         header('Content-Type: application/json');
         if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
+        $res_h  = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                     FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
-                                    WHERE h.sol_id = ? ORDER BY h.aph_timestamp DESC");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                                    WHERE h.sol_id = $sol_id ORDER BY h.aph_timestamp DESC");
+        $rows = [];
+        if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
@@ -500,14 +523,20 @@ switch ($action) {
         );
         $stmt->bind_param('s', $codigo);
         $stmt->execute();
-        $gc = $stmt->get_result()->fetch_assoc();
+        $gc_res = mysqli_query($mysqli,
+            "SELECT c.cgc_id, c.cgc_codigo, c.cgc_cupo_disponible, c.cgc_estado, c.cgc_fecha_caducidad
+             FROM codigo_gift_card c
+             JOIN lote_gift_card l ON c.lgc_id = l.lgc_id
+             JOIN giftcard_solicitud s ON l.lgc_id = s.sol_lgc_id
+             WHERE c.cgc_codigo = '" . mysqli_real_escape_string($mysqli, $codigo) . "' AND s.sol_estado = 'APPROVED'
+             LIMIT 1");
+        $gc = $gc_res ? mysqli_fetch_assoc($gc_res) : null;
+        $stmt->close();
 
         if (!$gc) {
             // Verificar si el código existe pero la solicitud no está aprobada
-            $chk = $mysqli->prepare("SELECT cgc_estado FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1");
-            $chk->bind_param('s', $codigo);
-            $chk->execute();
-            $existe = $chk->get_result()->fetch_assoc();
+            $chk_res = mysqli_query($mysqli, "SELECT cgc_estado FROM codigo_gift_card WHERE cgc_codigo = '" . mysqli_real_escape_string($mysqli, $codigo) . "' LIMIT 1");
+            $existe = $chk_res ? mysqli_fetch_assoc($chk_res) : null;
             if ($existe) {
                 echo json_encode(['success' => false, 'mensaje' => 'Código no disponible — solicitud pendiente de aprobación']);
             } else {
