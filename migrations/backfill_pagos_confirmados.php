@@ -6,10 +6,13 @@
  */
 require_once '../config/database.php';
 
-// Asegurar que las columnas existen
-$mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
-$mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
-$mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
+// Asegurar que las columnas existen. Sin IF NOT EXISTS: esta versión de
+// MySQL/MariaDB no lo soporta para ADD COLUMN (error 1064) y la falla
+// quedaba silenciosa porque mysqli_report está OFF por defecto en PHP 7.0.
+// Si la columna ya existe, query() devuelve false y seguimos sin problema.
+$mysqli->query("ALTER TABLE pago ADD COLUMN pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+$mysqli->query("ALTER TABLE pago ADD COLUMN pag_fecha_confirmacion DATETIME NULL");
+$mysqli->query("ALTER TABLE pago ADD COLUMN pag_confirmado_por VARCHAR(100) NULL");
 
 // Actualizar TODOS los pagos históricos que no han pasado por el flujo de confirmación
 $sql = "UPDATE pago
