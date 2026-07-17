@@ -10,8 +10,21 @@ if (empty($_SESSION['id_user'])) {
     exit;
 }
 
-$rolesPermitidos = ['Super Admin', 'financiero', 'Operador'];
-if (!in_array($_SESSION['permisos_acceso'] ?? '', $rolesPermitidos)) {
+// Acepta rol legacy (permisos_acceso) O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+$rolesPermitidos = ['super admin', 'financiero', 'operador'];
+$autorizado = in_array(strtolower($_SESSION['permisos_acceso'] ?? ''), $rolesPermitidos);
+if (!$autorizado) {
+    $qPerfil = $mysqli->prepare(
+        "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+    );
+    $qPerfil->bind_param('i', $_SESSION['id_user']);
+    $qPerfil->execute();
+    $rowPerfil = $qPerfil->get_result()->fetch_assoc();
+    if ($rowPerfil) {
+        $autorizado = in_array(strtolower($rowPerfil['per_nombre']), $rolesPermitidos);
+    }
+}
+if (!$autorizado) {
     echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
     exit;
 }

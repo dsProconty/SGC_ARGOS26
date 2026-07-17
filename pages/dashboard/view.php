@@ -239,7 +239,22 @@
                                     </div>
                                 </div>
                                 <!-- End Cards Cartera -->
-                                <?php if (in_array($_SESSION['permisos_acceso'] ?? '', ['Super Admin', 'financiero', 'Operador'])): ?>
+                                <?php
+                                // CO-03: acepta rol legacy (permisos_acceso) O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+                                $co03_rolesPermitidos = ['super admin', 'financiero', 'operador'];
+                                $co03_visible = in_array(strtolower($_SESSION['permisos_acceso'] ?? ''), $co03_rolesPermitidos);
+                                if (!$co03_visible && !empty($_SESSION['id_user'])) {
+                                    $co03_q = $mysqli->prepare(
+                                        "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+                                    );
+                                    $co03_q->bind_param('i', $_SESSION['id_user']);
+                                    $co03_q->execute();
+                                    $co03_row = $co03_q->get_result()->fetch_assoc();
+                                    if ($co03_row) {
+                                        $co03_visible = in_array(strtolower($co03_row['per_nombre']), $co03_rolesPermitidos);
+                                    }
+                                }
+                                if ($co03_visible): ?>
                                 <!-- Start CO-03: Panel Financiero -->
                                 <div class="row" id="panel_financiero">
                                     <div class="col-12">
