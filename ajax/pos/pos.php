@@ -21,6 +21,25 @@ function calcularIva(float $total, float $pct): array {
     return ['subtotal' => $subtotal, 'iva' => $iva];
 }
 
+// Resuelve el local a usar en el consumo. Un cajero con local fijo siempre
+// usa su propio loc_id (no se puede suplantar). Solo si la sesión NO tiene
+// un local asignado (Super Admin/pruebas) se permite elegir uno vía POST,
+// validado contra la tabla local para evitar IDs inventados.
+function resolverLocId($mysqli) {
+    if (!empty($_SESSION['loc_id'])) {
+        return (int)$_SESSION['loc_id'];
+    }
+    $posted = (int)($_POST['loc_id'] ?? 0);
+    if ($posted <= 0) {
+        return null;
+    }
+    $stmt = $mysqli->prepare('SELECT loc_id FROM local WHERE loc_id = ? AND loc_activo = 1');
+    $stmt->bind_param('i', $posted);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row ? (int)$row['loc_id'] : null;
+}
+
 switch ($action) {
 
     // ----------------------------------------------------------
@@ -126,7 +145,7 @@ switch ($action) {
         $monto_externo  = (float)($_POST['monto_externo']  ?? 0);
         $con_descripcion = mysqli_real_escape_string($mysqli, trim($_POST['con_descripcion'] ?? ''));
         $id_user        = (int)$_SESSION['id_user'];
-        $loc_id         = isset($_SESSION['loc_id']) && $_SESSION['loc_id'] ? (int)$_SESSION['loc_id'] : null;
+        $loc_id         = resolverLocId($mysqli);
 
         if ($cgc_id === 0 || $monto_giftcard <= 0) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
@@ -204,7 +223,7 @@ switch ($action) {
         $monto_giftcard = (float)($_POST['monto_giftcard'] ?? 0);
         $cgc_id         = (int)($_POST['cgc_id']           ?? 0);
         $id_user        = (int)$_SESSION['id_user'];
-        $loc_id         = isset($_SESSION['loc_id']) && $_SESSION['loc_id'] ? (int)$_SESSION['loc_id'] : null;
+        $loc_id         = resolverLocId($mysqli);
 
         if ($per_id === 0 || $monto_convenio <= 0) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);

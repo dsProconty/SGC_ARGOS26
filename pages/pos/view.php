@@ -142,6 +142,31 @@
                     </h5>
                     <div class="card-body">
 
+                        <?php if (empty($_SESSION['loc_id'])): ?>
+                        <!-- Selector de local: solo para usuarios sin local fijo (Super Admin/pruebas).
+                             Un cajero real siempre usa su propio local, no ve este selector. -->
+                        <div class="form-group">
+                            <label for="local_selector">
+                                Local comercial <span class="text-danger">*</span>
+                                <small class="text-muted">(modo pruebas: simula el cajero de este local)</small>
+                            </label>
+                            <select id="local_selector" class="form-control form-control-lg">
+                                <option value="">Seleccione un local...</option>
+                                <?php
+                                require_once 'config/database.php';
+                                $rLocales = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion
+                                                                    FROM local l JOIN marca m ON l.mar_id = m.mar_id
+                                                                    WHERE l.loc_activo = 1
+                                                                    ORDER BY m.mar_descripcion ASC, l.loc_direccion ASC");
+                                while ($rowLocSel = mysqli_fetch_assoc($rLocales)) {
+                                    $labelSel = htmlspecialchars($rowLocSel['mar_descripcion'] . ' — ' . $rowLocSel['loc_direccion']);
+                                    echo '<option value="' . (int)$rowLocSel['loc_id'] . '">' . $labelSel . '</option>';
+                                }
+                                ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+
                         <!-- Descripción -->
                         <div class="form-group">
                             <label for="con_descripcion">
@@ -512,6 +537,13 @@ $(document).ready(function () {
         if (!descripcion) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese una descripción del consumo'); $('#con_descripcion').focus(); return; }
         if (principal <= 0) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese un monto válido'); return; }
 
+        var $localSelector = $('#local_selector');
+        if ($localSelector.length && !$localSelector.val()) {
+            mostrarAlerta('alerta_venta', 'warning', 'Seleccione el local comercial');
+            $localSelector.focus();
+            return;
+        }
+
         // Poblar modal de confirmación
         if (modo === 'giftcard') {
             $('#conf_nombre').text('Gift Card');
@@ -534,7 +566,11 @@ $(document).ready(function () {
             }
         }
         ?>
-        $('#conf_local').text('<?= addslashes($loc_label) ?>');
+        if ($localSelector.length) {
+            $('#conf_local').text($localSelector.find('option:selected').text());
+        } else {
+            $('#conf_local').text('<?= addslashes($loc_label) ?>');
+        }
         $('#conf_descripcion').text(descripcion);
         $('#conf_convenio').text('$' + principal.toFixed(2));
         if (externo > 0) {
@@ -548,6 +584,9 @@ $(document).ready(function () {
         // Guardar datos para procesar tras confirmación
         _principalPendiente = principal;
         _postDataPendiente  = { con_descripcion: descripcion, monto_externo: externo.toFixed(2) };
+        if ($localSelector.length) {
+            _postDataPendiente.loc_id = $localSelector.val();
+        }
 
         if (modo === 'giftcard') {
             _postDataPendiente.action         = 'registrar_giftcard';
