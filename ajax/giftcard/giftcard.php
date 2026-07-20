@@ -16,6 +16,23 @@ $action  = $_GET['action'] ?? $_POST['action'] ?? '';
 $rol     = $_SESSION['permisos_acceso'] ?? '';
 $id_user = (int)$_SESSION['id_user'];
 
+// Acepta rol legacy O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+$esSuperAdminGC = (strtolower($rol) === 'super admin');
+if (!$esSuperAdminGC) {
+    $qPerfilGC2 = $mysqli->prepare(
+        "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+    );
+    $qPerfilGC2->bind_param('i', $id_user);
+    $qPerfilGC2->execute();
+    $rowPerfilGC2 = $qPerfilGC2->get_result()->fetch_assoc();
+    if ($rowPerfilGC2) {
+        $esSuperAdminGC = strtolower($rowPerfilGC2['per_nombre']) === 'super admin';
+    }
+}
+// "Cliente" de Gift Cards: rol legacy conocido, o cualquier usuario con
+// empresa asignada (cli_id) que no sea administrador.
+$esClienteGC = !$esSuperAdminGC && (in_array($rol, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
+
 // ─────────────────────────────────────────────
 // Helper: envío de email
 // ─────────────────────────────────────────────
@@ -135,7 +152,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'crear_lote':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') {
+        if (!$esSuperAdminGC) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
             break;
         }
@@ -180,8 +197,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'solicitar_lote':
         header('Content-Type: application/json');
-        $roles_cliente = ['cliente_giftcard', 'empresa_cliente'];
-        if (!in_array($rol, $roles_cliente)) {
+        if (!$esClienteGC) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para solicitar lotes']);
             break;
         }
@@ -250,7 +266,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'list_solicitudes':
         header('Content-Type: text/html');
-        if ($rol !== 'Super Admin') {
+        if (!$esSuperAdminGC) {
             echo '<div class="alert alert-danger">Sin permisos</div>';
             break;
         }
@@ -366,7 +382,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'get_solicitud':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
         $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
                                     s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
@@ -383,7 +399,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'aprobar_solicitud':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
@@ -460,7 +476,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'rechazar_solicitud':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
@@ -507,7 +523,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'ver_historial':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
         $res_h  = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                     FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user

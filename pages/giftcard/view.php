@@ -1,8 +1,23 @@
 <?php
 if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; }
-$rol_gc     = $_SESSION['permisos_acceso'] ?? '';
-$es_admin   = ($rol_gc === 'Super Admin');
-$es_cliente = in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']);
+require_once 'config/database.php';
+$rol_gc   = $_SESSION['permisos_acceso'] ?? '';
+// Acepta rol legacy O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+$es_admin = (strtolower($rol_gc) === 'super admin');
+if (!$es_admin) {
+    $qPerfilGC = $mysqli->prepare(
+        "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+    );
+    $qPerfilGC->bind_param('i', $_SESSION['id_user']);
+    $qPerfilGC->execute();
+    $rowPerfilGC = $qPerfilGC->get_result()->fetch_assoc();
+    if ($rowPerfilGC) {
+        $es_admin = strtolower($rowPerfilGC['per_nombre']) === 'super admin';
+    }
+}
+// "Cliente" de Gift Cards: rol legacy conocido, o cualquier usuario con
+// empresa asignada (cli_id) que no sea administrador.
+$es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
 ?>
 <div class="content" data-layout="tabbed">
     <header class="page-header">
