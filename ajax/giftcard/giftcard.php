@@ -286,15 +286,15 @@ switch ($action) {
                     <td><span class="badge badge-<?php echo $b; ?>"><?php echo $l; ?></span></td>
                     <td>
                         <?php if ($row['sol_estado'] === 'PENDING'): ?>
-                        <button class="btn btn-sm btn-success mr-1" style="color:#fff;"
+                        <button class="btn btn-sm btn-success mr-1" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'APPROVE')"
                             title="Aprobar">
-                            <i class="icon dripicons-checkmark"></i>
+                            <i class="icon dripicons-checkmark" style="color:#fff !important;"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" style="color:#fff;"
+                        <button class="btn btn-sm btn-danger" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'REJECT')"
                             title="Rechazar">
-                            <i class="icon dripicons-cross"></i>
+                            <i class="icon dripicons-cross" style="color:#fff !important;"></i>
                         </button>
                         <?php else: ?>
                         <button class="btn btn-sm btn-outline-secondary"
