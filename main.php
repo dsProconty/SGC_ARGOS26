@@ -141,7 +141,7 @@ if (isset($_SESSION['id_user'])) {
 	
 	<script src="./assets/vendor/chartist/dist/chartist.js"></script>
 
-	<div style="position:fixed;bottom:4px;left:6px;font-size:10px;color:#999;opacity:.6;z-index:9999;pointer-events:none;font-family:monospace;">
+	<div style="position:fixed;bottom:6px;left:8px;font-size:15px;font-weight:bold;color:#777;opacity:.85;z-index:9999;pointer-events:none;font-family:monospace;">
 		v<?php echo htmlspecialchars(trim(@file_get_contents(__DIR__ . '/VERSION')) ?: '?'); ?>
 	</div>
 
