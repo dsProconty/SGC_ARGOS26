@@ -46,12 +46,18 @@ switch ($action) {
                     $color    = $badges[$rolLower] ?? 'secondary';
                     $label    = $rolLower === 'empresa_cliente' ? 'Empresa Cliente' : ($rolLower === 'cajero' ? 'Cajero' : $rol);
 
-                    if ($rolLower === 'empresa_cliente' && $row['cli_descripcion']) {
+                    // No confiar solo en permisos_acceso legacy (puede no coincidir con
+                    // un perfil nuevo asignado vía Perfiles y Permisos): loc_id/cli_id
+                    // son la señal real de si un usuario es cajero/empresa.
+                    $esCajeroFila  = ($rolLower === 'cajero') || !empty($row['loc_id']);
+                    $esEmpresaFila = ($rolLower === 'empresa_cliente') || !empty($row['cli_id']);
+
+                    if ($esEmpresaFila && $row['cli_descripcion']) {
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
-                    } elseif ($rolLower === 'cajero' && $row['loc_direccion']) {
+                    } elseif ($esCajeroFila && $row['loc_direccion']) {
                         $marca = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong> — ' : '';
                         $asignacion = '<small><i class="icon dripicons-location"></i> ' . $marca . htmlspecialchars($row['loc_direccion']) . '</small>';
-                    } elseif ($rolLower === 'cajero') {
+                    } elseif ($esCajeroFila) {
                         $asignacion = '<small class="text-muted">Sin local asignado</small>';
                     } else {
                         $asignacion = '<span class="text-muted">—</span>';
@@ -62,7 +68,7 @@ switch ($action) {
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
                         <td>
                             <?php echo htmlspecialchars($row['name_user']); ?>
-                            <?php if ($rolLower === 'cajero'): ?>
+                            <?php if ($esCajeroFila): ?>
                                 <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
                             <?php endif; ?>
                         </td>
@@ -88,7 +94,7 @@ switch ($action) {
                             <a class="btn btn-info btn-sm mr-1" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
                                 <i class="icon dripicons-document-edit"></i>
                             </a>
-                            <?php if ($rolLower === 'cajero'): ?>
+                            <?php if ($esCajeroFila): ?>
                                 <a class="btn btn-secondary btn-sm" onclick="cambiarLocal(<?php echo $row['id_user']; ?>, <?php echo (int)$row['loc_id']; ?>)" title="Cambiar Local" style="color:#fff;">
                                     <i class="icon dripicons-location"></i>
                                 </a>

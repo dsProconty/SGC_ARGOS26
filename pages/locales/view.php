@@ -1,5 +1,7 @@
 <?php
-if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admin') {
+require_once 'config/database.php';
+require_once 'helpers/session_helpers.php';
+if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     echo "<meta http-equiv='refresh' content='0; url=index.php'>";
     exit;
 }

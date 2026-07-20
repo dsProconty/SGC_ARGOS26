@@ -18,10 +18,11 @@ register_shutdown_function(function () {
 
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/session_helpers.php';
 mysqli_report(MYSQLI_REPORT_OFF); // PHP 8.1 lanza excepciones por defecto — lo desactivamos para manejar errores con if(!$result)
 header('Content-Type: application/json');
 
-if (empty($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admin') {
+if (empty($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     echo json_encode(['success' => false, 'mensaje' => 'Acceso no autorizado']);
     exit;
 }

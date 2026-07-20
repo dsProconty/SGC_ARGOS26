@@ -1,5 +1,6 @@
 <?php
 require_once "../../config/database.php";
+require_once "../../helpers/session_helpers.php";
 session_start();
 date_default_timezone_set('America/Guayaquil');
 $action = $_GET['action'];
@@ -378,7 +379,7 @@ switch ($action) {
             case 'pendiente_confirmacion':
                 // Migración automática: crear columna si no existe
                 $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
-                $esFinanciero = strtolower($_SESSION['permisos_acceso'] ?? '') === 'financiero';
+                $esFinanciero = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'financiero');
                 $query = "SELECT c.*, cli.*, g.ges_id, g.us_id,
                                  p.pag_id, p.pag_monto, p.pag_fecha AS pag_fecha_reg, p.pag_observacion,
                                  p.pag_estado, u.name_user AS gestor_nombre
@@ -747,6 +748,9 @@ switch ($action) {
         break;
     case 'confirmar_pago':
         header('Content-Type: application/json');
+        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'financiero')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break;
+        }
         $pag_id = (int)($_POST['pag_id'] ?? 0);
         $car_id = (int)($_POST['car_id'] ?? 0);
         if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
@@ -761,6 +765,9 @@ switch ($action) {
 
     case 'rechazar_pago':
         header('Content-Type: application/json');
+        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'financiero')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break;
+        }
         $pag_id = (int)($_POST['pag_id'] ?? 0);
         $car_id = (int)($_POST['car_id'] ?? 0);
         if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }

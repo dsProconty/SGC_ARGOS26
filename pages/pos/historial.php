@@ -1,6 +1,7 @@
 <?php
 require_once 'config/database.php';
-$esAdmin = in_array($_SESSION['permisos_acceso'], ['Super Admin', 'Administrador']);
+require_once 'helpers/session_helpers.php';
+$esAdmin = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador');
 $hoy     = date('Y-m-d');
 ?>
 <div class="content">

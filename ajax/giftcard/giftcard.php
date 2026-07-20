@@ -48,7 +48,10 @@ function enviar_email($para, $asunto, $cuerpo) {
 // Helper: obtener email del Super Admin
 // ─────────────────────────────────────────────
 function get_superadmin_email($mysqli): string {
-    $r = mysqli_query($mysqli, "SELECT email FROM usuario WHERE permisos_acceso='Super Admin' AND email IS NOT NULL AND email <> '' LIMIT 1");
+    $r = mysqli_query($mysqli, "SELECT u.email FROM usuario u
+                                 LEFT JOIN perfil p ON u.per_id = p.per_id
+                                 WHERE (u.permisos_acceso = 'Super Admin' OR p.per_nombre = 'Super Admin')
+                                   AND u.email IS NOT NULL AND u.email <> '' LIMIT 1");
     if ($r && $row = mysqli_fetch_assoc($r)) return $row['email'];
     return '';
 }
