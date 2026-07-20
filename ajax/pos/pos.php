@@ -21,13 +21,31 @@ function calcularIva(float $total, float $pct): array {
     return ['subtotal' => $subtotal, 'iva' => $iva];
 }
 
+// Acepta rol legacy (permisos_acceso) O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+function esSuperAdmin($mysqli) {
+    if (strtolower($_SESSION['permisos_acceso'] ?? '') === 'super admin') {
+        return true;
+    }
+    if (empty($_SESSION['id_user'])) {
+        return false;
+    }
+    $stmt = $mysqli->prepare('SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?');
+    $stmt->bind_param('i', $_SESSION['id_user']);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row && strtolower($row['per_nombre']) === 'super admin';
+}
+
 // Resuelve el local a usar en el consumo. Un cajero con local fijo siempre
 // usa su propio loc_id (no se puede suplantar). Solo si la sesión NO tiene
-// un local asignado (Super Admin/pruebas) se permite elegir uno vía POST,
-// validado contra la tabla local para evitar IDs inventados.
+// un local asignado Y el usuario es Super Admin se permite elegir uno vía
+// POST, validado contra la tabla local para evitar IDs inventados.
 function resolverLocId($mysqli) {
     if (!empty($_SESSION['loc_id'])) {
         return (int)$_SESSION['loc_id'];
+    }
+    if (!esSuperAdmin($mysqli)) {
+        return null;
     }
     $posted = (int)($_POST['loc_id'] ?? 0);
     if ($posted <= 0) {

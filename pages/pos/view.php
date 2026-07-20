@@ -142,9 +142,25 @@
                     </h5>
                     <div class="card-body">
 
-                        <?php if (empty($_SESSION['loc_id'])): ?>
-                        <!-- Selector de local: solo para usuarios sin local fijo (Super Admin/pruebas).
-                             Un cajero real siempre usa su propio local, no ve este selector. -->
+                        <?php
+                        // Selector de local: solo para Super Admin (acepta perfil legacy o el
+                        // nuevo asignado vía Perfiles y Permisos). Un cajero real siempre usa
+                        // su propio local, nunca ve este selector.
+                        require_once 'config/database.php';
+                        $esSuperAdminPOS = strtolower($_SESSION['permisos_acceso'] ?? '') === 'super admin';
+                        if (!$esSuperAdminPOS && !empty($_SESSION['id_user'])) {
+                            $qPerfilPOS = $mysqli->prepare(
+                                "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+                            );
+                            $qPerfilPOS->bind_param('i', $_SESSION['id_user']);
+                            $qPerfilPOS->execute();
+                            $rowPerfilPOS = $qPerfilPOS->get_result()->fetch_assoc();
+                            if ($rowPerfilPOS) {
+                                $esSuperAdminPOS = strtolower($rowPerfilPOS['per_nombre']) === 'super admin';
+                            }
+                        }
+                        ?>
+                        <?php if ($esSuperAdminPOS): ?>
                         <div class="form-group">
                             <label for="local_selector">
                                 Local comercial <span class="text-danger">*</span>
@@ -153,7 +169,6 @@
                             <select id="local_selector" class="form-control form-control-lg">
                                 <option value="">Seleccione un local...</option>
                                 <?php
-                                require_once 'config/database.php';
                                 $rLocales = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion
                                                                     FROM local l JOIN marca m ON l.mar_id = m.mar_id
                                                                     WHERE l.loc_activo = 1
