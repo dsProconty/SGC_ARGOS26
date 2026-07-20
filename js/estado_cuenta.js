@@ -174,13 +174,18 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
         var grandTotalPeriodo = 0;
         var grandTotalSaldo = 0;
 
-        // Header row
+        // Header row. Estilos en línea (no clases bg-* de Bootstrap): dentro de
+        // thead-dark, bg-light/bg-warning solo pisaban el fondo y dejaban el
+        // texto blanco heredado sobre fondo claro, ilegible.
         var thMarcas = marcas.map(function(m) {
-            return '<th class="text-right">' + m.mar_descripcion + '</th>';
+            return '<th class="text-right" style="background-color:#212529;color:#fff;">' + m.mar_descripcion + '</th>';
         }).join('');
-        var pivotHeader = '<tr><th>Cédula</th><th>Nombre</th>' + thMarcas +
-            '<th class="text-right bg-light">Consumido período</th>' +
-            '<th class="text-right bg-warning text-dark">Saldo acumulado</th></tr>';
+        var pivotHeader = '<tr>' +
+            '<th style="background-color:#212529;color:#fff;">Cédula</th>' +
+            '<th style="background-color:#212529;color:#fff;">Nombre</th>' +
+            thMarcas +
+            '<th class="text-right" style="background-color:#e9ecef;color:#212529;">Consumido período</th>' +
+            '<th class="text-right" style="background-color:#ffc107;color:#212529;">Saldo acumulado</th></tr>';
 
         // Body rows
         var pivotBody = '';
