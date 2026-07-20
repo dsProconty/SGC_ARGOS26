@@ -6,11 +6,12 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'list':
-        $query = "SELECT u.*, c.cli_descripcion, l.loc_direccion,
+        $query = "SELECT u.*, c.cli_descripcion, l.loc_direccion, m.mar_descripcion,
                          COALESCE(p.per_nombre, u.permisos_acceso) AS perfil_nombre
                   FROM usuario u
                   LEFT JOIN cliente c ON u.cli_id = c.cli_id
                   LEFT JOIN local   l ON u.loc_id  = l.loc_id
+                  LEFT JOIN marca   m ON l.mar_id  = m.mar_id
                   LEFT JOIN perfil  p ON p.per_id  = u.per_id
                   ORDER BY u.id_user DESC";
 
@@ -48,7 +49,8 @@ switch ($action) {
                     if ($rolLower === 'empresa_cliente' && $row['cli_descripcion']) {
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
                     } elseif ($rolLower === 'cajero' && $row['loc_direccion']) {
-                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($row['loc_direccion']) . '</small>';
+                        $marca = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong> — ' : '';
+                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . $marca . htmlspecialchars($row['loc_direccion']) . '</small>';
                     } elseif ($rolLower === 'cajero') {
                         $asignacion = '<small class="text-muted">Sin local asignado</small>';
                     } else {
