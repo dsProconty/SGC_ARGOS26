@@ -2,7 +2,7 @@
 session_start();
 require_once '../../config/database.php';
 
-if (empty($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'empresa_cliente') {
+if (empty($_SESSION['id_user'])) {
     echo json_encode(['success' => false, 'mensaje' => 'Acceso no autorizado']);
     exit;
 }
