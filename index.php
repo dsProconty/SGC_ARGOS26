@@ -92,6 +92,10 @@
     <script src="./assets/vendor/js-storage/js.storage.js"></script>
     <script src="./assets/vendor/js-cookie/src/js.cookie.js"></script>
 
+    <div style="position:fixed;bottom:4px;left:6px;font-size:10px;color:#999;opacity:.6;z-index:9999;pointer-events:none;font-family:monospace;">
+        v<?php echo htmlspecialchars(trim(@file_get_contents(__DIR__ . '/VERSION')) ?: '?'); ?>
+    </div>
+
 </body>
 
 </html>
