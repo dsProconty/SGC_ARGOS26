@@ -3,3 +3,4 @@ deployment:
   tasks:
     - echo "Deploy SGC_ARGOS26 completado"
 # Deploy test Thu Apr 16 15:28:42 HPS 2026
+# Webhook test (token nuevo) 2026-07-17
