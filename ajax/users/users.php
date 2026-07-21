@@ -51,6 +51,10 @@ switch ($action) {
                     // son la señal real de si un usuario es cajero/empresa.
                     $esCajeroFila  = ($rolLower === 'cajero') || !empty($row['loc_id']);
                     $esEmpresaFila = ($rolLower === 'empresa_cliente') || !empty($row['cli_id']);
+                    // El campo "Cédula / Usuario" del formulario de creación se usa para
+                    // TODOS los perfiles, no solo cajeros — mostrar el sub-texto "Cédula:"
+                    // en cualquier fila cuyo username tenga formato de cédula (9-10 dígitos).
+                    $usernameEsCedula = (bool)preg_match('/^\d{9,10}$/', $row['username']);
 
                     if ($esEmpresaFila && $row['cli_descripcion']) {
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
@@ -68,7 +72,7 @@ switch ($action) {
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
                         <td>
                             <?php echo htmlspecialchars($row['name_user']); ?>
-                            <?php if ($esCajeroFila): ?>
+                            <?php if ($usernameEsCedula): ?>
                                 <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
                             <?php endif; ?>
                         </td>

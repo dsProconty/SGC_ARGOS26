@@ -19,7 +19,7 @@ switch ($tipo) {
                 <td colspan="3" style="background-color:LIGHTSTEELBLUE">DESDE: <?php echo $fechaini; ?> HASTA: <?php echo $fechafin; ?></td>
             </tr>
             <tr>
-                <td>Empresa</td>
+                <td>Local</td>
                 <td>Valor</td>
                 <td>Propina</td>
             </tr>
