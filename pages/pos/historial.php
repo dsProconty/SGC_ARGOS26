@@ -369,9 +369,16 @@ $(document).ready(function () {
                 + '</tr>';
         });
 
-        var contenido = '<h4>Historial de Ventas — SGC ARGOS</h4>'
-            + '<p>Período: ' + inicio + ' al ' + fin + ' &nbsp;|&nbsp; Local: ' + localTxt + '</p>'
-            + '<table class="table table-sm table-bordered">'
+        var contenido = '<div class="hv-header">'
+            + '<div class="hv-header-titulo">Historial de Ventas</div>'
+            + '<div class="hv-header-sub">SGC ARGOS</div>'
+            + '</div>'
+            + '<div class="hv-meta">'
+            + '<span><strong>Período:</strong> ' + inicio + ' al ' + fin + '</span>'
+            + '<span><strong>Local:</strong> ' + localTxt + '</span>'
+            + '<span><strong>Registros:</strong> ' + _datosActuales.length + '</span>'
+            + '</div>'
+            + '<table class="hv-table">'
             + '<thead><tr><th>#</th><th>Fecha</th><th>Hora</th><th>Empleado</th><th>Empresa</th>'
             + '<th class="text-right">Convenio</th><th class="text-right">Externo</th><th class="text-right">Total</th></tr></thead>'
             + '<tbody>' + filas + '</tbody>'
@@ -379,16 +386,34 @@ $(document).ready(function () {
             + '<th class="text-right">$' + totalConv.toFixed(2) + '</th>'
             + '<th class="text-right">$' + totalExt.toFixed(2) + '</th>'
             + '<th class="text-right">$' + totalGen.toFixed(2) + '</th></tr></tfoot>'
-            + '</table>';
+            + '</table>'
+            + '<div class="hv-footer">Generado el ' + new Date().toLocaleString('es-EC') + '</div>';
+
+        var estilos = ''
+            + 'body{font-family:Arial,Helvetica,sans-serif;font-size:13px;padding:30px;color:#2c2c2c;}'
+            + '.hv-header{border-bottom:3px solid #6d1b3a;padding-bottom:10px;margin-bottom:14px;}'
+            + '.hv-header-titulo{font-size:22px;font-weight:700;color:#6d1b3a;}'
+            + '.hv-header-sub{font-size:12px;letter-spacing:1px;color:#8a8a8a;text-transform:uppercase;}'
+            + '.hv-meta{display:flex;gap:24px;background:#f7ecf0;border:1px solid #e6cfd8;border-radius:6px;'
+            + 'padding:8px 14px;margin-bottom:16px;font-size:12.5px;color:#4a1226;}'
+            + 'table.hv-table{width:100%;border-collapse:collapse;font-size:12.5px;}'
+            + '.hv-table thead th{background:#6d1b3a;color:#fff;padding:8px 10px;text-align:left;font-weight:600;'
+            + 'border:1px solid #6d1b3a;}'
+            + '.hv-table tbody td{padding:7px 10px;border:1px solid #e6d3da;vertical-align:top;}'
+            + '.hv-table tbody tr:nth-child(even){background:#faf3f6;}'
+            + '.hv-table tbody tr:hover{background:#f2dbe4;}'
+            + '.hv-table tbody small{color:#8a8a8a;}'
+            + '.hv-table tfoot th{background:#4a1226;color:#fff;padding:9px 10px;border:1px solid #4a1226;font-size:13px;}'
+            + '.hv-table .text-right{text-align:right;}'
+            + '.hv-footer{margin-top:16px;font-size:11px;color:#aaa;text-align:right;}'
+            + '@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}';
 
         var ventana = window.open('', '_blank', 'width=900,height=800');
         ventana.document.write('<html><head><title>Historial de Ventas - SGC ARGOS</title>');
-        ventana.document.write('<link rel="stylesheet" href="assets/vendor/bootstrap/dist/css/bootstrap.min.css">');
-        ventana.document.write('<style>body{font-family:Arial,sans-serif;font-size:13px;padding:20px;}');
-        ventana.document.write('@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}</style>');
+        ventana.document.write('<style>' + estilos + '</style>');
         ventana.document.write('</head><body>');
         ventana.document.write('<div class="no-print" style="text-align:right;margin-bottom:15px;">');
-        ventana.document.write('<button onclick="window.print();" style="background:#dc3545;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
+        ventana.document.write('<button onclick="window.print();" style="background:#6d1b3a;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
         ventana.document.write('&#128196; Guardar / Imprimir PDF</button></div>');
         ventana.document.write(contenido);
         ventana.document.write('</body></html>');
