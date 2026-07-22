@@ -366,7 +366,7 @@ $(document).ready(function () {
             success: function (r) {
                 if (r.success) {
                     $('#modal_crear_lote').modal('hide');
-                    cargarLotes();
+                    cargarSolicitudes();
                     mostrarToast('success', r.mensaje);
                 } else { $('#alerta_crear_lote').html('<div class="alert alert-danger mb-0">' + r.mensaje + '</div>'); }
             },
@@ -431,7 +431,7 @@ function cargarSolicitudes() {
         success: function (r) {
             $('#loader_solicitudes').html(r);
             if ($.fn.dataTable.isDataTable('#table_solicitudes')) $('#table_solicitudes').DataTable().destroy();
-            $('#table_solicitudes').dataTable({ order: [[6, 'desc']], pageLength: 10 });
+            $('#table_solicitudes').dataTable({ order: [[7, 'desc']], pageLength: 10 });
         }
     });
 }

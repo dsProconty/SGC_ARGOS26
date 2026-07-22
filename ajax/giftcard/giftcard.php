@@ -155,11 +155,13 @@ switch ($action) {
         break;
 
     // ══════════════════════════════════════════════════
-    // CREAR LOTE — GC-B: Super Admin crea lote directo, sin pasar por
-    // solicitud del cliente final. Requiere asociarlo a un cliente
-    // (existente, elegido en el selector, o uno nuevo creado en el
-    // momento) y registra la cobranza en Gestiones igual que cuando se
-    // aprueba una solicitud (car_tipo='GC').
+    // CREAR LOTE — GC-B: Super Admin arma la solicitud de un lote directo
+    // desde el módulo Gift Card (en vez de que la origine el cliente final
+    // desde Portal Empresa), asociándola a un cliente existente (elegido
+    // en el selector) o a uno nuevo creado en el momento. NO se aprueba
+    // sola: queda PENDING igual que cualquier otra solicitud, y sube a
+    // "Aprobaciones Pendientes" para pasar por el mismo flujo de revisión
+    // (aprobar_solicitud es quien genera los códigos y la cobranza).
     // ══════════════════════════════════════════════════
     case 'crear_lote':
         header('Content-Type: application/json');
@@ -193,31 +195,16 @@ switch ($action) {
                 if (!$chkCli->get_result()->fetch_assoc()) throw new Exception('Cliente no encontrado');
             }
 
-            $s1 = $mysqli->prepare("INSERT INTO lote_gift_card (id_user, lgc_cantidad, lgc_cupo_codigo, lgc_periodo_facturacion, cli_id) VALUES (?, ?, ?, ?, ?)");
-            $s1->bind_param('iidsi', $id_user, $cantidad, $cupo, $periodo, $cli_id);
-            if (!$s1->execute()) throw new Exception('Error al crear lote');
-            $lgc_id = $mysqli->insert_id;
-
-            $now = date('Y-m-d H:i:s');
-            $s2  = $mysqli->prepare("INSERT INTO codigo_gift_card (lgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad) VALUES (?, ?, ?, ?, 'activo', ?, ?)");
-            if (!$s2) throw new Exception('Error de estructura BD: ejecute la migración bloque2_giftcard_pos.sql en phpMyAdmin.');
-            for ($i = 0; $i < $cantidad; $i++) {
-                $codigo = strtoupper(bin2hex(random_bytes(6)));
-                $s2->bind_param('isddss', $lgc_id, $codigo, $cupo, $cupo, $now, $caducidad);
-                if (!$s2->execute()) throw new Exception('Error al generar código');
-            }
-
-            // CO-01: cobranza del lote en Gestiones, igual que al aprobar una solicitud.
-            $valorLote = $cantidad * $cupo;
-            $s3 = $mysqli->prepare(
-                "INSERT INTO cartera (car_fecha_inicio, car_fecha_fin, car_fecha_ingreso, car_estado, car_tipo, cli_valor_pagar, cli_id, lgc_id)
-                 VALUES (?, ?, CURDATE(), 'sin_gestion', 'GC', ?, ?, ?)"
+            $stmt = $mysqli->prepare(
+                "INSERT INTO giftcard_solicitud (id_user, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion, sol_fecha_caducidad, sol_estado, cli_id)
+                 VALUES (?, ?, ?, ?, ?, 'PENDING', ?)"
             );
-            $s3->bind_param('ssdii', $periodo, $periodo, $valorLote, $cli_id, $lgc_id);
-            if (!$s3->execute()) throw new Exception('Error al registrar cobranza del lote');
+            if (!$stmt) throw new Exception('Funcionalidad no disponible. Ejecute la migración bloque3_giftcard_approval.sql.');
+            $stmt->bind_param('iidssi', $id_user, $cantidad, $cupo, $periodo, $caducidad, $cli_id);
+            if (!$stmt->execute()) throw new Exception('Error al crear la solicitud');
 
             $mysqli->commit();
-            echo json_encode(['success' => true, 'mensaje' => "Lote creado con $cantidad códigos generados."]);
+            echo json_encode(['success' => true, 'mensaje' => 'Solicitud creada, pendiente de aprobación.']);
         } catch (Exception $e) {
             $mysqli->rollback();
             echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
@@ -304,9 +291,12 @@ switch ($action) {
         }
         $query  = "SELECT s.sol_id, s.sol_cantidad, s.sol_cupo_codigo, s.sol_periodo_facturacion,
                           s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
-                          u.name_user
+                          u.name_user,
+                          COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre
                    FROM giftcard_solicitud s
                    JOIN usuario u ON s.id_user = u.id_user
+                   LEFT JOIN cliente c_directo ON s.cli_id = c_directo.cli_id
+                   LEFT JOIN cliente c_usuario ON u.cli_id = c_usuario.cli_id
                    ORDER BY FIELD(s.sol_estado,'PENDING','APPROVED','REJECTED'), s.sol_fecha_solicitud DESC";
         $result = mysqli_query($mysqli, $query);
         $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
@@ -315,7 +305,7 @@ switch ($action) {
         <table id="table_solicitudes" class="table table-striped table-bordered" style="width:100%">
             <thead>
                 <tr>
-                    <th>#</th><th>Solicitante</th><th>Cantidad</th><th>Cupo x Cód.</th>
+                    <th>#</th><th>Solicitante</th><th>Cliente</th><th>Cantidad</th><th>Cupo x Cód.</th>
                     <th>Período</th><th>Caducidad</th><th>Fecha Solicitud</th><th>Estado</th><th>Acciones</th>
                 </tr>
             </thead>
@@ -326,6 +316,7 @@ switch ($action) {
                 <tr>
                     <td><?php echo $row['sol_id']; ?></td>
                     <td><?php echo htmlspecialchars($row['name_user']); ?></td>
+                    <td><?php echo htmlspecialchars($row['cliente_nombre']); ?></td>
                     <td><?php echo $row['sol_cantidad']; ?></td>
                     <td>$<?php echo number_format($row['sol_cupo_codigo'], 2); ?></td>
                     <td><?php echo date('d/m/Y', strtotime($row['sol_periodo_facturacion'])); ?></td>
@@ -418,10 +409,10 @@ switch ($action) {
         $sol_id = (int)($_GET['sol_id'] ?? 0);
         $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
                                     s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
-                                    u.name_user, u.cli_id, c.cli_descripcion
+                                    u.name_user, COALESCE(s.cli_id, u.cli_id) AS cli_id, c.cli_descripcion
                                     FROM giftcard_solicitud s
                                     JOIN usuario u ON s.id_user = u.id_user
-                                    LEFT JOIN cliente c ON u.cli_id = c.cli_id
+                                    LEFT JOIN cliente c ON c.cli_id = COALESCE(s.cli_id, u.cli_id)
                                     WHERE s.sol_id = $sol_id");
         $row = $result ? mysqli_fetch_assoc($result) : null;
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
@@ -444,7 +435,7 @@ switch ($action) {
         $desc   = trim($_POST['cli_descripcion'] ?? '');
         if (!$sol_id || $desc === '') { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
 
-        $res_sol3 = mysqli_query($mysqli, "SELECT s.id_user, u.cli_id FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = $sol_id");
+        $res_sol3 = mysqli_query($mysqli, "SELECT s.id_user, COALESCE(s.cli_id, u.cli_id) AS cli_id FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = $sol_id");
         $sol3 = $res_sol3 ? mysqli_fetch_assoc($res_sol3) : null;
         if (!$sol3) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
         if (!empty($sol3['cli_id'])) { echo json_encode(['success' => false, 'mensaje' => 'El solicitante ya tiene un cliente vinculado']); break; }
@@ -480,7 +471,7 @@ switch ($action) {
 
         $res_sol = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
                                     s.sol_periodo_facturacion, s.sol_fecha_caducidad,
-                                    u.name_user, COALESCE(u.email,'') as email, u.cli_id
+                                    u.name_user, COALESCE(u.email,'') as email, COALESCE(s.cli_id, u.cli_id) AS cli_id
                                     FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
                                     WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
         $sol = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
