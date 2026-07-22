@@ -154,5 +154,6 @@
     </div>
 </div>
 
-<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
+<script src="assets/vendor/exceljs/exceljs.min.js"></script>
+<script src="js/export_theme.js"></script>
 <script src="js/venta_diferida.js"></script>

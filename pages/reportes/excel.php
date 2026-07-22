@@ -13,10 +13,10 @@ switch ($tipo) {
 ?>
         <table style="width: 20%;" border="1" class="table table-bordered">
             <tr>
-                <td colspan=3 style="background-color:LIGHTSTEELBLUE"> DETALLE VENTAS</td>
+                <td colspan=3 style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"> DETALLE VENTAS</td>
             </tr>
             <tr>
-                <td colspan="3" style="background-color:LIGHTSTEELBLUE">DESDE: <?php echo $fechaini; ?> HASTA: <?php echo $fechafin; ?></td>
+                <td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DESDE: <?php echo $fechaini; ?> HASTA: <?php echo $fechafin; ?></td>
             </tr>
             <tr>
                 <td>Local</td>
@@ -93,16 +93,16 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA</td>
-                <td style="background-color:LIGHTSTEELBLUE">DESDE</td>
-                <td style="background-color:LIGHTSTEELBLUE">HASTA</td>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL A PAGAR</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR COBRADO</td>
-                <td style="background-color:LIGHTSTEELBLUE">SALDO</td>
-                <td style="background-color:LIGHTSTEELBLUE">NUMERO COMPROBANTE O CHEQUE</td>
-                <td style="background-color:LIGHTSTEELBLUE">ENTREGADO A</td>
-                <td style="background-color:LIGHTSTEELBLUE">OBSERVACION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DESDE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">HASTA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL A PAGAR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR COBRADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">SALDO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">NUMERO COMPROBANTE O CHEQUE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ENTREGADO A</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">OBSERVACION</td>
             </tr>
             <?php
 
@@ -144,9 +144,9 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr colspan="3"><?php echo utf8_decode('TOTALIZACIÓN COBRANZA') ?></tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
             </tr>
             <?php
 
@@ -180,9 +180,9 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr colspan="3"><?php echo utf8_decode('DETALLE COBRANZA') ?></tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">PERIODO</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">PERIODO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
             </tr>
             <?php
 
@@ -208,7 +208,7 @@ switch ($tipo) {
             }
             ?>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
                 <td></td>
                 <td><?php echo $total; ?></td>
             </tr>
@@ -219,17 +219,17 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td colspan="6" style="background-color:LIGHTSTEELBLUE">
+                <td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
                     <?php echo utf8_decode('DINERO POR EDADES DE CARTERA') ?>
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA 30 DÍAS</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA 60 DÍAS</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA 90 DÍAS</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA +90 DÍAS</td>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA 30 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA 60 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA 90 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA +90 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
             </tr>
             <?php
             $query = "SELECT cli.cli_descripcion,
@@ -269,7 +269,7 @@ switch ($tipo) {
                 <tr><td colspan="6">Sin datos de cartera activa.</td></tr>
             <?php else: ?>
                 <tr>
-                    <td style="background-color:LIGHTSTEELBLUE"><strong>TOTALES</strong></td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><strong>TOTALES</strong></td>
                     <td><strong><?php echo number_format($total_30, 2) ?></strong></td>
                     <td><strong><?php echo number_format($total_60, 2) ?></strong></td>
                     <td><strong><?php echo number_format($total_90, 2) ?></strong></td>
@@ -289,11 +289,11 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA</td>
-                <td style="background-color:LIGHTSTEELBLUE">TIPO</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR CARTERA</td>
-                <td style="background-color:LIGHTSTEELBLUE">RECUPERADO</td>
-                <td style="background-color:LIGHTSTEELBLUE">DEUDA ACTUAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TIPO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR CARTERA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">RECUPERADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DEUDA ACTUAL</td>
             </tr>
             <?php
 
@@ -331,10 +331,10 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">CONSUMO TOTAL</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA ULT. CONSUMO</td>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA ULTIMO CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CONSUMO TOTAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA ULT. CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA ULTIMO CONSUMO</td>
             </tr>
             <?php
 
@@ -374,9 +374,9 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA ULT. CONSUMO</td>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA ULTIMO CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA ULT. CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA ULTIMO CONSUMO</td>
             </tr>
             <?php
 
@@ -415,15 +415,15 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">GESTOR</td>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA</td>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL DEUDA</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR COBRADO</td>
-                <td style="background-color:LIGHTSTEELBLUE">SALDO</td>
-                <td style="background-color:LIGHTSTEELBLUE">OBSERVACION COBRANZA</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA PAGO</td>
-                <td style="background-color:LIGHTSTEELBLUE">OBSERVACION GESTION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">GESTOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL DEUDA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR COBRADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">SALDO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">OBSERVACION COBRANZA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA PAGO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">OBSERVACION GESTION</td>
             </tr>
             <?php
 
@@ -465,21 +465,21 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td colspan="5" style="background-color:LIGHTSTEELBLUE">
+                <td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
                     <?php echo utf8_decode('CONSUMOS DEL MES ' . $marca) ?>
                 </td>
             </tr>
             <tr>
-                <td colspan="5" style="background-color:LIGHTSTEELBLUE">
+                <td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
                     Fecha Inicio : <?php echo $inicioMes?> Fecha Fin: <?php echo $finMes ?>
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR</td>
-                <td style="background-color:LIGHTSTEELBLUE">PROPINA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">PROPINA</td>
             </tr>
             <?php
 
@@ -519,7 +519,7 @@ switch ($tipo) {
                 <tr><td colspan="5">No hay consumos registrados para el mes en curso con la marca seleccionada.</td></tr>
             <?php else: ?>
                 <tr>
-                    <td colspan="3" style="background-color:LIGHTSTEELBLUE"><strong>TOTAL</strong></td>
+                    <td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><strong>TOTAL</strong></td>
                     <td><strong><?php echo number_format($total, 2); ?></strong></td>
                     <td></td>
                 </tr>

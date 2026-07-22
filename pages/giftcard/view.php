@@ -211,7 +211,8 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
 </div>
 <?php endif; ?>
 
-<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
+<script src="assets/vendor/exceljs/exceljs.min.js"></script>
+<script src="js/export_theme.js"></script>
 <script>
 var lgc_id_actual = null;
 
@@ -234,11 +235,10 @@ $(document).ready(function () {
         if (!tabla) return;
         var clone = tabla.cloneNode(true);
         $(clone).find('.badge, code').each(function () { $(this).replaceWith($(this).text()); });
-        var wb    = XLSX.utils.book_new();
-        var ws    = XLSX.utils.table_to_sheet(clone);
         var titulo = $('#titulo_codigos').text().replace('Códigos del Lote — Período: ', '').replace(/\//g, '-');
-        XLSX.utils.book_append_sheet(wb, ws, 'Gift Cards');
-        XLSX.writeFile(wb, 'giftcards_' + titulo + '.xlsx');
+        var wb = new ExcelJS.Workbook();
+        ArgosExport.tableToSheet(wb, clone, 'Gift Cards');
+        ArgosExport.download(wb, 'giftcards_' + titulo + '.xlsx');
     });
 
     // Enviar Solicitud (Cliente)

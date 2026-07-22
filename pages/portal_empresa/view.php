@@ -353,7 +353,8 @@
         </div>
     </div>
 </div>
-<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
+<script src="assets/vendor/exceljs/exceljs.min.js"></script>
+<script src="js/export_theme.js"></script>
 <script>
 var AJAX_URL = 'ajax/portal_empresa/portal_empresa.php';
 var nominaData = [];
@@ -481,18 +482,16 @@ function cargarHistorial() {
 
 // ---- Exportar Excel nómina ----
 $('#btn_exportar_nomina').on('click', function() {
-    var wb = XLSX.utils.book_new();
-    var ws = XLSX.utils.table_to_sheet(document.getElementById('table_nomina'));
-    XLSX.utils.book_append_sheet(wb, ws, 'Nomina');
-    XLSX.writeFile(wb, 'nomina_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    var wb = new ExcelJS.Workbook();
+    ArgosExport.tableToSheet(wb, document.getElementById('table_nomina'), 'Nomina');
+    ArgosExport.download(wb, 'nomina_' + new Date().toISOString().slice(0,10) + '.xlsx');
 });
 
 // ---- Exportar Excel historial ----
 $('#btn_exportar_historial').on('click', function() {
-    var wb = XLSX.utils.book_new();
-    var ws = XLSX.utils.table_to_sheet(document.getElementById('table_historial'));
-    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
-    XLSX.writeFile(wb, 'historial_consumos_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    var wb = new ExcelJS.Workbook();
+    ArgosExport.tableToSheet(wb, document.getElementById('table_historial'), 'Historial');
+    ArgosExport.download(wb, 'historial_consumos_' + new Date().toISOString().slice(0,10) + '.xlsx');
 });
 
 // ---- Nuevo empleado ----

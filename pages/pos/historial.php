@@ -335,10 +335,9 @@ $(document).ready(function () {
             };
         });
 
-        var ws = XLSX.utils.json_to_sheet(filas);
-        var wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
-        XLSX.writeFile(wb, 'historial_ventas_' + inicio + '_a_' + fin + '.xlsx');
+        var wb = new ExcelJS.Workbook();
+        ArgosExport.rowsToSheet(wb, filas, 'Ventas');
+        ArgosExport.download(wb, 'historial_ventas_' + inicio + '_a_' + fin + '.xlsx');
     });
 
     // PV-D: Exportar historial a PDF (imprimible) respetando el filtro activo,
@@ -427,4 +426,5 @@ $(document).ready(function () {
 
 });
 </script>
-<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
+<script src="assets/vendor/exceljs/exceljs.min.js"></script>
+<script src="js/export_theme.js"></script>

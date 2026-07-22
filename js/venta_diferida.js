@@ -24,10 +24,9 @@ $(document).ready(function () {
         var clone = tabla.cloneNode(true);
         $(clone).find('th:last-child, td:last-child').remove(); // quitar columna Acciones
         $(clone).find('.badge, .progress').each(function () { $(this).replaceWith($(this).text()); });
-        var wb = XLSX.utils.book_new();
-        var ws = XLSX.utils.table_to_sheet(clone);
-        XLSX.utils.book_append_sheet(wb, ws, 'Ventas Diferidas');
-        XLSX.writeFile(wb, 'ventas_diferidas.xlsx');
+        var wb = new ExcelJS.Workbook();
+        ArgosExport.tableToSheet(wb, clone, 'Ventas Diferidas');
+        ArgosExport.download(wb, 'ventas_diferidas.xlsx');
     });
 
     $('#modal_nueva_vd').on('hidden.bs.modal', function () {

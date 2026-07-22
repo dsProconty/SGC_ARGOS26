@@ -9,12 +9,21 @@ $(document).ready(function () {
         ventana.document.write('<html><head><title>Estado de Cuenta - SGC ARGOS</title>');
         ventana.document.write('<link rel="stylesheet" href="assets/vendor/bootstrap/dist/css/bootstrap.min.css">');
         ventana.document.write('<style>');
-        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;}');
+        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;color:#2c2c2c;}');
+        ventana.document.write('h4,h5{color:#6d1b3a;}');
+        ventana.document.write('hr{border-top:2px solid #6d1b3a;}');
+        ventana.document.write('.thead-dark th{background-color:#6d1b3a !important;color:#fff !important;border-color:#6d1b3a !important;}');
+        ventana.document.write('.thead-light th{background-color:#f7ecf0 !important;color:#4a1226 !important;border-color:#e6d3da !important;}');
+        ventana.document.write('.table-warning,.table-warning>td,.table-warning>th{background-color:#faf3f6 !important;}');
+        ventana.document.write('.table-active,.table-active>td,.table-active>th{background-color:#f2dbe4 !important;color:#4a1226 !important;}');
+        ventana.document.write('.table-dark,.table-dark>td,.table-dark>th{background-color:#4a1226 !important;color:#fff !important;}');
+        ventana.document.write('.bg-light{background-color:#f7ecf0 !important;}');
+        ventana.document.write('table.table-bordered,table.table-bordered td,table.table-bordered th{border-color:#e6d3da !important;}');
         ventana.document.write('@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}');
         ventana.document.write('</style>');
         ventana.document.write('</head><body>');
         ventana.document.write('<div class="no-print" style="text-align:right;margin-bottom:15px;">');
-        ventana.document.write('<button onclick="window.print();" style="background:#17a2b8;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
+        ventana.document.write('<button onclick="window.print();" style="background:#6d1b3a;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
         ventana.document.write('&#128196; Guardar / Imprimir PDF</button>');
         ventana.document.write('</div>');
         ventana.document.write(contenido);
@@ -178,14 +187,14 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
         // thead-dark, bg-light/bg-warning solo pisaban el fondo y dejaban el
         // texto blanco heredado sobre fondo claro, ilegible.
         var thMarcas = marcas.map(function(m) {
-            return '<th class="text-right" style="background-color:#212529;color:#fff;">' + m.mar_descripcion + '</th>';
+            return '<th class="text-right" style="background-color:#6d1b3a;color:#fff;">' + m.mar_descripcion + '</th>';
         }).join('');
         var pivotHeader = '<tr>' +
-            '<th style="background-color:#212529;color:#fff;">Cédula</th>' +
-            '<th style="background-color:#212529;color:#fff;">Nombre</th>' +
+            '<th style="background-color:#6d1b3a;color:#fff;">Cédula</th>' +
+            '<th style="background-color:#6d1b3a;color:#fff;">Nombre</th>' +
             thMarcas +
-            '<th class="text-right" style="background-color:#e9ecef;color:#212529;">Consumido período</th>' +
-            '<th class="text-right" style="background-color:#ffc107;color:#212529;">Saldo acumulado</th></tr>';
+            '<th class="text-right" style="background-color:#f7ecf0;color:#4a1226;">Consumido período</th>' +
+            '<th class="text-right" style="background-color:#4a1226;color:#fff;">Saldo acumulado</th></tr>';
 
         // Body rows
         var pivotBody = '';
