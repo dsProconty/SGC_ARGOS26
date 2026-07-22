@@ -64,7 +64,12 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <h5 class="card-header">Lotes de Gift Cards</h5>
+                    <h5 class="card-header d-flex align-items-center justify-content-between">
+                        <span>Lotes de Gift Cards</span>
+                        <button class="btn btn-sm btn-info" id="btn_crear_lote_directo" style="color:#fff;">
+                            <i class="icon dripicons-plus"></i> Crear Nuevos Lotes
+                        </button>
+                    </h5>
                     <div class="card-body">
                         <div id="loader_lotes"></div>
                     </div>
@@ -162,6 +167,60 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body" id="historial_body"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Lote Directo (GC-B) -->
+<div class="modal fade" id="modal_crear_lote" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-plus"></i> Crear Nuevo Lote de Gift Cards</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="alerta_crear_lote"></div>
+                <div class="form-group">
+                    <label>Cliente / Empresa</label>
+                    <div class="input-group">
+                        <select class="form-control" id="lote_cli_id">
+                            <option value="">— Seleccionar —</option>
+                        </select>
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="button" id="btn_toggle_nuevo_cliente" title="Crear cliente nuevo">
+                                <i class="icon dripicons-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-2" id="wrap_lote_nuevo_cliente" style="display:none;">
+                        <input type="text" class="form-control" id="lote_nuevo_cliente" placeholder="Nombre del cliente nuevo">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad de códigos</label>
+                    <input type="number" class="form-control" id="lote_cantidad" min="1" max="1000" placeholder="Ej: 50">
+                </div>
+                <div class="form-group">
+                    <label>Cupo por código ($)</label>
+                    <input type="number" class="form-control" id="lote_cupo_codigo" step="0.01" min="0.01" placeholder="Ej: 25.00">
+                </div>
+                <div class="form-group">
+                    <label>Período de facturación</label>
+                    <input type="date" class="form-control" id="lote_periodo_facturacion">
+                </div>
+                <div class="form-group">
+                    <label>Fecha de caducidad</label>
+                    <input type="date" class="form-control" id="lote_fecha_caducidad">
+                    <small class="text-muted">Después de esta fecha los códigos no podrán usarse.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info" id="btn_guardar_lote_directo" style="color:#fff;">
+                    <i class="icon dripicons-checkmark"></i> Crear Lote
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -269,6 +328,61 @@ $(document).ready(function () {
         });
     });
 
+    // GC-B: Crear Nuevo Lote directo (Super Admin)
+    $('#btn_crear_lote_directo').on('click', abrirModalCrearLote);
+
+    $('#btn_toggle_nuevo_cliente').on('click', function () {
+        var abierto = $('#wrap_lote_nuevo_cliente').is(':visible');
+        if (abierto) {
+            $('#wrap_lote_nuevo_cliente').slideUp();
+            $('#lote_nuevo_cliente').val('');
+            $('#lote_cli_id').prop('disabled', false);
+        } else {
+            $('#wrap_lote_nuevo_cliente').slideDown();
+            $('#lote_cli_id').val('').prop('disabled', true);
+        }
+    });
+
+    $('#btn_guardar_lote_directo').on('click', function () {
+        var cliId        = $('#lote_cli_id').val();
+        var nuevoCliente = $('#lote_nuevo_cliente').val().trim();
+        var cantidad     = parseInt($('#lote_cantidad').val()) || 0;
+        var cupo         = parseFloat($('#lote_cupo_codigo').val()) || 0;
+        var periodo      = $('#lote_periodo_facturacion').val();
+        var caducidad    = $('#lote_fecha_caducidad').val();
+
+        if ((!cliId && !nuevoCliente) || cantidad <= 0 || cupo <= 0 || !periodo || !caducidad) {
+            $('#alerta_crear_lote').html('<div class="alert alert-warning mb-0">Complete todos los campos, incluyendo el cliente.</div>');
+            return;
+        }
+        $('#alerta_crear_lote').html('');
+        $('#btn_guardar_lote_directo').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Creando...');
+        $.ajax({
+            url: 'ajax/giftcard/giftcard.php', type: 'POST', dataType: 'json',
+            data: {
+                action: 'crear_lote', cli_id: cliId, nuevo_cliente: nuevoCliente,
+                cantidad: cantidad, cupo_codigo: cupo, periodo_facturacion: periodo, fecha_caducidad: caducidad
+            },
+            success: function (r) {
+                if (r.success) {
+                    $('#modal_crear_lote').modal('hide');
+                    cargarLotes();
+                    mostrarToast('success', r.mensaje);
+                } else { $('#alerta_crear_lote').html('<div class="alert alert-danger mb-0">' + r.mensaje + '</div>'); }
+            },
+            error:    function () { $('#alerta_crear_lote').html('<div class="alert alert-danger mb-0">Error de conexión.</div>'); },
+            complete: function () { $('#btn_guardar_lote_directo').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Crear Lote'); }
+        });
+    });
+
+    $('#modal_crear_lote').on('hidden.bs.modal', function () {
+        $('#lote_cli_id').val('').prop('disabled', false);
+        $('#lote_nuevo_cliente').val('');
+        $('#wrap_lote_nuevo_cliente').hide();
+        $('#lote_cantidad,#lote_cupo_codigo,#lote_periodo_facturacion,#lote_fecha_caducidad').val('');
+        $('#alerta_crear_lote').html('');
+    });
+
     // Confirmar Aprobar/Rechazar
     $('#btn_confirmar_accion').on('click', function () {
         var sol_id = $('#preview_sol_id').val();
@@ -328,6 +442,20 @@ function cargarMisSolicitudes() {
         url: 'ajax/giftcard/giftcard.php?action=mis_solicitudes', type: 'GET',
         success: function (r) { $('#loader_mis_solicitudes').html(r); }
     });
+}
+
+function abrirModalCrearLote() {
+    $('#lote_cli_id').html('<option value="">Cargando...</option>');
+    $.getJSON('ajax/clientes/clientes.php?action=list', function (res) {
+        var opts = '<option value="">— Seleccionar —</option>';
+        if (res.success) {
+            res.data.forEach(function (c) {
+                opts += '<option value="' + c.cli_id + '">' + esc(c.cli_descripcion) + '</option>';
+            });
+        }
+        $('#lote_cli_id').html(opts);
+    });
+    $('#modal_crear_lote').modal('show');
 }
 
 function ver_codigos(lgc_id, periodo) {

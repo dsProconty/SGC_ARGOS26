@@ -206,11 +206,11 @@ switch ($action) {
              FROM lote_gift_card lgc
              JOIN usuario u ON lgc.id_user = u.id_user
              LEFT JOIN codigo_gift_card cgc ON lgc.lgc_id = cgc.lgc_id
-             WHERE u.cli_id = ?
+             WHERE lgc.cli_id = ? OR u.cli_id = ?
              GROUP BY lgc.lgc_id
              ORDER BY lgc.lgc_fecha DESC"
         );
-        $stmt->bind_param('i', $cli_id);
+        $stmt->bind_param('ii', $cli_id, $cli_id);
         $stmt->execute();
         $res = $stmt->get_result();
         $data = [];
