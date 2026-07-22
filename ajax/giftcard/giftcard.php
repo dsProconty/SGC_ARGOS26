@@ -98,9 +98,13 @@ switch ($action) {
                     <td><span class="badge badge-secondary"><?php echo $row['consumidos']; ?></span></td>
                     <td><?php echo htmlspecialchars($row['name_user']); ?></td>
                     <td>
-                        <a class="btn btn-info btn-md" title="Ver Códigos"
+                        <a class="btn btn-info btn-md mr-1" title="Ver Códigos"
                            onclick="ver_codigos(<?php echo $row['lgc_id']; ?>, '<?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?>')">
                             <i style="color:#fff" class="icon dripicons-list"></i>
+                        </a>
+                        <a class="btn btn-outline-secondary btn-md" title="Ver historial de aprobación"
+                           onclick="verHistorialLote(<?php echo $row['lgc_id']; ?>)">
+                            <i class="icon dripicons-clock"></i>
                         </a>
                     </td>
                 </tr>
@@ -289,30 +293,31 @@ switch ($action) {
             echo '<div class="alert alert-danger">Sin permisos</div>';
             break;
         }
+        // Solo PENDING: esta tabla es la cola de trabajo por revisar. El
+        // historial de las ya aprobadas/rechazadas se ve desde "Lotes de
+        // Gift Cards" (aprobadas) vía el ícono de reloj en Acciones; las
+        // rechazadas no generan lote y no tienen otra vista por ahora.
         $query  = "SELECT s.sol_id, s.sol_cantidad, s.sol_cupo_codigo, s.sol_periodo_facturacion,
-                          s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
+                          s.sol_fecha_caducidad, s.sol_fecha_solicitud,
                           u.name_user,
                           COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre
                    FROM giftcard_solicitud s
                    JOIN usuario u ON s.id_user = u.id_user
                    LEFT JOIN cliente c_directo ON s.cli_id = c_directo.cli_id
                    LEFT JOIN cliente c_usuario ON u.cli_id = c_usuario.cli_id
-                   ORDER BY FIELD(s.sol_estado,'PENDING','APPROVED','REJECTED'), s.sol_fecha_solicitud DESC";
+                   WHERE s.sol_estado = 'PENDING'
+                   ORDER BY s.sol_fecha_solicitud ASC";
         $result = mysqli_query($mysqli, $query);
-        $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
-        $labels = ['PENDING' => 'Pendiente', 'APPROVED' => 'Aprobado', 'REJECTED' => 'Rechazado'];
         ?>
         <table id="table_solicitudes" class="table table-striped table-bordered" style="width:100%">
             <thead>
                 <tr>
                     <th>#</th><th>Solicitante</th><th>Cliente</th><th>Cantidad</th><th>Cupo x Cód.</th>
-                    <th>Período</th><th>Caducidad</th><th>Fecha Solicitud</th><th>Estado</th><th>Acciones</th>
+                    <th>Período</th><th>Caducidad</th><th>Fecha Solicitud</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-            <?php while ($row = mysqli_fetch_assoc($result)) {
-                $b = $badges[$row['sol_estado']] ?? 'secondary';
-                $l = $labels[$row['sol_estado']] ?? $row['sol_estado']; ?>
+            <?php while ($row = mysqli_fetch_assoc($result)) { ?>
                 <tr>
                     <td><?php echo $row['sol_id']; ?></td>
                     <td><?php echo htmlspecialchars($row['name_user']); ?></td>
@@ -322,9 +327,7 @@ switch ($action) {
                     <td><?php echo date('d/m/Y', strtotime($row['sol_periodo_facturacion'])); ?></td>
                     <td><?php echo date('d/m/Y', strtotime($row['sol_fecha_caducidad'])); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['sol_fecha_solicitud'])); ?></td>
-                    <td><span class="badge badge-<?php echo $b; ?>"><?php echo $l; ?></span></td>
                     <td>
-                        <?php if ($row['sol_estado'] === 'PENDING'): ?>
                         <button class="btn btn-sm btn-success mr-1" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'APPROVE')"
                             title="Aprobar">
@@ -335,13 +338,6 @@ switch ($action) {
                             title="Rechazar">
                             <i class="icon dripicons-cross" style="color:#fff !important;"></i>
                         </button>
-                        <?php else: ?>
-                        <button class="btn btn-sm btn-outline-secondary"
-                            onclick="verHistorial(<?php echo $row['sol_id']; ?>)"
-                            title="Ver historial">
-                            <i class="icon dripicons-clock"></i>
-                        </button>
-                        <?php endif; ?>
                     </td>
                 </tr>
             <?php } ?>
@@ -594,6 +590,28 @@ switch ($action) {
         $res_h  = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                     FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
                                     WHERE h.sol_id = $sol_id ORDER BY h.aph_timestamp DESC");
+        $rows = [];
+        if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
+        echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
+    // ══════════════════════════════════════════════════
+    // VER HISTORIAL DE UN LOTE — ícono de reloj en "Lotes de Gift Cards".
+    // Un lote no guarda su propio historial: se resuelve la solicitud que
+    // lo originó (giftcard_solicitud.sol_lgc_id) y se reutiliza su
+    // historial de aprobación. Los lotes creados antes de este cambio (sin
+    // solicitud asociada) devuelven data vacía.
+    // ══════════════════════════════════════════════════
+    case 'ver_historial_lote':
+        header('Content-Type: application/json');
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
+        $lgc_id  = (int)($_GET['lgc_id'] ?? 0);
+        $res_sol = mysqli_query($mysqli, "SELECT sol_id FROM giftcard_solicitud WHERE sol_lgc_id = $lgc_id LIMIT 1");
+        $solRow  = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
+        if (!$solRow) { echo json_encode(['success' => true, 'data' => []]); break; }
+        $res_h = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
+                                   FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
+                                   WHERE h.sol_id = " . (int)$solRow['sol_id'] . " ORDER BY h.aph_timestamp DESC");
         $rows = [];
         if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
         echo json_encode(['success' => true, 'data' => $rows]);

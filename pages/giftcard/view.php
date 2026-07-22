@@ -431,7 +431,7 @@ function cargarSolicitudes() {
         success: function (r) {
             $('#loader_solicitudes').html(r);
             if ($.fn.dataTable.isDataTable('#table_solicitudes')) $('#table_solicitudes').DataTable().destroy();
-            $('#table_solicitudes').dataTable({ order: [[7, 'desc']], pageLength: 10 });
+            $('#table_solicitudes').dataTable({ order: [[7, 'asc']], pageLength: 10 });
         }
     });
 }
@@ -533,12 +533,23 @@ function crearClienteSolicitante() {
 }
 
 function verHistorial(sol_id) {
+    cargarYRenderizarHistorial('ajax/giftcard/giftcard.php?action=ver_historial&sol_id=' + sol_id);
+}
+
+function verHistorialLote(lgc_id) {
+    cargarYRenderizarHistorial('ajax/giftcard/giftcard.php?action=ver_historial_lote&lgc_id=' + lgc_id);
+}
+
+function cargarYRenderizarHistorial(url) {
     $('#historial_body').html('<div class="text-center"><span class="spinner-border spinner-border-sm"></span></div>');
     $('#modal_historial').modal('show');
     $.ajax({
-        url: 'ajax/giftcard/giftcard.php?action=ver_historial&sol_id=' + sol_id, type: 'GET', dataType: 'json',
+        url: url, type: 'GET', dataType: 'json',
         success: function (r) {
-            if (!r.success || !r.data.length) { $('#historial_body').html('<p class="text-muted text-center">Sin registros.</p>'); return; }
+            if (!r.success || !r.data.length) {
+                $('#historial_body').html('<p class="text-muted text-center">Sin historial disponible para este lote.</p>');
+                return;
+            }
             var html = '<div class="list-group">';
             r.data.forEach(function (h) {
                 var ok = h.aph_accion === 'APPROVE';
