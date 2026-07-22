@@ -130,12 +130,13 @@ switch ($action) {
 
         // Detalle de consumos regulares
         $q_det = "SELECT con.con_fecha, con.con_hora, p.per_nombre, p.per_documento,
-                         p.per_numero_tarjeta, l.loc_direccion, con.con_valor_neto, con.con_iva,
+                         p.per_numero_tarjeta, l.loc_direccion, m.mar_descripcion, con.con_valor_neto, con.con_iva,
                          con.con_valor_total, con.con_monto_convenio, con.con_monto_externo,
                          con.con_descripcion, 'consumo' AS origen
                   FROM consumo con
                   JOIN personal p ON con.per_id = p.per_id
                   LEFT JOIN local l ON con.loc_id = l.loc_id
+                  LEFT JOIN marca m ON l.mar_id = m.mar_id
                   WHERE p.cli_id = $cli_id
                     AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'";
         $r_det = mysqli_query($mysqli, $q_det);
@@ -157,6 +158,7 @@ switch ($action) {
                      p.per_documento,
                      p.per_numero_tarjeta,
                      NULL                          AS loc_direccion,
+                     NULL                          AS mar_descripcion,
                      ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2) AS con_valor_neto,
                      ROUND(vd.vd_monto_cuota - ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2), 2) AS con_iva,
                      vd.vd_monto_cuota             AS con_valor_total,

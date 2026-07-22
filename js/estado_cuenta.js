@@ -124,7 +124,7 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
             '<td>' + d.per_nombre + '</td>' +
             '<td>' + (d.per_documento || '-') + '</td>' +
             '<td>' + (d.per_numero_tarjeta ? maskTarjeta(d.per_numero_tarjeta) : '-') + '</td>' +
-            '<td>' + (d.loc_direccion || '-') + '</td>' +
+            '<td>' + (d.mar_descripcion ? '<strong>' + d.mar_descripcion + '</strong> — ' : '') + (d.loc_direccion || '-') + '</td>' +
             '<td>' + (d.con_descripcion || '-') + '</td>' +
             '<td class="text-right">$' + neto.toFixed(2)  + '</td>' +
             '<td class="text-right">$' + iva.toFixed(2)   + '</td>' +
