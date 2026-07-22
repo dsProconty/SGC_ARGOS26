@@ -13,6 +13,11 @@
                     </nav>
                 </div>
                 <div class="ml-auto d-flex align-items-center">
+                    <?php if (!empty($_SESSION['name_user'])): ?>
+                    <span class="badge badge-secondary p-2 mr-2" style="font-size:0.9rem;">
+                        <i class="icon dripicons-user"></i> <?php echo htmlspecialchars($_SESSION['name_user']); ?>
+                    </span>
+                    <?php endif; ?>
                     <?php if (!empty($_SESSION['loc_id'])): ?>
                     <span class="badge badge-info p-2 mr-3" style="font-size:0.9rem;">
                         <i class="icon dripicons-location"></i>
@@ -388,9 +393,19 @@ $(document).ready(function () {
             dataType: 'json',
             success: function (resp) {
                 if (!resp.success) {
-                    // Notificación según tipo de error de GC
-                    var tipo_alerta = (resp.tipo === 'giftcard_vencida') ? 'warning' : 'danger';
-                    mostrarAlerta('alerta_busqueda', tipo_alerta, resp.mensaje);
+                    if (resp.tipo === 'giftcard_vencida') {
+                        // PV-B: mensaje grande e inconfundible de tarjeta caducada,
+                        // con cupo/saldo/caducidad visibles igual que una tarjeta válida.
+                        $('#alerta_busqueda').html(
+                            '<div class="alert alert-warning text-center mb-0">' +
+                            '<h4 class="mb-2"><i class="icon dripicons-warning"></i> CADUCADA</h4>' +
+                            '<div>Saldo disponible: <strong>$' + parseFloat(resp.saldo || 0).toFixed(2) + '</strong></div>' +
+                            '<div>Venció el: <strong>' + resp.fecha_caducidad + '</strong></div>' +
+                            '</div>'
+                        ).show();
+                    } else {
+                        mostrarAlerta('alerta_busqueda', 'danger', resp.mensaje);
+                    }
                     ocultarPaneles();
                     return;
                 }

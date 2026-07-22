@@ -115,13 +115,16 @@ switch ($action) {
         if ($rGC && mysqli_num_rows($rGC) > 0) {
             $gc = mysqli_fetch_assoc($rGC);
 
-            // Verificar caducidad
+            // Verificar caducidad — se muestra cupo/saldo igual que una tarjeta
+            // válida, para que el cajero vea el cuadro completo, no solo "vencida".
             if ($gc['cgc_fecha_caducidad'] && $gc['cgc_fecha_caducidad'] < date('Y-m-d')) {
                 mysqli_query($mysqli, "UPDATE codigo_gift_card SET cgc_estado='vencido' WHERE cgc_id={$gc['cgc_id']}");
                 echo json_encode([
-                    'success' => false,
-                    'tipo'    => 'giftcard_vencida',
-                    'mensaje' => 'Gift Card vencida el ' . date('d/m/Y', strtotime($gc['cgc_fecha_caducidad']))
+                    'success'         => false,
+                    'tipo'            => 'giftcard_vencida',
+                    'mensaje'         => 'CADUCADA el ' . date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])),
+                    'saldo'           => (float)$gc['cgc_cupo_disponible'],
+                    'fecha_caducidad' => date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])),
                 ]);
                 break;
             }
