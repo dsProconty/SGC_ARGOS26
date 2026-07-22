@@ -16,17 +16,16 @@ switch ($action) {
         if ($filtro_cartera)   $where[] = "cli_tipo_cartera   = '" . mysqli_real_escape_string($mysqli, $filtro_cartera)   . "'";
         $sql_where = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        // El tipo de cliente (Empresarial / Gift Card / Mixto) no es un campo propio:
-        // se deriva de si el cliente tiene personal con convenio (Empresarial) y/o
-        // lotes de Gift Card asociados a sus usuarios de Portal Empresa (Gift Card).
+        // El Tipo de Cliente (Empresarial / Gift Card / Mixto) es un campo manual
+        // (cliente.cli_tipo_cliente), elegido en el modal de Nuevo/Editar Cliente.
         $result = mysqli_query($mysqli,
             "SELECT c.cli_id, c.cli_descripcion, c.cli_ciudad, c.cli_contacto,
                     c.cli_email, c.cli_telefono, c.cli_numero_convenio,
                     c.cli_tipo_beneficio, c.cli_valor_beneficio,
                     c.cli_tipo_cartera, c.cli_dia_corte,
+                    COALESCE(c.cli_tipo_cliente, 'Sin definir') AS cli_tipo_cliente,
                     (SELECT COUNT(*) FROM personal p WHERE p.cli_id = c.cli_id) AS total_personal,
-                    (SELECT COUNT(*) FROM estado_cuenta ec WHERE ec.cli_id = c.cli_id) AS total_ec,
-                    (SELECT COUNT(*) FROM lote_gift_card lgc JOIN usuario u ON lgc.id_user = u.id_user WHERE u.cli_id = c.cli_id) AS total_gc_lotes
+                    (SELECT COUNT(*) FROM estado_cuenta ec WHERE ec.cli_id = c.cli_id) AS total_ec
              FROM cliente c $sql_where
              ORDER BY c.cli_descripcion ASC"
         );
@@ -34,14 +33,6 @@ switch ($action) {
         $rows = [];
         $kpis = ['total' => 0, 'empresarial' => 0, 'giftcard' => 0, 'mixto' => 0, 'sin_definir' => 0];
         while ($row = mysqli_fetch_assoc($result)) {
-            $tienePersonal = (int)$row['total_personal']   > 0;
-            $tieneGC       = (int)$row['total_gc_lotes']   > 0;
-
-            if ($tienePersonal && $tieneGC)      $row['cli_tipo_cliente'] = 'Mixto';
-            elseif ($tieneGC)                    $row['cli_tipo_cliente'] = 'Gift Card';
-            elseif ($tienePersonal)              $row['cli_tipo_cliente'] = 'Empresarial';
-            else                                 $row['cli_tipo_cliente'] = 'Sin definir';
-
             $kpis['total']++;
             if      ($row['cli_tipo_cliente'] === 'Empresarial') $kpis['empresarial']++;
             elseif  ($row['cli_tipo_cliente'] === 'Gift Card')   $kpis['giftcard']++;
@@ -84,8 +75,8 @@ switch ($action) {
             "INSERT INTO cliente
              (cli_descripcion, cli_numero_convenio, cli_ciudad, cli_contacto,
               cli_email, cli_email2, cli_telefono, cli_telefono2, cli_dia_corte,
-              cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+              cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision, cli_tipo_cliente)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         );
         $conv  = trim($_POST['cli_numero_convenio'] ?? '') ?: null;
         $ciu   = trim($_POST['cli_ciudad']   ?? '') ?: null;
@@ -99,8 +90,9 @@ switch ($action) {
         $vben  = !empty($_POST['cli_valor_beneficio']) ? (float)$_POST['cli_valor_beneficio'] : null;
         $tcar  = $_POST['cli_tipo_cartera'] ?? null;
         $com   = !empty($_POST['cli_comision']) ? (float)$_POST['cli_comision'] : 0.00;
+        $tcli  = trim($_POST['cli_tipo_cliente'] ?? '') ?: null;
 
-        $stmt->bind_param('ssssssssssdsd', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com);
+        $stmt->bind_param('ssssssssssdsds', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli);
         echo $stmt->execute()
             ? json_encode(['success' => true,  'mensaje' => 'Cliente creado exitosamente', 'id' => $mysqli->insert_id])
             : json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
@@ -125,15 +117,16 @@ switch ($action) {
         $vben = !empty($_POST['cli_valor_beneficio']) ? (float)$_POST['cli_valor_beneficio'] : null;
         $tcar = $_POST['cli_tipo_cartera'] ?? null;
         $com  = !empty($_POST['cli_comision']) ? (float)$_POST['cli_comision'] : 0.00;
+        $tcli = trim($_POST['cli_tipo_cliente'] ?? '') ?: null;
 
         $stmt = $mysqli->prepare(
             "UPDATE cliente SET
               cli_descripcion=?, cli_numero_convenio=?, cli_ciudad=?, cli_contacto=?,
               cli_email=?, cli_email2=?, cli_telefono=?, cli_telefono2=?, cli_dia_corte=?,
-              cli_tipo_beneficio=?, cli_valor_beneficio=?, cli_tipo_cartera=?, cli_comision=?
+              cli_tipo_beneficio=?, cli_valor_beneficio=?, cli_tipo_cartera=?, cli_comision=?, cli_tipo_cliente=?
              WHERE cli_id=?"
         );
-        $stmt->bind_param('ssssssssssdsdi', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $id);
+        $stmt->bind_param('ssssssssssdsdsi', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $id);
         echo $stmt->execute()
             ? json_encode(['success' => true,  'mensaje' => 'Cliente actualizado'])
             : json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);

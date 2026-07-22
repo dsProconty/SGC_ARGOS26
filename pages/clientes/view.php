@@ -418,6 +418,17 @@
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group">
+                                <label>Tipo de Cliente</label>
+                                <select class="form-control" id="cli_tipo_cliente" name="cli_tipo_cliente">
+                                    <option value="">— Sin definir —</option>
+                                    <option value="Empresarial">Empresarial</option>
+                                    <option value="Gift Card">Gift Card</option>
+                                    <option value="Mixto">Mixto</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
                                 <label>Comisión (%)</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" id="cli_comision" name="cli_comision" min="0" max="100" step="0.01" placeholder="0.00" value="0">
@@ -806,6 +817,7 @@ function editarCliente(id) {
         $('#cli_tipo_beneficio').val(d.cli_tipo_beneficio||'');
         $('#cli_valor_beneficio').val(d.cli_valor_beneficio||'');
         $('#cli_tipo_cartera').val(d.cli_tipo_cartera||'');
+        $('#cli_tipo_cliente').val(d.cli_tipo_cliente||'');
         $('#cli_comision').val(d.cli_comision||'0');
         actualizarPrefijo(d.cli_tipo_beneficio||'');
         $('#modalClienteLabel').text('Editar Cliente');

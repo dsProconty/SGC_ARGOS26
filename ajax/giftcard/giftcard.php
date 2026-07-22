@@ -422,7 +422,7 @@ switch ($action) {
 
         $mysqli->begin_transaction();
         try {
-            $sc = $mysqli->prepare("INSERT INTO cliente (cli_descripcion) VALUES (?)");
+            $sc = $mysqli->prepare("INSERT INTO cliente (cli_descripcion, cli_tipo_cliente) VALUES (?, 'Gift Card')");
             $sc->bind_param('s', $desc);
             if (!$sc->execute()) throw new Exception('Error al crear el cliente');
             $nuevo_cli_id = $mysqli->insert_id;
