@@ -3,8 +3,15 @@
 error_reporting(0);
 ob_start();
 
+// Fecha/hora de Ecuador (sin horario de verano) para date() en PHP y para
+// las columnas DATETIME DEFAULT CURRENT_TIMESTAMP (aph_timestamp,
+// lgc_fecha, sol_fecha_solicitud), que sin esto usan el timezone del
+// servidor de MySQL y quedaban una hora adelantadas.
+date_default_timezone_set('America/Guayaquil');
+
 session_start();
 require_once '../../config/database.php';
+mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
     header('Content-Type: application/json');
