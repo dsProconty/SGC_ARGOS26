@@ -26,11 +26,54 @@
              VISTA: LISTA DE CLIENTES
         ══════════════════════════════════════════════ -->
         <div id="vista_lista">
+            <!-- KPIs -->
+            <div class="row" id="kpis_clientes">
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <div class="text-muted small">Total Clientes</div>
+                            <div class="h3 mb-0" id="kpi_total">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <div class="text-muted small">Empresariales</div>
+                            <div class="h3 mb-0 text-primary" id="kpi_empresarial">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <div class="text-muted small">Gift Card</div>
+                            <div class="h3 mb-0 text-info" id="kpi_giftcard">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body py-3">
+                            <div class="text-muted small">Mixtos</div>
+                            <div class="h3 mb-0 text-warning" id="kpi_mixto">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Filtros -->
             <div class="card mb-3">
                 <div class="card-body py-2">
                     <div class="form-inline">
                         <label class="mr-2 text-muted">Filtrar:</label>
+                        <select class="form-control form-control-sm mr-2" id="filtro_tipo" onchange="cargarClientes()">
+                            <option value="">Todos los tipos</option>
+                            <option value="Empresarial">Empresarial</option>
+                            <option value="Gift Card">Gift Card</option>
+                            <option value="Mixto">Mixto</option>
+                            <option value="Sin definir">Sin definir</option>
+                        </select>
                         <select class="form-control form-control-sm mr-2" id="filtro_beneficio" onchange="cargarClientes()">
                             <option value="">Todos los beneficios</option>
                             <option value="Cupo">Cupo</option>
@@ -62,6 +105,7 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Empresa / Cliente</th>
+                                    <th>Tipo</th>
                                     <th>Ciudad</th>
                                     <th>Contacto</th>
                                     <th>Email</th>
@@ -403,11 +447,13 @@ var _cliData = null;   // Datos del cliente actual
 var _tabsLoaded = {};  // tabs ya cargados para evitar re-fetch
 
 var cartBadge = {'30':'success','60':'warning','90':'danger','90+':'dark'};
+var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Mixto':'warning','Sin definir':'secondary'};
 
 // ══════════════════════════════════════════════
 // LISTA
 // ══════════════════════════════════════════════
 function cargarClientes() {
+    var t = $('#filtro_tipo').val();
     var b = $('#filtro_beneficio').val();
     var c = $('#filtro_cartera').val();
     $('#loader_lista').show();
@@ -419,9 +465,16 @@ function cargarClientes() {
         $('#tbody_clientes').empty();
     }
 
-    $.getJSON('ajax/clientes/clientes.php?action=list&beneficio='+encodeURIComponent(b)+'&cartera='+encodeURIComponent(c), function(res) {
+    $.getJSON('ajax/clientes/clientes.php?action=list&tipo='+encodeURIComponent(t)+'&beneficio='+encodeURIComponent(b)+'&cartera='+encodeURIComponent(c), function(res) {
         $('#loader_lista').hide();
         if (!res.success) { alert('Error al cargar clientes'); return; }
+
+        if (res.kpis) {
+            $('#kpi_total').text(res.kpis.total);
+            $('#kpi_empresarial').text(res.kpis.empresarial);
+            $('#kpi_giftcard').text(res.kpis.giftcard);
+            $('#kpi_mixto').text(res.kpis.mixto);
+        }
 
         var html = '';
         $.each(res.data, function(i, d) {
@@ -436,9 +489,12 @@ function cargarClientes() {
                 ? '<span class="badge badge-' + (cartBadge[d.cli_tipo_cartera]||'secondary') + '">' + d.cli_tipo_cartera + ' días</span>'
                 : '<span class="text-muted">—</span>';
 
+            var tipoCli = '<span class="badge badge-' + (tipoBadge[d.cli_tipo_cliente]||'secondary') + '">' + d.cli_tipo_cliente + '</span>';
+
             html += '<tr>'
                 + '<td>' + (i+1) + '</td>'
                 + '<td><strong>' + d.cli_descripcion + '</strong></td>'
+                + '<td>' + tipoCli + '</td>'
                 + '<td>' + (d.cli_ciudad||'—') + '</td>'
                 + '<td>' + (d.cli_contacto||'—') + '</td>'
                 + '<td>' + (d.cli_email ? '<a href="mailto:'+d.cli_email+'">'+d.cli_email+'</a>' : '—') + '</td>'
@@ -461,7 +517,7 @@ function cargarClientes() {
 
         var dt = $('#table_clientes').DataTable({
             language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-            columnDefs: [{ orderable: false, targets: [8] }],
+            columnDefs: [{ orderable: false, targets: [9] }],
             pageLength: 15,
             order: [[1,'asc']]
         });
@@ -469,7 +525,7 @@ function cargarClientes() {
 }
 
 function limpiarFiltros() {
-    $('#filtro_beneficio, #filtro_cartera').val('');
+    $('#filtro_tipo, #filtro_beneficio, #filtro_cartera').val('');
     cargarClientes();
 }
 

@@ -9,26 +9,56 @@ switch ($action) {
     case 'list':
         $filtro_beneficio = $_GET['beneficio'] ?? '';
         $filtro_cartera   = $_GET['cartera']   ?? '';
+        $filtro_tipo      = $_GET['tipo']      ?? '';
 
         $where = [];
         if ($filtro_beneficio) $where[] = "cli_tipo_beneficio = '" . mysqli_real_escape_string($mysqli, $filtro_beneficio) . "'";
         if ($filtro_cartera)   $where[] = "cli_tipo_cartera   = '" . mysqli_real_escape_string($mysqli, $filtro_cartera)   . "'";
         $sql_where = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
+        // El tipo de cliente (Empresarial / Gift Card / Mixto) no es un campo propio:
+        // se deriva de si el cliente tiene personal con convenio (Empresarial) y/o
+        // lotes de Gift Card asociados a sus usuarios de Portal Empresa (Gift Card).
         $result = mysqli_query($mysqli,
             "SELECT c.cli_id, c.cli_descripcion, c.cli_ciudad, c.cli_contacto,
                     c.cli_email, c.cli_telefono, c.cli_numero_convenio,
                     c.cli_tipo_beneficio, c.cli_valor_beneficio,
                     c.cli_tipo_cartera, c.cli_dia_corte,
                     (SELECT COUNT(*) FROM personal p WHERE p.cli_id = c.cli_id) AS total_personal,
-                    (SELECT COUNT(*) FROM estado_cuenta ec WHERE ec.cli_id = c.cli_id) AS total_ec
+                    (SELECT COUNT(*) FROM estado_cuenta ec WHERE ec.cli_id = c.cli_id) AS total_ec,
+                    (SELECT COUNT(*) FROM lote_gift_card lgc JOIN usuario u ON lgc.id_user = u.id_user WHERE u.cli_id = c.cli_id) AS total_gc_lotes
              FROM cliente c $sql_where
              ORDER BY c.cli_descripcion ASC"
         );
-        header('Content-Type: application/json');
+
         $rows = [];
-        while ($row = mysqli_fetch_assoc($result)) $rows[] = $row;
-        echo json_encode(['success' => true, 'data' => $rows]);
+        $kpis = ['total' => 0, 'empresarial' => 0, 'giftcard' => 0, 'mixto' => 0, 'sin_definir' => 0];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $tienePersonal = (int)$row['total_personal']   > 0;
+            $tieneGC       = (int)$row['total_gc_lotes']   > 0;
+
+            if ($tienePersonal && $tieneGC)      $row['cli_tipo_cliente'] = 'Mixto';
+            elseif ($tieneGC)                    $row['cli_tipo_cliente'] = 'Gift Card';
+            elseif ($tienePersonal)              $row['cli_tipo_cliente'] = 'Empresarial';
+            else                                 $row['cli_tipo_cliente'] = 'Sin definir';
+
+            $kpis['total']++;
+            if      ($row['cli_tipo_cliente'] === 'Empresarial') $kpis['empresarial']++;
+            elseif  ($row['cli_tipo_cliente'] === 'Gift Card')   $kpis['giftcard']++;
+            elseif  ($row['cli_tipo_cliente'] === 'Mixto')       $kpis['mixto']++;
+            else                                                 $kpis['sin_definir']++;
+
+            $rows[] = $row;
+        }
+
+        if ($filtro_tipo) {
+            $rows = array_values(array_filter($rows, function ($r) use ($filtro_tipo) {
+                return $r['cli_tipo_cliente'] === $filtro_tipo;
+            }));
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'data' => $rows, 'kpis' => $kpis]);
         break;
 
     // ── GET — datos JSON para modal editar ───────────────────────────────────
