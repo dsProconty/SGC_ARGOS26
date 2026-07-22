@@ -389,12 +389,54 @@ switch ($action) {
         $sol_id = (int)($_GET['sol_id'] ?? 0);
         $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
                                     s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
-                                    u.name_user
-                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    u.name_user, u.cli_id, c.cli_descripcion
+                                    FROM giftcard_solicitud s
+                                    JOIN usuario u ON s.id_user = u.id_user
+                                    LEFT JOIN cliente c ON u.cli_id = c.cli_id
                                     WHERE s.sol_id = $sol_id");
         $row = $result ? mysqli_fetch_assoc($result) : null;
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
         echo json_encode(['success' => true, 'data' => $row]);
+        break;
+
+    // ══════════════════════════════════════════════════
+    // GC-A: CREAR CLIENTE Y VINCULARLO AL SOLICITANTE
+    // Permite, sin salir del modal de revisión de la solicitud, crear
+    // el registro de cliente y vincularlo al usuario que la solicitó
+    // cuando ese usuario aún no tiene cli_id asignado (usuario.cli_id
+    // NULL). Sin este vínculo, al aprobar la solicitud no se registra
+    // la cobranza del lote en Gestiones (ver aprobar_solicitud, paso 5).
+    // ══════════════════════════════════════════════════
+    case 'crear_cliente_solicitante':
+        header('Content-Type: application/json');
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+
+        $sol_id = (int)($_POST['sol_id'] ?? 0);
+        $desc   = trim($_POST['cli_descripcion'] ?? '');
+        if (!$sol_id || $desc === '') { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+
+        $res_sol3 = mysqli_query($mysqli, "SELECT s.id_user, u.cli_id FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = $sol_id");
+        $sol3 = $res_sol3 ? mysqli_fetch_assoc($res_sol3) : null;
+        if (!$sol3) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
+        if (!empty($sol3['cli_id'])) { echo json_encode(['success' => false, 'mensaje' => 'El solicitante ya tiene un cliente vinculado']); break; }
+
+        $mysqli->begin_transaction();
+        try {
+            $sc = $mysqli->prepare("INSERT INTO cliente (cli_descripcion) VALUES (?)");
+            $sc->bind_param('s', $desc);
+            if (!$sc->execute()) throw new Exception('Error al crear el cliente');
+            $nuevo_cli_id = $mysqli->insert_id;
+
+            $su = $mysqli->prepare("UPDATE usuario SET cli_id = ? WHERE id_user = ?");
+            $su->bind_param('ii', $nuevo_cli_id, $sol3['id_user']);
+            if (!$su->execute()) throw new Exception('Error al vincular el cliente al usuario');
+
+            $mysqli->commit();
+            echo json_encode(['success' => true, 'mensaje' => 'Cliente creado y vinculado', 'cli_id' => $nuevo_cli_id, 'cli_descripcion' => $desc]);
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
+        }
         break;
 
     // ══════════════════════════════════════════════════

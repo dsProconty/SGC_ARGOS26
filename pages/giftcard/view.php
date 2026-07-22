@@ -127,6 +127,19 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
                 <input type="hidden" id="preview_sol_id">
                 <input type="hidden" id="preview_accion">
                 <div id="preview_datos" class="mb-3"></div>
+                <div id="preview_sin_cliente" class="alert alert-warning py-2 px-3" style="display:none; font-size:.85rem;">
+                    <i class="icon dripicons-warning"></i>
+                    El solicitante no tiene un <strong>cliente</strong> vinculado. Sin vincularlo, la cobranza de este
+                    lote <strong>no se registrará</strong> en Gestiones.
+                    <div class="input-group input-group-sm mt-2">
+                        <input type="text" class="form-control" id="preview_nuevo_cliente" placeholder="Nombre de la empresa / cliente">
+                        <div class="input-group-append">
+                            <button type="button" class="btn btn-warning" id="btn_crear_cliente_gc">
+                                <i class="icon dripicons-plus"></i> Crear y Vincular
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label id="preview_notas_label">Notas / Observaciones</label>
                     <textarea class="form-control" id="preview_notas" rows="3" placeholder="Opcional..."></textarea>
@@ -275,9 +288,12 @@ $(document).ready(function () {
         });
     });
 
+    // GC-A: crear y vincular cliente al solicitante desde el modal de revisión
+    $('#btn_crear_cliente_gc').on('click', crearClienteSolicitante);
+
     // Limpiar modales
     $('#modal_solicitar').on('hidden.bs.modal',   function () { $('#alerta_solicitar').html(''); });
-    $('#modal_preview_sol').on('hidden.bs.modal', function () { $('#alerta_preview').html(''); $('#preview_notas').val(''); });
+    $('#modal_preview_sol').on('hidden.bs.modal', function () { $('#alerta_preview').html(''); $('#preview_notas').val(''); $('#preview_sin_cliente').hide(); });
 });
 
 // ── Funciones globales ──────────────────────────────────────
@@ -335,6 +351,8 @@ function previsualizarSolicitud(sol_id, accion) {
     $('#preview_datos').html('<div class="text-center"><span class="spinner-border spinner-border-sm"></span></div>');
     $('#alerta_preview').html('');
     $('#preview_notas').val('');
+    $('#preview_sin_cliente').hide();
+    $('#preview_nuevo_cliente').val('');
     var ok = (accion === 'APPROVE');
     $('#preview_titulo').text((ok ? 'Aprobar' : 'Rechazar') + ' Solicitud #' + sol_id);
     $('#preview_notas_label').text(ok ? 'Observaciones (opcional)' : 'Motivo del rechazo (recomendado)');
@@ -348,6 +366,7 @@ function previsualizarSolicitud(sol_id, accion) {
             var d = r.data, t = (parseFloat(d.sol_cantidad) * parseFloat(d.sol_cupo_codigo)).toFixed(2);
             $('#preview_datos').html('<table class="table table-sm table-bordered mb-0">' +
                 '<tr><th class="bg-light" style="width:45%">Solicitante</th><td>' + esc(d.name_user) + '</td></tr>' +
+                '<tr><th class="bg-light">Cliente</th><td>' + (d.cli_descripcion ? '<strong>' + esc(d.cli_descripcion) + '</strong>' : '<span class="text-muted">Sin vincular</span>') + '</td></tr>' +
                 '<tr><th class="bg-light">Cantidad</th><td><strong>' + d.sol_cantidad + '</strong> códigos</td></tr>' +
                 '<tr><th class="bg-light">Cupo por código</th><td>$' + parseFloat(d.sol_cupo_codigo).toFixed(2) + '</td></tr>' +
                 '<tr><th class="bg-light">Cupo total</th><td><strong>$' + t + '</strong></td></tr>' +
@@ -355,7 +374,33 @@ function previsualizarSolicitud(sol_id, accion) {
                 '<tr><th class="bg-light">Caducidad</th><td>' + fFecha(d.sol_fecha_caducidad) + '</td></tr>' +
                 '<tr><th class="bg-light">Fecha solicitud</th><td>' + fFechaHora(d.sol_fecha_solicitud) + '</td></tr>' +
                 '</table>');
+            if (accion === 'APPROVE' && !d.cli_id) {
+                $('#preview_nuevo_cliente').val(d.name_user || '');
+                $('#preview_sin_cliente').show();
+            }
         }
+    });
+}
+
+function crearClienteSolicitante() {
+    var sol_id = $('#preview_sol_id').val();
+    var desc   = $('#preview_nuevo_cliente').val().trim();
+    if (!desc) { $('#preview_nuevo_cliente').focus(); return; }
+    $('#btn_crear_cliente_gc').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+    $.ajax({
+        url: 'ajax/giftcard/giftcard.php', type: 'POST', dataType: 'json',
+        data: { action: 'crear_cliente_solicitante', sol_id: sol_id, cli_descripcion: desc },
+        success: function (r) {
+            if (r.success) {
+                $('#preview_sin_cliente').hide();
+                $('#preview_datos tr:nth-child(2) td').html('<strong>' + esc(r.cli_descripcion) + '</strong>');
+                mostrarToast('success', 'Cliente creado y vinculado.');
+            } else {
+                mostrarToast('error', r.mensaje || 'No se pudo crear el cliente.');
+            }
+        },
+        error:    function () { mostrarToast('error', 'Error de conexión.'); },
+        complete: function () { $('#btn_crear_cliente_gc').prop('disabled', false).html('<i class="icon dripicons-plus"></i> Crear y Vincular'); }
     });
 }
 
