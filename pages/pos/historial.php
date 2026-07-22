@@ -95,6 +95,9 @@ $hoy     = date('Y-m-d');
                 <span><i class="icon dripicons-list"></i> Ventas</span>
                 <div class="d-flex align-items-center">
                     <span id="div_contador" class="text-muted small mr-3"></span>
+                    <button class="btn btn-sm btn-outline-danger mr-2" id="btn_exportar_pdf" style="display:none;" title="Exportar a PDF">
+                        <i class="icon dripicons-document"></i> Exportar PDF
+                    </button>
                     <button class="btn btn-sm btn-outline-success" id="btn_exportar_excel" style="display:none;" title="Exportar a Excel">
                         <i class="icon dripicons-download"></i> Exportar Excel
                     </button>
@@ -175,6 +178,7 @@ $(document).ready(function () {
         $('#div_tabla').hide();
         $('#div_resumen').hide();
         $('#btn_exportar_excel').hide();
+        $('#btn_exportar_pdf').hide();
         $('#div_loading').show();
 
         var data = { action: 'historial_filtro', fecha_inicio: inicio, fecha_fin: fin };
@@ -236,6 +240,7 @@ $(document).ready(function () {
         $('#tbody_ventas').html(html);
         $('#div_tabla').show();
         $('#btn_exportar_excel').show();
+        $('#btn_exportar_pdf').show();
     }
 
     function renderResumen(data) {
@@ -334,6 +339,60 @@ $(document).ready(function () {
         var wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
         XLSX.writeFile(wb, 'historial_ventas_' + inicio + '_a_' + fin + '.xlsx');
+    });
+
+    // PV-D: Exportar historial a PDF (imprimible) respetando el filtro activo,
+    // para el cierre de caja. Mismo patrón que el PDF de Estado de Cuenta.
+    $('#btn_exportar_pdf').on('click', function () {
+        if (!_datosActuales.length) return;
+
+        var inicio = $('#f_inicio').val();
+        var fin    = $('#f_fin').val();
+        var localTxt = $('#f_local option:selected').text() || 'Todos los locales';
+
+        var filas = '';
+        var totalConv = 0, totalExt = 0, totalGen = 0;
+        _datosActuales.forEach(function (v) {
+            var conv = parseFloat(v.con_monto_convenio) || 0;
+            var ext  = parseFloat(v.con_monto_externo) || 0;
+            var tot  = parseFloat(v.con_valor_total) || 0;
+            totalConv += conv; totalExt += ext; totalGen += tot;
+            filas += '<tr>'
+                + '<td>#' + v.con_id + '</td>'
+                + '<td>' + v.con_fecha + '</td>'
+                + '<td>' + v.con_hora + '</td>'
+                + '<td>' + htmlEsc(v.per_nombre) + '<br><small>' + v.per_documento + '</small></td>'
+                + '<td>' + htmlEsc(v.cli_descripcion) + '</td>'
+                + '<td class="text-right">$' + conv.toFixed(2) + '</td>'
+                + '<td class="text-right">' + (ext > 0 ? '$' + ext.toFixed(2) : '—') + '</td>'
+                + '<td class="text-right"><strong>$' + tot.toFixed(2) + '</strong></td>'
+                + '</tr>';
+        });
+
+        var contenido = '<h4>Historial de Ventas — SGC ARGOS</h4>'
+            + '<p>Período: ' + inicio + ' al ' + fin + ' &nbsp;|&nbsp; Local: ' + localTxt + '</p>'
+            + '<table class="table table-sm table-bordered">'
+            + '<thead><tr><th>#</th><th>Fecha</th><th>Hora</th><th>Empleado</th><th>Empresa</th>'
+            + '<th class="text-right">Convenio</th><th class="text-right">Externo</th><th class="text-right">Total</th></tr></thead>'
+            + '<tbody>' + filas + '</tbody>'
+            + '<tfoot><tr><th colspan="5">TOTALES</th>'
+            + '<th class="text-right">$' + totalConv.toFixed(2) + '</th>'
+            + '<th class="text-right">$' + totalExt.toFixed(2) + '</th>'
+            + '<th class="text-right">$' + totalGen.toFixed(2) + '</th></tr></tfoot>'
+            + '</table>';
+
+        var ventana = window.open('', '_blank', 'width=900,height=800');
+        ventana.document.write('<html><head><title>Historial de Ventas - SGC ARGOS</title>');
+        ventana.document.write('<link rel="stylesheet" href="assets/vendor/bootstrap/dist/css/bootstrap.min.css">');
+        ventana.document.write('<style>body{font-family:Arial,sans-serif;font-size:13px;padding:20px;}');
+        ventana.document.write('@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}</style>');
+        ventana.document.write('</head><body>');
+        ventana.document.write('<div class="no-print" style="text-align:right;margin-bottom:15px;">');
+        ventana.document.write('<button onclick="window.print();" style="background:#dc3545;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
+        ventana.document.write('&#128196; Guardar / Imprimir PDF</button></div>');
+        ventana.document.write(contenido);
+        ventana.document.write('</body></html>');
+        ventana.document.close();
     });
 
     function htmlEsc(str) {
