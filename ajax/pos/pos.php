@@ -221,7 +221,10 @@ switch ($action) {
         // Descontar saldo gift card
         $nuevo_saldo  = (float)$gc['cgc_cupo_disponible'] - $monto_giftcard;
         $nuevo_estado = $nuevo_saldo <= 0 ? 'consumido' : 'activo';
-        $fecha_uso    = $nuevo_estado === 'consumido' ? "'" . date('Y-m-d H:i:s') . "'" : 'NULL';
+        // cgc_fecha_uso registra el último uso, sea parcial o total — antes solo
+        // se guardaba cuando la tarjeta quedaba en 0, dejando NULL cualquier
+        // consumo parcial aunque sí se haya usado hoy.
+        $fecha_uso    = "'" . date('Y-m-d H:i:s') . "'";
         mysqli_query($mysqli, "UPDATE codigo_gift_card
                                SET cgc_cupo_disponible = $nuevo_saldo,
                                    cgc_estado = '$nuevo_estado',
@@ -334,7 +337,8 @@ switch ($action) {
         if ($monto_giftcard > 0 && $cgc_id > 0) {
             $nuevo_saldo = (float)$gc['cgc_cupo_disponible'] - $monto_giftcard;
             $nuevo_estado = $nuevo_saldo <= 0 ? 'consumido' : 'activo';
-            $fecha_uso_sql = $nuevo_estado === 'consumido' ? "'" . date('Y-m-d H:i:s') . "'" : 'NULL';
+            // cgc_fecha_uso registra el último uso, sea parcial o total.
+            $fecha_uso_sql = "'" . date('Y-m-d H:i:s') . "'";
             mysqli_query($mysqli, "UPDATE codigo_gift_card
                                    SET cgc_cupo_disponible = $nuevo_saldo,
                                        cgc_estado = '$nuevo_estado',
