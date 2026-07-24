@@ -297,6 +297,119 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $data]);
         break;
 
+    // ── CL-I: CARGA MASIVA DE PERSONAL ─────────────────────────────────────────
+    // Filas ya vienen parseadas en JSON desde el navegador (SheetJS leyó el
+    // Excel/CSV: columna A cédula, B nombre, C cupo). Siempre para el cliente
+    // ya elegido en la ficha — el archivo no trae empresa por fila.
+    case 'personal_carga_masiva':
+        header('Content-Type: application/json');
+        $cli_id = (int)($_POST['cli_id'] ?? 0);
+        $accion = trim($_POST['accion'] ?? '');
+        $filas  = json_decode($_POST['filas'] ?? '[]', true);
+
+        if (!$cli_id || !in_array($accion, ['anadir', 'actualizar_cupo', 'bloquear']) || !is_array($filas) || !count($filas)) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        $stmtE = $mysqli->prepare("SELECT cli_valor_beneficio FROM cliente WHERE cli_id = ?");
+        $stmtE->bind_param('i', $cli_id);
+        $stmtE->execute();
+        $cupo_max = (float)($stmtE->get_result()->fetch_assoc()['cli_valor_beneficio'] ?? 0);
+
+        $id_user_sesion = (int)$_SESSION['id_user'];
+        $agregados = 0; $actualizados = 0; $bloqueados = 0; $omitidos = [];
+
+        foreach ($filas as $fila) {
+            $cedula = trim((string)($fila['cedula'] ?? ''));
+            $nombre = trim((string)($fila['nombre'] ?? ''));
+            $cupo   = isset($fila['cupo']) ? (float)$fila['cupo'] : 0;
+
+            if ($cedula === '') { $omitidos[] = ['cedula' => '(vacía)', 'motivo' => 'Fila sin cédula']; continue; }
+
+            if ($accion === 'anadir') {
+                if ($nombre === '' || $cupo <= 0) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Nombre o cupo inválido']; continue; }
+                $chk = $mysqli->prepare("SELECT per_id FROM personal WHERE per_documento = ? LIMIT 1");
+                $chk->bind_param('s', $cedula);
+                $chk->execute();
+                if ($chk->get_result()->fetch_assoc()) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ya existe (en esta u otra empresa)']; continue; }
+                if ($cupo_max > 0 && $cupo > $cupo_max) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')']; continue; }
+
+                $num_tarjeta = str_pad((string)mt_rand(1000, 9999), 4, '0') . str_pad((string)mt_rand(1000, 9999), 4, '0')
+                             . str_pad((string)mt_rand(1000, 9999), 4, '0') . str_pad((string)mt_rand(1000, 9999), 4, '0');
+                $ins = $mysqli->prepare(
+                    "INSERT INTO personal (per_nombre, per_documento, per_numero_tarjeta, cli_id, per_estado, per_cupo_asignado, per_cupo_disponible)
+                     VALUES (?, ?, ?, ?, 'activo', ?, ?)"
+                );
+                $ins->bind_param('sssidd', $nombre, $cedula, $num_tarjeta, $cli_id, $cupo, $cupo);
+                if ($ins->execute()) {
+                    $nuevo_id = $mysqli->insert_id;
+                    $cupoTxt = '$' . number_format($cupo, 2);
+                    $tra = $mysqli->prepare(
+                        "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                         VALUES (?, ?, 'alta_masiva', 'Alta por carga masiva', '', ?)"
+                    );
+                    $tra->bind_param('iis', $nuevo_id, $id_user_sesion, $cupoTxt);
+                    $tra->execute();
+                    $agregados++;
+                } else {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Error al guardar'];
+                }
+
+            } elseif ($accion === 'actualizar_cupo') {
+                if ($cupo <= 0) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo inválido']; continue; }
+                $find = $mysqli->prepare("SELECT per_id, per_cupo_asignado, per_cupo_disponible FROM personal WHERE per_documento = ? AND cli_id = ? LIMIT 1");
+                $find->bind_param('si', $cedula, $cli_id);
+                $find->execute();
+                $emp = $find->get_result()->fetch_assoc();
+                if (!$emp) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'No encontrada en este cliente']; continue; }
+                if ($cupo_max > 0 && $cupo > $cupo_max) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')']; continue; }
+
+                $cupo_anterior   = (float)$emp['per_cupo_asignado'];
+                $consumido       = $cupo_anterior - (float)$emp['per_cupo_disponible'];
+                $cupo_disp_nuevo = max(0, $cupo - $consumido);
+
+                $upd = $mysqli->prepare("UPDATE personal SET per_cupo_asignado = ?, per_cupo_disponible = ? WHERE per_id = ?");
+                $upd->bind_param('ddi', $cupo, $cupo_disp_nuevo, $emp['per_id']);
+                $upd->execute();
+
+                $antTxt = '$' . number_format($cupo_anterior, 2);
+                $nvoTxt = '$' . number_format($cupo, 2);
+                $tra = $mysqli->prepare(
+                    "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                     VALUES (?, ?, 'per_cupo_asignado', 'Cupo actualizado por carga masiva', ?, ?)"
+                );
+                $tra->bind_param('iiss', $emp['per_id'], $id_user_sesion, $antTxt, $nvoTxt);
+                $tra->execute();
+                $actualizados++;
+
+            } elseif ($accion === 'bloquear') {
+                $find = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_documento = ? AND cli_id = ? LIMIT 1");
+                $find->bind_param('si', $cedula, $cli_id);
+                $find->execute();
+                $emp = $find->get_result()->fetch_assoc();
+                if (!$emp) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'No encontrada en este cliente']; continue; }
+                if ($emp['per_estado'] === 'bloqueado') { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ya estaba bloqueada']; continue; }
+
+                $upd = $mysqli->prepare("UPDATE personal SET per_estado = 'bloqueado' WHERE per_id = ?");
+                $upd->bind_param('i', $emp['per_id']);
+                $upd->execute();
+
+                $tra = $mysqli->prepare(
+                    "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                     VALUES (?, ?, 'per_estado', 'Bloqueo por carga masiva', ?, 'bloqueado')"
+                );
+                $tra->bind_param('iis', $emp['per_id'], $id_user_sesion, $emp['per_estado']);
+                $tra->execute();
+                $bloqueados++;
+            }
+        }
+
+        echo json_encode(['success' => true, 'resultados' => [
+            'agregados' => $agregados, 'actualizados' => $actualizados, 'bloqueados' => $bloqueados, 'omitidos' => $omitidos
+        ]]);
+        break;
+
     // ── TAB: CONSUMOS ─────────────────────────────────────────────────────────
     case 'consumos_list':
         header('Content-Type: application/json');

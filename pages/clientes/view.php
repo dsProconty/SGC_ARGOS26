@@ -233,6 +233,11 @@
             <!-- TAB: PERSONAL -->
             <div class="card tab-panel" id="tab_personal" style="display:none;">
                 <div class="card-body">
+                    <div class="text-right mb-2">
+                        <button class="btn btn-sm btn-outline-info" onclick="abrirModalCargaMasiva()">
+                            <i class="icon dripicons-upload"></i> Carga Masiva
+                        </button>
+                    </div>
                     <div id="loader_personal" class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>
                     <div id="tabla_personal_wrapper" style="display:none;">
                         <table id="table_personal" class="table table-striped table-bordered" style="width:100%">
@@ -537,8 +542,50 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════
+     MODAL — CARGA MASIVA DE PERSONAL (CL-I)
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalCargaMasiva" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-upload"></i> Carga Masiva de Personal</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="alerta_carga_masiva"></div>
+                <div class="alert alert-info py-2 px-3" style="font-size:.85rem;">
+                    <i class="icon dripicons-information"></i>
+                    Excel o CSV sin encabezados: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
+                    <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo).
+                </div>
+                <div class="form-group">
+                    <label>Acción</label>
+                    <select class="form-control" id="cm_accion">
+                        <option value="anadir">Añadir empleados nuevos</option>
+                        <option value="actualizar_cupo">Actualizar cupo</option>
+                        <option value="bloquear">Bloquear empleados</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Archivo (.xlsx, .xls, .csv)</label>
+                    <input type="file" class="form-control-file" id="cm_archivo" accept=".xlsx,.xls,.csv">
+                </div>
+                <div id="cm_resultado" style="display:none; max-height:35vh; overflow-y:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-info" id="btn_procesar_carga_masiva" style="color:#fff;">
+                    <i class="icon dripicons-checkmark"></i> Procesar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
      JAVASCRIPT
 ══════════════════════════════════════════════════ -->
+<script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
 <script>
 var _cliId   = null;   // ID del cliente en vista detalle
 var _cliData = null;   // Datos del cliente actual
@@ -1103,6 +1150,86 @@ function verAuditoria(per_id) {
         $('#auditoria_body').html(html + '</div>');
     });
 }
+
+// ══════════════════════════════════════════════
+// CL-I: CARGA MASIVA DE PERSONAL
+// ══════════════════════════════════════════════
+function abrirModalCargaMasiva() {
+    $('#cm_accion').val('anadir');
+    $('#cm_archivo').val('');
+    $('#alerta_carga_masiva').html('');
+    $('#cm_resultado').hide().html('');
+    $('#modalCargaMasiva').modal('show');
+}
+
+$('#btn_procesar_carga_masiva').on('click', function () {
+    var archivo = $('#cm_archivo')[0].files[0];
+    var accion  = $('#cm_accion').val();
+    $('#alerta_carga_masiva').html('');
+    $('#cm_resultado').hide().html('');
+
+    if (!archivo) {
+        $('#alerta_carga_masiva').html('<div class="alert alert-warning mb-0">Selecciona un archivo.</div>');
+        return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+
+        var filas = [];
+        rows.forEach(function (r) {
+            var cedula = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '';
+            var nombre = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '';
+            var cupo   = (r[2] !== undefined && r[2] !== null && r[2] !== '') ? parseFloat(r[2]) : null;
+            if (cedula) filas.push({ cedula: cedula, nombre: nombre, cupo: cupo });
+        });
+
+        if (!filas.length) {
+            $('#alerta_carga_masiva').html('<div class="alert alert-warning mb-0">No se encontraron filas con cédula en el archivo.</div>');
+            return;
+        }
+
+        var accionTxt = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' }[accion];
+        if (!confirm('Se van a procesar ' + filas.length + ' fila(s) — acción: "' + accionTxt + '" — para ' + _cliData.cli_descripcion + '.\n¿Continuar?')) return;
+
+        $('#btn_procesar_carga_masiva').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
+        $.post('ajax/clientes/clientes.php?action=personal_carga_masiva', {
+            cli_id: _cliId, accion: accion, filas: JSON.stringify(filas)
+        }, function (res) {
+            $('#btn_procesar_carga_masiva').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Procesar');
+            if (!res.success) {
+                $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al procesar') + '</div>');
+                return;
+            }
+            var r = res.resultados;
+            var resumen = '<div class="alert alert-success mb-2">'
+                + 'Agregados: <strong>' + r.agregados + '</strong> &nbsp;|&nbsp; '
+                + 'Actualizados: <strong>' + r.actualizados + '</strong> &nbsp;|&nbsp; '
+                + 'Bloqueados: <strong>' + r.bloqueados + '</strong> &nbsp;|&nbsp; '
+                + 'Omitidos: <strong>' + r.omitidos.length + '</strong>'
+                + '</div>';
+            if (r.omitidos.length) {
+                resumen += '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Cédula</th><th>Motivo</th></tr></thead><tbody>';
+                r.omitidos.forEach(function (o) {
+                    resumen += '<tr><td>' + esc(o.cedula) + '</td><td>' + esc(o.motivo) + '</td></tr>';
+                });
+                resumen += '</tbody></table>';
+            }
+            $('#cm_resultado').html(resumen).show();
+            _tabsLoaded['personal'] = false;
+            cargarTabPersonal();
+        }, 'json').fail(function () {
+            $('#btn_procesar_carga_masiva').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Procesar');
+            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
+        });
+    };
+    reader.readAsArrayBuffer(archivo);
+});
+
+function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
 
 // ══════════════════════════════════════════════
 // INIT
