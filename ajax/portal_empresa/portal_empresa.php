@@ -1,6 +1,8 @@
 <?php
+date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
+mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
     echo json_encode(['success' => false, 'mensaje' => 'Acceso no autorizado']);
@@ -188,6 +190,16 @@ switch ($action) {
              FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
         if (!$emp_check) {
             echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
+            break;
+        }
+
+        // CL-G: crear_empleado ya validaba que la cédula no exista (en ninguna
+        // empresa); aquí faltaba revalidar al cambiarla, lo que permitía
+        // terminar con la misma cédula duplicada en dos empresas.
+        $chkCed = mysqli_fetch_assoc(mysqli_query($mysqli,
+            "SELECT per_id FROM personal WHERE per_documento = '$documento' AND per_id != $per_id LIMIT 1"));
+        if ($chkCed) {
+            echo json_encode(['success' => false, 'mensaje' => 'Ya existe otro empleado registrado con esa cédula']);
             break;
         }
 

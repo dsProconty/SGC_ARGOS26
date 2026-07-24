@@ -1,3 +1,4 @@
+<?php if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; } ?>
 <div class="content">
     <header class="page-header">
         <div class="container">
@@ -164,6 +165,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="#" data-tab="ventas_diferidas" onclick="cambiarTab(this,'ventas_diferidas'); return false;">
+                        <i class="icon dripicons-basket"></i> Ventas Diferidas
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="#" data-tab="estado_cuenta" onclick="cambiarTab(this,'estado_cuenta'); return false;">
                         <i class="icon dripicons-graph-bar"></i> Estados de Cuenta
                     </a>
@@ -233,7 +239,7 @@
                             <thead><tr>
                                 <th>#</th><th>Nombre</th><th>Documento</th>
                                 <th>N° Tarjeta</th><th>Email</th><th>Estado</th>
-                                <th>Cupo Asignado</th><th>Cupo Disponible</th>
+                                <th>Cupo Asignado</th><th>Cupo Disponible</th><th>Acciones</th>
                             </tr></thead>
                             <tbody id="tbody_personal"></tbody>
                         </table>
@@ -255,6 +261,25 @@
                             <tbody id="tbody_consumos"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB: VENTAS DIFERIDAS -->
+            <div class="card tab-panel" id="tab_ventas_diferidas" style="display:none;">
+                <div class="card-body">
+                    <div id="loader_vd_cliente" class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>
+                    <div id="tabla_vd_cliente_wrapper" style="display:none;">
+                        <table id="table_vd_cliente" class="table table-striped table-bordered" style="width:100%">
+                            <thead><tr>
+                                <th>Empleado</th><th>Descripción</th><th>Monto Total</th>
+                                <th>Cuota</th><th>Avance</th><th>Inicio</th><th>Estado</th>
+                            </tr></thead>
+                            <tbody id="tbody_vd_cliente"></tbody>
+                        </table>
+                    </div>
+                    <p id="vd_cliente_sin_datos" class="text-muted text-center py-3" style="display:none;">
+                        Este cliente no tiene ventas diferidas registradas.
+                    </p>
                 </div>
             </div>
 
@@ -450,12 +475,75 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════
+     MODAL — EDITAR EMPLEADO (CL-E)
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalEmpleado" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Empleado</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="alerta_empleado"></div>
+                <input type="hidden" id="emp_per_id">
+                <input type="hidden" id="emp_cli_id">
+                <div class="form-group">
+                    <label>Nombre completo</label>
+                    <input type="text" class="form-control" id="emp_nombre" autocomplete="off">
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Cédula</label>
+                            <input type="text" class="form-control" id="emp_documento" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" class="form-control" id="emp_correo" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Cupo asignado ($)</label>
+                    <input type="number" class="form-control" id="emp_cupo" min="0.01" step="0.01">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn_guardar_empleado">
+                    <i class="icon dripicons-checkmark"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL — AUDITORÍA DE EMPLEADO (CL-F)
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalAuditoria" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-clock"></i> Auditoría — <span id="aud_nombre_empleado"></span></h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" id="auditoria_body" style="max-height:65vh; overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
      JAVASCRIPT
 ══════════════════════════════════════════════════ -->
 <script>
 var _cliId   = null;   // ID del cliente en vista detalle
 var _cliData = null;   // Datos del cliente actual
 var _tabsLoaded = {};  // tabs ya cargados para evitar re-fetch
+var _personalData = {}; // cache de empleados de la ficha actual, por per_id (CL-E/CL-F)
 
 var cartBadge = {'30':'success','60':'warning','90':'danger','90+':'dark'};
 var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Mixto':'warning','Sin definir':'secondary'};
@@ -630,10 +718,11 @@ function cambiarTab(el, tab) {
     $('#tab_' + tab).show();
 
     if (!_tabsLoaded[tab]) {
-        if      (tab === 'personal')      cargarTabPersonal();
-        else if (tab === 'consumos')      cargarTabConsumos();
-        else if (tab === 'estado_cuenta') cargarTabEC();
-        else if (tab === 'giftcards')     cargarTabGiftCards();
+        if      (tab === 'personal')          cargarTabPersonal();
+        else if (tab === 'consumos')          cargarTabConsumos();
+        else if (tab === 'ventas_diferidas')  cargarTabVD();
+        else if (tab === 'estado_cuenta')     cargarTabEC();
+        else if (tab === 'giftcards')         cargarTabGiftCards();
     }
 }
 
@@ -648,9 +737,12 @@ function cargarTabPersonal() {
         if (!res.success) return;
 
         $('#badge_personal').text(res.data.length);
+        _personalData = {};
         var html = '';
         $.each(res.data, function(i, p) {
+            _personalData[p.per_id] = p;
             var estadoBadge = {activo:'success', bloqueado:'warning', inactivo:'secondary'}[p.per_estado] || 'secondary';
+            var esBloqueado = p.per_estado === 'bloqueado';
             html += '<tr>'
                 + '<td>' + (i+1) + '</td>'
                 + '<td>' + p.per_nombre + '</td>'
@@ -660,6 +752,14 @@ function cargarTabPersonal() {
                 + '<td><span class="badge badge-'+estadoBadge+'">'+p.per_estado+'</span></td>'
                 + '<td class="text-right">$ ' + parseFloat(p.per_cupo_asignado||0).toFixed(2) + '</td>'
                 + '<td class="text-right">$ ' + parseFloat(p.per_cupo_disponible||0).toFixed(2) + '</td>'
+                + '<td class="text-nowrap">'
+                  + '<button class="btn btn-primary btn-sm mr-1" onclick="editarEmpleado('+p.per_id+')" title="Editar">'
+                  + '<i class="icon dripicons-document-edit"></i></button>'
+                  + '<button class="btn btn-sm ' + (esBloqueado ? 'btn-success' : 'btn-warning') + ' mr-1" onclick="bloquearEmpleado('+p.per_id+')" title="'+(esBloqueado ? 'Activar' : 'Bloquear')+'">'
+                  + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock-closed') + '"></i></button>'
+                  + '<button class="btn btn-outline-secondary btn-sm" onclick="verAuditoria('+p.per_id+')" title="Auditoría">'
+                  + '<i class="icon dripicons-clock"></i></button>'
+                + '</td>'
               + '</tr>';
         });
         $('#tbody_personal').html(html);
@@ -667,6 +767,7 @@ function cargarTabPersonal() {
         if ($.fn.DataTable.isDataTable('#table_personal')) $('#table_personal').DataTable().destroy();
         $('#table_personal').DataTable({
             language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+            columnDefs: [{ orderable: false, targets: [8] }],
             pageLength: 10, order: [[1,'asc']]
         });
 
@@ -709,6 +810,53 @@ function cargarTabConsumos() {
 
         $('#tabla_consumos_wrapper').show();
         _tabsLoaded['consumos'] = true;
+    });
+}
+
+// — Ventas Diferidas (CL-D) ──────────────────────────────────────────────────
+function cargarTabVD() {
+    if (_tabsLoaded['ventas_diferidas']) return;
+    $('#loader_vd_cliente').show();
+    $('#tabla_vd_cliente_wrapper, #vd_cliente_sin_datos').hide();
+
+    var vdBadge = {activo:'success', completado:'primary', cancelado:'danger'};
+
+    $.getJSON('ajax/clientes/clientes.php?action=venta_diferida_list&cli_id='+_cliId, function(res) {
+        $('#loader_vd_cliente').hide();
+        if (!res.success) return;
+
+        if (!res.data.length) {
+            $('#vd_cliente_sin_datos').show();
+        } else {
+            var html = '';
+            $.each(res.data, function(i, v) {
+                var pagadas = parseInt(v.vd_cuotas_pagadas) || 0;
+                var total   = parseInt(v.vd_num_cuotas) || 0;
+                var pct     = total > 0 ? Math.round(pagadas / total * 100) : 0;
+                html += '<tr>'
+                    + '<td>' + v.per_nombre + '<br><small class="text-muted">' + (v.per_documento||'') + '</small></td>'
+                    + '<td>' + v.vd_descripcion + '</td>'
+                    + '<td class="text-right">$ ' + parseFloat(v.vd_monto_total||0).toFixed(2) + '</td>'
+                    + '<td class="text-right">$ ' + parseFloat(v.vd_monto_cuota||0).toFixed(2) + '</td>'
+                    + '<td>'
+                      + '<div class="progress" style="height:16px;" title="'+pagadas+' de '+total+' cuotas">'
+                      + '<div class="progress-bar bg-success" style="width:'+pct+'%">'+pagadas+'/'+total+'</div>'
+                      + '</div>'
+                    + '</td>'
+                    + '<td>' + (v.vd_fecha_inicio||'') + '</td>'
+                    + '<td><span class="badge badge-'+(vdBadge[v.vd_estado]||'secondary')+'">'+v.vd_estado+'</span></td>'
+                  + '</tr>';
+            });
+            $('#tbody_vd_cliente').html(html);
+
+            if ($.fn.DataTable.isDataTable('#table_vd_cliente')) $('#table_vd_cliente').DataTable().destroy();
+            $('#table_vd_cliente').DataTable({
+                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+                pageLength: 10, order: [[5,'desc']]
+            });
+            $('#tabla_vd_cliente_wrapper').show();
+        }
+        _tabsLoaded['ventas_diferidas'] = true;
     });
 }
 
@@ -863,6 +1011,98 @@ $('#formCliente').on('submit', function(e) {
         alert('Error de conexión');
     });
 });
+
+// ══════════════════════════════════════════════
+// CL-E: EDITAR / BLOQUEAR EMPLEADO
+// ══════════════════════════════════════════════
+function editarEmpleado(per_id) {
+    var p = _personalData[per_id];
+    if (!p) return;
+    $('#alerta_empleado').html('');
+    $('#emp_per_id').val(p.per_id);
+    $('#emp_cli_id').val(_cliId);
+    $('#emp_nombre').val(p.per_nombre);
+    $('#emp_documento').val(p.per_documento || '');
+    $('#emp_correo').val(p.per_correo || '');
+    $('#emp_cupo').val(p.per_cupo_asignado || '');
+    $('#modalEmpleado').modal('show');
+}
+
+$('#btn_guardar_empleado').on('click', function() {
+    var btn = $(this);
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+    $.post('ajax/clientes/clientes.php?action=personal_editar', {
+        per_id: $('#emp_per_id').val(),
+        cli_id: $('#emp_cli_id').val(),
+        per_nombre: $('#emp_nombre').val(),
+        per_documento: $('#emp_documento').val(),
+        per_correo: $('#emp_correo').val(),
+        per_cupo_asignado: $('#emp_cupo').val()
+    }, function(res) {
+        btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar');
+        if (res.success) {
+            $('#modalEmpleado').modal('hide');
+            _tabsLoaded['personal'] = false;
+            cargarTabPersonal();
+        } else {
+            $('#alerta_empleado').html('<div class="alert alert-danger mb-0">' + res.mensaje + '</div>');
+        }
+    }, 'json').fail(function() {
+        btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar');
+        $('#alerta_empleado').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
+    });
+});
+
+function bloquearEmpleado(per_id) {
+    var p = _personalData[per_id];
+    if (!p) return;
+    var esBloqueado = p.per_estado === 'bloqueado';
+    var nuevoEstado = esBloqueado ? 'activo' : 'bloqueado';
+    var accion = esBloqueado ? 'activar' : 'bloquear';
+    if (!confirm('¿Seguro que deseas ' + accion + ' a ' + p.per_nombre + '?')) return;
+
+    $.post('ajax/clientes/clientes.php?action=personal_cambiar_estado', {
+        per_id: per_id, cli_id: _cliId, per_estado: nuevoEstado
+    }, function(res) {
+        if (res.success) {
+            _tabsLoaded['personal'] = false;
+            cargarTabPersonal();
+        } else {
+            alert(res.mensaje || 'Error al actualizar el estado');
+        }
+    }, 'json').fail(function() { alert('Error de conexión'); });
+}
+
+// ══════════════════════════════════════════════
+// CL-F: AUDITORÍA DE EMPLEADO
+// ══════════════════════════════════════════════
+function verAuditoria(per_id) {
+    var p = _personalData[per_id];
+    $('#aud_nombre_empleado').text(p ? p.per_nombre : '');
+    $('#auditoria_body').html('<div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div>');
+    $('#modalAuditoria').modal('show');
+
+    $.getJSON('ajax/clientes/clientes.php?action=personal_trazabilidad_list&per_id=' + per_id, function(res) {
+        if (!res.success || !res.data.length) {
+            $('#auditoria_body').html('<p class="text-muted text-center mb-0">Sin registros de auditoría para este empleado.</p>');
+            return;
+        }
+        var html = '<div class="list-group">';
+        res.data.forEach(function(t) {
+            html += '<div class="list-group-item">'
+                + '<div class="d-flex justify-content-between align-items-center">'
+                + '<span><strong>' + t.tra_campo_label + '</strong></span>'
+                + '<small class="text-muted">' + t.tra_fecha + '</small>'
+                + '</div>'
+                + '<div class="small text-muted">Por: ' + t.name_user + '</div>'
+                + (t.tra_valor_anterior || t.tra_valor_nuevo
+                    ? '<div class="small mt-1"><span class="text-muted">' + (t.tra_valor_anterior || '—') + '</span> &rarr; <strong>' + (t.tra_valor_nuevo || '—') + '</strong></div>'
+                    : '')
+              + '</div>';
+        });
+        $('#auditoria_body').html(html + '</div>');
+    });
+}
 
 // ══════════════════════════════════════════════
 // INIT

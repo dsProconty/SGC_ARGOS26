@@ -1,5 +1,13 @@
 <?php
+date_default_timezone_set('America/Guayaquil');
 require_once "../../config/database.php";
+mysqli_query($mysqli, "SET time_zone = '-05:00'");
+
+if (empty($_SESSION['id_user'])) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'mensaje' => 'Sesión no válida']);
+    exit;
+}
 
 $action = $_GET['action'] ?? '';
 
@@ -149,6 +157,146 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $data]);
         break;
 
+    // ── CL-E: EDITAR EMPLEADO (desde la ficha del cliente, Super Admin) ────────
+    case 'personal_editar':
+        header('Content-Type: application/json');
+        $per_id    = (int)($_POST['per_id']    ?? 0);
+        $cli_id    = (int)($_POST['cli_id']    ?? 0);
+        $nombre    = trim($_POST['per_nombre']    ?? '');
+        $documento = trim($_POST['per_documento'] ?? '');
+        $correo    = trim($_POST['per_correo']    ?? '');
+        $cupo      = (float)($_POST['per_cupo_asignado'] ?? 0);
+
+        if (!$per_id || !$cli_id || !$nombre || !$documento || $cupo <= 0) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare(
+            "SELECT per_id, per_nombre, per_documento, per_correo, per_cupo_asignado, per_cupo_disponible
+             FROM personal WHERE per_id = ? AND cli_id = ? LIMIT 1"
+        );
+        $stmt->bind_param('ii', $per_id, $cli_id);
+        $stmt->execute();
+        $emp_check = $stmt->get_result()->fetch_assoc();
+        if (!$emp_check) { echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']); break; }
+
+        // CL-G: la cédula no puede pertenecer a otro empleado (de esta empresa
+        // u otra) — mismo control que ya existía al crear un empleado nuevo
+        // desde Portal Empresa, que faltaba aquí al editar.
+        $chkCed = $mysqli->prepare("SELECT per_id FROM personal WHERE per_documento = ? AND per_id != ? LIMIT 1");
+        $chkCed->bind_param('si', $documento, $per_id);
+        $chkCed->execute();
+        if ($chkCed->get_result()->fetch_assoc()) {
+            echo json_encode(['success' => false, 'mensaje' => 'Ya existe otro empleado registrado con esa cédula']);
+            break;
+        }
+
+        $empresa = $mysqli->prepare("SELECT cli_valor_beneficio FROM cliente WHERE cli_id = ?");
+        $empresa->bind_param('i', $cli_id);
+        $empresa->execute();
+        $cupo_max = (float)($empresa->get_result()->fetch_assoc()['cli_valor_beneficio'] ?? 0);
+        if ($cupo_max > 0 && $cupo > $cupo_max) {
+            echo json_encode(['success' => false, 'mensaje' => 'El cupo ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo de la empresa ($' . number_format($cupo_max, 2) . ')']);
+            break;
+        }
+
+        $id_user_sesion = (int)$_SESSION['id_user'];
+        $cambios = [];
+        if ($emp_check['per_nombre'] !== $nombre)       $cambios[] = ['campo' => 'per_nombre',    'label' => 'Nombre', 'anterior' => $emp_check['per_nombre'],    'nuevo' => $nombre];
+        if ($emp_check['per_documento'] !== $documento) $cambios[] = ['campo' => 'per_documento', 'label' => 'Cédula', 'anterior' => $emp_check['per_documento'], 'nuevo' => $documento];
+        if ($emp_check['per_correo'] !== $correo)       $cambios[] = ['campo' => 'per_correo',    'label' => 'Correo', 'anterior' => $emp_check['per_correo'],    'nuevo' => $correo];
+        $cupo_anterior = (float)$emp_check['per_cupo_asignado'];
+        if (abs($cupo_anterior - $cupo) > 0.001) {
+            $label_cupo = $cupo > $cupo_anterior ? 'Aumento de cupo' : 'Disminución de cupo';
+            $cambios[] = ['campo' => 'per_cupo_asignado', 'label' => $label_cupo, 'anterior' => '$' . number_format($cupo_anterior, 2), 'nuevo' => '$' . number_format($cupo, 2)];
+        }
+
+        // Ajustar cupo disponible proporcionalmente si cambió el cupo asignado
+        $cupo_disponible_nuevo = $emp_check['per_cupo_disponible'];
+        if (abs($cupo_anterior - $cupo) > 0.001) {
+            $consumido = $cupo_anterior - (float)$emp_check['per_cupo_disponible'];
+            $cupo_disponible_nuevo = max(0, $cupo - $consumido);
+        }
+
+        $upd = $mysqli->prepare(
+            "UPDATE personal SET per_nombre=?, per_documento=?, per_correo=?, per_cupo_asignado=?, per_cupo_disponible=?
+             WHERE per_id=? AND cli_id=?"
+        );
+        $correoParam = $correo !== '' ? $correo : null;
+        $upd->bind_param('sssddii', $nombre, $documento, $correoParam, $cupo, $cupo_disponible_nuevo, $per_id, $cli_id);
+        if (!$upd->execute()) { echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . $mysqli->error]); break; }
+
+        foreach ($cambios as $c) {
+            $tra = $mysqli->prepare(
+                "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                 VALUES (?, ?, ?, ?, ?, ?)"
+            );
+            $anterior = $c['anterior'] ?? '';
+            $nuevo    = $c['nuevo'] ?? '';
+            $tra->bind_param('iissss', $per_id, $id_user_sesion, $c['campo'], $c['label'], $anterior, $nuevo);
+            $tra->execute();
+        }
+
+        echo json_encode(['success' => true, 'cambios' => count($cambios)]);
+        break;
+
+    // ── CL-E: BLOQUEAR / ACTIVAR EMPLEADO (desde la ficha del cliente) ─────────
+    case 'personal_cambiar_estado':
+        header('Content-Type: application/json');
+        $per_id       = (int)($_POST['per_id']    ?? 0);
+        $cli_id       = (int)($_POST['cli_id']    ?? 0);
+        $nuevo_estado = trim($_POST['per_estado'] ?? '');
+
+        if (!$per_id || !$cli_id || !in_array($nuevo_estado, ['activo', 'bloqueado', 'inactivo'])) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos inválidos']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_id = ? AND cli_id = ? LIMIT 1");
+        $stmt->bind_param('ii', $per_id, $cli_id);
+        $stmt->execute();
+        $emp_check = $stmt->get_result()->fetch_assoc();
+        if (!$emp_check) { echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']); break; }
+
+        $upd = $mysqli->prepare("UPDATE personal SET per_estado = ? WHERE per_id = ?");
+        $upd->bind_param('si', $nuevo_estado, $per_id);
+        if (!$upd->execute()) { echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar']); break; }
+
+        $id_user_sesion = (int)$_SESSION['id_user'];
+        $label = $nuevo_estado === 'activo' ? 'Activación de empleado' : ($nuevo_estado === 'bloqueado' ? 'Bloqueo de empleado' : 'Inactivación de empleado');
+        $tra = $mysqli->prepare(
+            "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+             VALUES (?, ?, 'per_estado', ?, ?, ?)"
+        );
+        $tra->bind_param('iisss', $per_id, $id_user_sesion, $label, $emp_check['per_estado'], $nuevo_estado);
+        $tra->execute();
+
+        echo json_encode(['success' => true, 'mensaje' => 'Estado actualizado']);
+        break;
+
+    // ── CL-F: TRAZABILIDAD / AUDITORÍA DE EMPLEADO ─────────────────────────────
+    case 'personal_trazabilidad_list':
+        header('Content-Type: application/json');
+        $per_id = (int)($_GET['per_id'] ?? 0);
+        $stmt = $mysqli->prepare(
+            "SELECT t.tra_id, t.tra_campo, t.tra_campo_label, t.tra_valor_anterior, t.tra_valor_nuevo,
+                    DATE_FORMAT(t.tra_fecha, '%d/%m/%Y %H:%i') AS tra_fecha,
+                    u.name_user
+             FROM personal_trazabilidad t
+             JOIN usuario u ON t.id_user = u.id_user
+             WHERE t.per_id = ?
+             ORDER BY t.tra_fecha DESC
+             LIMIT 50"
+        );
+        $stmt->bind_param('i', $per_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = [];
+        while ($r = $res->fetch_assoc()) $data[] = $r;
+        echo json_encode(['success' => true, 'data' => $data]);
+        break;
+
     // ── TAB: CONSUMOS ─────────────────────────────────────────────────────────
     case 'consumos_list':
         header('Content-Type: application/json');
@@ -181,6 +329,27 @@ switch ($action) {
             "SELECT ec_id, ec_periodo_inicio, ec_periodo_fin, ec_monto_total,
                     ec_fecha_generacion, ec_estado_envio, ec_archivo_pdf
              FROM estado_cuenta WHERE cli_id = ? ORDER BY ec_id DESC"
+        );
+        $stmt->bind_param('i', $cli_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $data = [];
+        while ($r = $res->fetch_assoc()) $data[] = $r;
+        echo json_encode(['success' => true, 'data' => $data]);
+        break;
+
+    // ── TAB: VENTAS DIFERIDAS (CL-D) ─────────────────────────────────────────
+    case 'venta_diferida_list':
+        header('Content-Type: application/json');
+        $cli_id = (int)($_GET['cli_id'] ?? 0);
+        $stmt = $mysqli->prepare(
+            "SELECT vd.vd_id, vd.vd_descripcion, vd.vd_monto_total, vd.vd_num_cuotas,
+                    vd.vd_cuotas_pagadas, vd.vd_monto_cuota, vd.vd_fecha_inicio, vd.vd_estado,
+                    p.per_nombre, p.per_documento
+             FROM venta_diferida vd
+             JOIN personal p ON vd.per_id = p.per_id
+             WHERE p.cli_id = ?
+             ORDER BY vd.vd_id DESC"
         );
         $stmt->bind_param('i', $cli_id);
         $stmt->execute();
