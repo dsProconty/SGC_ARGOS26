@@ -699,6 +699,7 @@ function limpiarFiltros() {
 function verDetalle(id) {
     _cliId = id;
     _tabsLoaded = {};
+    $('#alerta_personal').html('');
 
     $.getJSON('ajax/clientes/clientes.php?action=get&id='+id, function(res) {
         if (!res.success) { alert('Error al cargar el cliente'); return; }
