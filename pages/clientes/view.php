@@ -821,7 +821,7 @@ function cargarTabPersonal() {
                   + '<button class="btn btn-primary btn-sm mr-1" onclick="editarEmpleado('+p.per_id+')" title="Editar">'
                   + '<i class="icon dripicons-document-edit"></i></button>'
                   + '<button class="btn btn-sm ' + (esBloqueado ? 'btn-success' : 'btn-danger') + ' mr-1" onclick="bloquearEmpleado('+p.per_id+')" title="'+(esBloqueado ? 'Activar' : 'Bloquear')+'">'
-                  + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock-closed') + '"></i></button>'
+                  + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock') + '"></i></button>'
                   + '<button class="btn btn-outline-secondary btn-sm" onclick="verAuditoria('+p.per_id+')" title="Auditoría">'
                   + '<i class="icon dripicons-clock"></i></button>'
                 + '</td>'
