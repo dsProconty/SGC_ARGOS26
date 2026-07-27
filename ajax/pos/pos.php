@@ -108,7 +108,7 @@ switch ($action) {
         }
 
         // --- Intentar como código Gift Card ---
-        $qGC = "SELECT cgc_id, cgc_codigo, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
+        $qGC = "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
                 FROM codigo_gift_card WHERE cgc_codigo = '$input' LIMIT 1";
         $rGC = mysqli_query($mysqli, $qGC);
 
@@ -123,6 +123,7 @@ switch ($action) {
                     'success'         => false,
                     'tipo'            => 'giftcard_vencida',
                     'mensaje'         => 'CADUCADA el ' . date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])),
+                    'saldo_original'  => (float)$gc['cgc_cupo_inicial'],
                     'saldo'           => (float)$gc['cgc_cupo_disponible'],
                     'fecha_caducidad' => date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])),
                 ]);
@@ -145,6 +146,7 @@ switch ($action) {
                 'data'    => [
                     'cgc_id'          => (int)$gc['cgc_id'],
                     'cgc_codigo'      => $gc['cgc_codigo'],
+                    'saldo_original'  => (float)$gc['cgc_cupo_inicial'],
                     'saldo'           => (float)$gc['cgc_cupo_disponible'],
                     'fecha_caducidad' => $gc['cgc_fecha_caducidad']
                         ? date('d/m/Y', strtotime($gc['cgc_fecha_caducidad']))

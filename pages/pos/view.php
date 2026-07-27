@@ -80,11 +80,15 @@
                             </div>
                             <hr class="mb-3">
                             <div class="row text-center">
-                                <div class="col-6">
+                                <div class="col-4">
+                                    <p class="mb-1 text-muted"><small>Saldo Original</small></p>
+                                    <h5 class="text-secondary font-weight-bold" id="gc_saldo_original_display">$0.00</h5>
+                                </div>
+                                <div class="col-4">
                                     <p class="mb-1 text-muted"><small>Saldo Disponible</small></p>
                                     <h4 class="text-success font-weight-bold" id="gc_saldo_display">$0.00</h4>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-4">
                                     <p class="mb-1 text-muted"><small>Vence</small></p>
                                     <h5 class="text-info" id="gc_vence_display"></h5>
                                 </div>
@@ -399,6 +403,7 @@ $(document).ready(function () {
                         $('#alerta_busqueda').html(
                             '<div class="alert alert-warning text-center mb-0">' +
                             '<h4 class="mb-2"><i class="icon dripicons-warning"></i> CADUCADA</h4>' +
+                            '<div>Saldo original: <strong>$' + parseFloat(resp.saldo_original || 0).toFixed(2) + '</strong></div>' +
                             '<div>Saldo disponible: <strong>$' + parseFloat(resp.saldo || 0).toFixed(2) + '</strong></div>' +
                             '<div>Venció el: <strong>' + resp.fecha_caducidad + '</strong></div>' +
                             '</div>'
@@ -469,6 +474,7 @@ $(document).ready(function () {
         gc_saldo   = parseFloat(data.saldo) || 0;
 
         $('#gc_codigo_display').text(data.cgc_codigo);
+        $('#gc_saldo_original_display').text('$' + (parseFloat(data.saldo_original) || 0).toFixed(2));
         $('#gc_saldo_display').text('$' + gc_saldo.toFixed(2));
         $('#gc_vence_display').text(data.fecha_caducidad);
         $('#gc_cgc_id_hidden').val(data.cgc_id);

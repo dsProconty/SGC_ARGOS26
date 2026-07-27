@@ -637,7 +637,7 @@ switch ($action) {
         if ($codigo === '') { echo json_encode(['success' => false, 'mensaje' => 'Ingrese un código']); break; }
 
         $stmt = $mysqli->prepare(
-            "SELECT cgc_id, cgc_codigo, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
+            "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
              FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1"
         );
         $stmt->bind_param('s', $codigo);
@@ -667,6 +667,7 @@ switch ($action) {
             'success'         => true,
             'cgc_id'          => $gc['cgc_id'],
             'cgc_codigo'      => $gc['cgc_codigo'],
+            'saldo_original'  => (float)$gc['cgc_cupo_inicial'],
             'saldo'           => (float)$gc['cgc_cupo_disponible'],
             'fecha_caducidad' => $gc['cgc_fecha_caducidad'] ? date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])) : 'Sin caducidad'
         ]);
