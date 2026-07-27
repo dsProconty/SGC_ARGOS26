@@ -77,29 +77,33 @@ switch ($action) {
             break;
         }
 
-        // --- Intentar como cédula (solo dígitos) ---
+        // --- Intentar como cédula o número de tarjeta (solo dígitos) ---
+        // El cajero puede buscar por cédula (10 dígitos) o escaneando la
+        // tarjeta del empleado (16 dígitos, per_numero_tarjeta) — antes solo
+        // se buscaba por cédula, así que un empleado bloqueado localizado por
+        // su tarjeta caía en "no encontrado" en vez de avisar que está bloqueado.
         if (preg_match('/^\d+$/', $input)) {
             $query = "SELECT p.per_id, p.per_nombre, p.per_documento, p.per_estado,
                              p.per_cupo_asignado, p.per_cupo_disponible,
                              c.cli_id, c.cli_descripcion, c.cli_tipo_beneficio, c.cli_valor_beneficio
                       FROM personal p
                       JOIN cliente c ON p.cli_id = c.cli_id
-                      WHERE p.per_documento = '$input'
+                      WHERE p.per_documento = '$input' OR p.per_numero_tarjeta = '$input'
                       LIMIT 1";
             $result = mysqli_query($mysqli, $query);
 
             if ($result && mysqli_num_rows($result) > 0) {
                 $data = mysqli_fetch_assoc($result);
                 if ($data['per_estado'] === 'suspendido') {
-                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Comuníquese con la empresa.']);
+                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Por favor contactar con el departamento de ventas.']);
                     exit;
                 }
                 if ($data['per_estado'] === 'bloqueado') {
-                    echo json_encode(['success' => false, 'mensaje' => 'Empleado bloqueado – no puede realizar consumos']);
+                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra bloqueada. Por favor contactar con el departamento de ventas.']);
                     break;
                 }
                 if ($data['per_estado'] === 'inactivo') {
-                    echo json_encode(['success' => false, 'mensaje' => 'Empleado inactivo – no puede realizar consumos']);
+                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra inactiva. Por favor contactar con el departamento de ventas.']);
                     break;
                 }
                 echo json_encode(['success' => true, 'tipo' => 'empleado', 'data' => $data]);
