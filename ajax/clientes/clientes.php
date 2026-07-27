@@ -1,5 +1,6 @@
 <?php
 date_default_timezone_set('America/Guayaquil');
+session_start();
 require_once "../../config/database.php";
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
