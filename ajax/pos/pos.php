@@ -95,15 +95,15 @@ switch ($action) {
             if ($result && mysqli_num_rows($result) > 0) {
                 $data = mysqli_fetch_assoc($result);
                 if ($data['per_estado'] === 'suspendido') {
-                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Por favor contactar con el departamento de ventas.']);
+                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     exit;
                 }
                 if ($data['per_estado'] === 'bloqueado') {
-                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra bloqueada. Por favor contactar con el departamento de ventas.']);
+                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra bloqueada. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     break;
                 }
                 if ($data['per_estado'] === 'inactivo') {
-                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra inactiva. Por favor contactar con el departamento de ventas.']);
+                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra inactiva. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     break;
                 }
                 echo json_encode(['success' => true, 'tipo' => 'empleado', 'data' => $data]);
