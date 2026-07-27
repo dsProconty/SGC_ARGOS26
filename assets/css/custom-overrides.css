@@ -1,0 +1,13 @@
+/* Correcciones globales de contraste de íconos.
+   El tema base fija color:#788db4 a TODO <i>, sin importar el fondo donde
+   esté (assets/css/common/main.bundle.css). Dentro de un botón o badge de
+   color (btn-primary, btn-warning, btn-danger, etc.) eso deja el ícono casi
+   invisible contra su propio fondo. Estas reglas hacen que el ícono herede
+   el color de texto real del botón/badge en el que está, en vez del gris-
+   azul fijo del tema. */
+.btn i,
+.btn .icon,
+.badge i,
+.badge .icon {
+    color: inherit;
+}

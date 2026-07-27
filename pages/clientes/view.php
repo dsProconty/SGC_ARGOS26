@@ -777,9 +777,9 @@ function cargarTabPersonal() {
         var html = '';
         $.each(res.data, function(i, p) {
             _personalData[p.per_id] = p;
-            var estadoBadge = {activo:'success', bloqueado:'warning', inactivo:'secondary'}[p.per_estado] || 'secondary';
+            var estadoBadge = {activo:'success', bloqueado:'danger', inactivo:'secondary'}[p.per_estado] || 'secondary';
             var esBloqueado = p.per_estado === 'bloqueado';
-            html += '<tr>'
+            html += '<tr' + (esBloqueado ? ' class="table-danger"' : '') + '>'
                 + '<td>' + (i+1) + '</td>'
                 + '<td>' + p.per_nombre + '</td>'
                 + '<td>' + (p.per_documento || '—') + '</td>'
