@@ -25,7 +25,7 @@ switch ($action) {
         if ($filtro_cartera)   $where[] = "cli_tipo_cartera   = '" . mysqli_real_escape_string($mysqli, $filtro_cartera)   . "'";
         $sql_where = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        // El Tipo de Cliente (Empresarial / Gift Card / Mixto) es un campo manual
+        // El Tipo de Cliente (Empresarial / Gift Card) es un campo manual
         // (cliente.cli_tipo_cliente), elegido en el modal de Nuevo/Editar Cliente.
         $result = mysqli_query($mysqli,
             "SELECT c.cli_id, c.cli_descripcion, c.cli_ciudad, c.cli_contacto,
@@ -40,12 +40,11 @@ switch ($action) {
         );
 
         $rows = [];
-        $kpis = ['total' => 0, 'empresarial' => 0, 'giftcard' => 0, 'mixto' => 0, 'sin_definir' => 0];
+        $kpis = ['total' => 0, 'empresarial' => 0, 'giftcard' => 0, 'sin_definir' => 0];
         while ($row = mysqli_fetch_assoc($result)) {
             $kpis['total']++;
             if      ($row['cli_tipo_cliente'] === 'Empresarial') $kpis['empresarial']++;
             elseif  ($row['cli_tipo_cliente'] === 'Gift Card')   $kpis['giftcard']++;
-            elseif  ($row['cli_tipo_cliente'] === 'Mixto')       $kpis['mixto']++;
             else                                                 $kpis['sin_definir']++;
 
             $rows[] = $row;

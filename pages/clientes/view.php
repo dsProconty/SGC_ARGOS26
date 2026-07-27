@@ -29,7 +29,7 @@
         <div id="vista_lista">
             <!-- KPIs -->
             <div class="row" id="kpis_clientes">
-                <div class="col-6 col-md-3 mb-3">
+                <div class="col-6 col-md-4 mb-3">
                     <div class="card text-center">
                         <div class="card-body py-3">
                             <div class="text-muted small">Total Clientes</div>
@@ -37,7 +37,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 mb-3">
+                <div class="col-6 col-md-4 mb-3">
                     <div class="card text-center">
                         <div class="card-body py-3">
                             <div class="text-muted small">Empresariales</div>
@@ -45,19 +45,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3 mb-3">
+                <div class="col-6 col-md-4 mb-3">
                     <div class="card text-center">
                         <div class="card-body py-3">
                             <div class="text-muted small">Gift Card</div>
                             <div class="h3 mb-0 text-info" id="kpi_giftcard">0</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3 mb-3">
-                    <div class="card text-center">
-                        <div class="card-body py-3">
-                            <div class="text-muted small">Mixtos</div>
-                            <div class="h3 mb-0 text-warning" id="kpi_mixto">0</div>
                         </div>
                     </div>
                 </div>
@@ -72,7 +64,6 @@
                             <option value="">Todos los tipos</option>
                             <option value="Empresarial">Empresarial</option>
                             <option value="Gift Card">Gift Card</option>
-                            <option value="Mixto">Mixto</option>
                             <option value="Sin definir">Sin definir</option>
                         </select>
                         <select class="form-control form-control-sm mr-2" id="filtro_beneficio" onchange="cargarClientes()">
@@ -453,7 +444,6 @@
                                     <option value="">— Sin definir —</option>
                                     <option value="Empresarial">Empresarial</option>
                                     <option value="Gift Card">Gift Card</option>
-                                    <option value="Mixto">Mixto</option>
                                 </select>
                             </div>
                         </div>
@@ -593,7 +583,7 @@ var _tabsLoaded = {};  // tabs ya cargados para evitar re-fetch
 var _personalData = {}; // cache de empleados de la ficha actual, por per_id (CL-E/CL-F)
 
 var cartBadge = {'30':'success','60':'warning','90':'danger','90+':'dark'};
-var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Mixto':'warning','Sin definir':'secondary'};
+var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Sin definir':'secondary'};
 
 // ══════════════════════════════════════════════
 // LISTA
@@ -619,7 +609,6 @@ function cargarClientes() {
             $('#kpi_total').text(res.kpis.total);
             $('#kpi_empresarial').text(res.kpis.empresarial);
             $('#kpi_giftcard').text(res.kpis.giftcard);
-            $('#kpi_mixto').text(res.kpis.mixto);
         }
 
         var html = '';
