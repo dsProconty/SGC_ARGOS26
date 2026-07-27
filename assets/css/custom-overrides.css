@@ -2,12 +2,42 @@
    El tema base fija color:#788db4 a TODO <i>, sin importar el fondo donde
    esté (assets/css/common/main.bundle.css). Dentro de un botón o badge de
    color (btn-primary, btn-warning, btn-danger, etc.) eso deja el ícono casi
-   invisible contra su propio fondo. Estas reglas hacen que el ícono herede
-   el color de texto real del botón/badge en el que está, en vez del gris-
-   azul fijo del tema. */
-.btn i,
-.btn .icon,
-.badge i,
-.badge .icon {
+   invisible contra su propio fondo.
+
+   "color: inherit" no bastó en los botones sólidos (btn-warning, etc.):
+   el tema no siempre define su propio color de texto de forma heredable,
+   así que se fija el color explícito correcto para cada variante, igual
+   que hace Bootstrap con el texto del botón. */
+.btn-primary i, .btn-primary .icon,
+.btn-secondary i, .btn-secondary .icon,
+.btn-success i, .btn-success .icon,
+.btn-danger i, .btn-danger .icon,
+.btn-info i, .btn-info .icon,
+.btn-dark i, .btn-dark .icon {
+    color: #fff !important;
+}
+
+.btn-warning i, .btn-warning .icon,
+.btn-light i, .btn-light .icon {
+    color: #212529 !important;
+}
+
+.btn-outline-primary i, .btn-outline-primary .icon { color: #399AF2 !important; }
+.btn-outline-secondary i, .btn-outline-secondary .icon { color: #6c757d !important; }
+.btn-outline-success i, .btn-outline-success .icon { color: #28a745 !important; }
+.btn-outline-danger i, .btn-outline-danger .icon { color: #dc3545 !important; }
+.btn-outline-info i, .btn-outline-info .icon { color: #17a2b8 !important; }
+.btn-outline-warning i, .btn-outline-warning .icon { color: #212529 !important; }
+
+.btn-outline-primary:hover i, .btn-outline-primary:hover .icon,
+.btn-outline-secondary:hover i, .btn-outline-secondary:hover .icon,
+.btn-outline-success:hover i, .btn-outline-success:hover .icon,
+.btn-outline-danger:hover i, .btn-outline-danger:hover .icon,
+.btn-outline-info:hover i, .btn-outline-info:hover .icon,
+.btn-outline-warning:hover i, .btn-outline-warning:hover .icon {
+    color: #fff !important;
+}
+
+.badge i, .badge .icon {
     color: inherit;
 }

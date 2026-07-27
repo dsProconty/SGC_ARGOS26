@@ -229,6 +229,7 @@
                             <i class="icon dripicons-upload"></i> Carga Masiva
                         </button>
                     </div>
+                    <div id="alerta_personal"></div>
                     <div id="loader_personal" class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>
                     <div id="tabla_personal_wrapper" style="display:none;">
                         <table id="table_personal" class="table table-striped table-bordered" style="width:100%">
@@ -527,6 +528,34 @@
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body" id="auditoria_body" style="max-height:65vh; overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL — CONFIRMAR BLOQUEAR/ACTIVAR EMPLEADO (CL-E)
+     Reemplaza confirm() nativo: Chrome lo puede silenciar sin avisar
+     después de varios diálogos ("Prevent this page from creating
+     additional dialogs"), y el clic parecía no hacer nada.
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalConfirmarEstado" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ce_titulo">Confirmar</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p id="ce_mensaje" class="mb-0"></p>
+                <input type="hidden" id="ce_per_id">
+                <input type="hidden" id="ce_nuevo_estado">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btn_confirmar_estado">
+                    <i class="icon dripicons-checkmark"></i> Confirmar
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1095,19 +1124,39 @@ function bloquearEmpleado(per_id) {
     var esBloqueado = p.per_estado === 'bloqueado';
     var nuevoEstado = esBloqueado ? 'activo' : 'bloqueado';
     var accion = esBloqueado ? 'activar' : 'bloquear';
-    if (!confirm('¿Seguro que deseas ' + accion + ' a ' + p.per_nombre + '?')) return;
+
+    $('#ce_titulo').text((esBloqueado ? 'Activar' : 'Bloquear') + ' Empleado');
+    $('#ce_mensaje').text('¿Seguro que deseas ' + accion + ' a ' + p.per_nombre + '?');
+    $('#ce_per_id').val(per_id);
+    $('#ce_nuevo_estado').val(nuevoEstado);
+    $('#btn_confirmar_estado').removeClass('btn-danger btn-success').addClass(esBloqueado ? 'btn-success' : 'btn-danger');
+    $('#modalConfirmarEstado').modal('show');
+}
+
+$('#btn_confirmar_estado').on('click', function () {
+    var per_id = $('#ce_per_id').val();
+    var nuevo_estado = $('#ce_nuevo_estado').val();
+    var btn = $(this);
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
 
     $.post('ajax/clientes/clientes.php?action=personal_cambiar_estado', {
-        per_id: per_id, cli_id: _cliId, per_estado: nuevoEstado
-    }, function(res) {
+        per_id: per_id, cli_id: _cliId, per_estado: nuevo_estado
+    }, function (res) {
+        btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Confirmar');
+        $('#modalConfirmarEstado').modal('hide');
         if (res.success) {
+            $('#alerta_personal').html('<div class="alert alert-success py-2 mb-2">Estado actualizado correctamente.</div>');
             _tabsLoaded['personal'] = false;
             cargarTabPersonal();
         } else {
-            alert(res.mensaje || 'Error al actualizar el estado');
+            $('#alerta_personal').html('<div class="alert alert-danger py-2 mb-2">' + (res.mensaje || 'Error al actualizar el estado') + '</div>');
         }
-    }, 'json').fail(function() { alert('Error de conexión'); });
-}
+    }, 'json').fail(function () {
+        btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Confirmar');
+        $('#modalConfirmarEstado').modal('hide');
+        $('#alerta_personal').html('<div class="alert alert-danger py-2 mb-2">Error de conexión</div>');
+    });
+});
 
 // ══════════════════════════════════════════════
 // CL-F: AUDITORÍA DE EMPLEADO
@@ -1151,6 +1200,9 @@ function abrirModalCargaMasiva() {
     $('#modalCargaMasiva').modal('show');
 }
 
+var _cmFilasPendientes = null;
+var _cmAccionPendiente = null;
+
 $('#btn_procesar_carga_masiva').on('click', function () {
     var archivo = $('#cm_archivo')[0].files[0];
     var accion  = $('#cm_accion').val();
@@ -1181,41 +1233,59 @@ $('#btn_procesar_carga_masiva').on('click', function () {
             return;
         }
 
+        // Confirmación dentro de la página (no confirm() nativo: Chrome lo
+        // puede silenciar después de varios diálogos, sin avisar).
         var accionTxt = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' }[accion];
-        if (!confirm('Se van a procesar ' + filas.length + ' fila(s) — acción: "' + accionTxt + '" — para ' + _cliData.cli_descripcion + '.\n¿Continuar?')) return;
-
-        $('#btn_procesar_carga_masiva').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
-        $.post('ajax/clientes/clientes.php?action=personal_carga_masiva', {
-            cli_id: _cliId, accion: accion, filas: JSON.stringify(filas)
-        }, function (res) {
-            $('#btn_procesar_carga_masiva').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Procesar');
-            if (!res.success) {
-                $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al procesar') + '</div>');
-                return;
-            }
-            var r = res.resultados;
-            var resumen = '<div class="alert alert-success mb-2">'
-                + 'Agregados: <strong>' + r.agregados + '</strong> &nbsp;|&nbsp; '
-                + 'Actualizados: <strong>' + r.actualizados + '</strong> &nbsp;|&nbsp; '
-                + 'Bloqueados: <strong>' + r.bloqueados + '</strong> &nbsp;|&nbsp; '
-                + 'Omitidos: <strong>' + r.omitidos.length + '</strong>'
-                + '</div>';
-            if (r.omitidos.length) {
-                resumen += '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Cédula</th><th>Motivo</th></tr></thead><tbody>';
-                r.omitidos.forEach(function (o) {
-                    resumen += '<tr><td>' + esc(o.cedula) + '</td><td>' + esc(o.motivo) + '</td></tr>';
-                });
-                resumen += '</tbody></table>';
-            }
-            $('#cm_resultado').html(resumen).show();
-            _tabsLoaded['personal'] = false;
-            cargarTabPersonal();
-        }, 'json').fail(function () {
-            $('#btn_procesar_carga_masiva').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Procesar');
-            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
-        });
+        _cmFilasPendientes = filas;
+        _cmAccionPendiente = accion;
+        $('#alerta_carga_masiva').html(
+            '<div class="alert alert-warning mb-0">'
+            + 'Se van a procesar <strong>' + filas.length + '</strong> fila(s) — acción: "<strong>' + accionTxt + '</strong>" — para <strong>' + esc(_cliData.cli_descripcion) + '</strong>.'
+            + '<div class="mt-2"><button type="button" class="btn btn-sm btn-danger" id="btn_confirmar_carga_masiva">Sí, continuar</button> '
+            + '<button type="button" class="btn btn-sm btn-secondary" onclick="$(\'#alerta_carga_masiva\').html(\'\');">Cancelar</button></div>'
+            + '</div>'
+        );
     };
     reader.readAsArrayBuffer(archivo);
+});
+
+// Delegado porque el botón se inserta dinámicamente dentro de #alerta_carga_masiva
+$(document).on('click', '#btn_confirmar_carga_masiva', function () {
+    if (!_cmFilasPendientes || !_cmAccionPendiente) return;
+    var btn = $(this);
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+    $.post('ajax/clientes/clientes.php?action=personal_carga_masiva', {
+        cli_id: _cliId, accion: _cmAccionPendiente, filas: JSON.stringify(_cmFilasPendientes)
+    }, function (res) {
+        if (!res.success) {
+            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al procesar') + '</div>');
+            return;
+        }
+        var r = res.resultados;
+        $('#alerta_carga_masiva').html('');
+        var resumen = '<div class="alert alert-success mb-2">'
+            + 'Agregados: <strong>' + r.agregados + '</strong> &nbsp;|&nbsp; '
+            + 'Actualizados: <strong>' + r.actualizados + '</strong> &nbsp;|&nbsp; '
+            + 'Bloqueados: <strong>' + r.bloqueados + '</strong> &nbsp;|&nbsp; '
+            + 'Omitidos: <strong>' + r.omitidos.length + '</strong>'
+            + '</div>';
+        if (r.omitidos.length) {
+            resumen += '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Cédula</th><th>Motivo</th></tr></thead><tbody>';
+            r.omitidos.forEach(function (o) {
+                resumen += '<tr><td>' + esc(o.cedula) + '</td><td>' + esc(o.motivo) + '</td></tr>';
+            });
+            resumen += '</tbody></table>';
+        }
+        $('#cm_resultado').html(resumen).show();
+        _tabsLoaded['personal'] = false;
+        cargarTabPersonal();
+    }, 'json').fail(function () {
+        $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
+    }).always(function () {
+        _cmFilasPendientes = null;
+        _cmAccionPendiente = null;
+    });
 });
 
 function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
