@@ -41,3 +41,21 @@
 .badge i, .badge .icon {
     color: inherit;
 }
+
+/* Ícono "montado" encima de la primera letra dentro de alertas.
+   El tema base (main.css) espera el patrón <span class="icon"><i
+   class="dripicons-x"></i></span><span class="text">...</span> dentro de
+   .alert, y por eso posiciona .alert .icon con position:absolute (para que
+   quede fijo a la izquierda mientras .text tiene padding-left:40px).
+   En varias pantallas el ícono se escribió como un solo elemento
+   <i class="icon dripicons-x">, sin el span .text que compensa el espacio;
+   al heredar ese position:absolute, el ícono queda flotando encima del
+   texto en vez de al lado. Se resetea a flujo normal solo para ese caso. */
+.alert i.icon {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: -2px;
+}

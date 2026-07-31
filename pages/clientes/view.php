@@ -578,7 +578,7 @@
                         Excel o CSV sin encabezados: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
                         <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo).
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 mt-md-0" onclick="descargarPlantillaCargaMasiva()">
+                    <button type="button" class="btn btn-sm btn-light mt-2 mt-md-0" onclick="descargarPlantillaCargaMasiva()">
                         <i class="icon dripicons-download"></i> Descargar plantilla de ejemplo
                     </button>
                 </div>
