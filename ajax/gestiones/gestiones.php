@@ -760,7 +760,34 @@ switch ($action) {
         $confirmador = mysqli_real_escape_string($mysqli, $_SESSION['name_user'] ?? 'Financiero');
         $mysqli->query("UPDATE pago SET pag_estado = 'confirmado', pag_fecha_confirmacion = '$fechaConf', pag_confirmado_por = '$confirmador' WHERE pag_id = $pag_id");
         $mysqli->query("UPDATE cartera SET car_estado = 'cobrada' WHERE car_id = $car_id");
-        echo json_encode(['success' => true, 'mensaje' => 'Pago confirmado correctamente']);
+
+        // EC-E: al confirmar el pago de la cartera, avanzar automáticamente
+        // una cuota de las ventas diferidas activas de los empleados de ese
+        // mismo cliente que ya iniciaron dentro del período pagado, sin
+        // necesidad del click manual "Confirmar Pago de Cuota" en Ventas Diferidas.
+        $cuotasPagadas = 0;
+        $car = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cli_id, car_fecha_fin FROM cartera WHERE car_id = $car_id"));
+        if ($car && !empty($car['car_fecha_fin'])) {
+            $cliId      = (int)$car['cli_id'];
+            $finPeriodo = mysqli_real_escape_string($mysqli, $car['car_fecha_fin']);
+            $rVd = mysqli_query($mysqli, "SELECT vd.vd_id, vd.vd_cuotas_pagadas, vd.vd_num_cuotas
+                                           FROM venta_diferida vd
+                                           JOIN personal p ON vd.per_id = p.per_id
+                                           WHERE p.cli_id = $cliId AND vd.vd_estado = 'activo' AND vd.vd_fecha_inicio <= '$finPeriodo'");
+            while ($vd = mysqli_fetch_assoc($rVd)) {
+                $pagadas = (int)$vd['vd_cuotas_pagadas'] + 1;
+                $total   = (int)$vd['vd_num_cuotas'];
+                $estado  = ($pagadas >= $total) ? 'completado' : 'activo';
+                mysqli_query($mysqli, "UPDATE venta_diferida SET vd_cuotas_pagadas = $pagadas, vd_estado = '$estado' WHERE vd_id = " . (int)$vd['vd_id']);
+                $cuotasPagadas++;
+            }
+        }
+
+        $mensaje = 'Pago confirmado correctamente';
+        if ($cuotasPagadas > 0) {
+            $mensaje .= ". Se registró el avance de $cuotasPagadas cuota(s) de venta diferida.";
+        }
+        echo json_encode(['success' => true, 'mensaje' => $mensaje]);
         break;
 
     case 'rechazar_pago':
