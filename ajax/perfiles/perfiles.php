@@ -30,6 +30,11 @@ define('MODULOS_SISTEMA', [
     'perfiles'       => 'Perfiles y Permisos',
 ]);
 
+// US-B: permisos granulares (acciones específicas dentro de un módulo)
+define('PERMISOS_GRANULARES', [
+    'pos.anular' => 'Anular ventas del mismo día (Punto de Venta)',
+]);
+
 switch ($action) {
 
     // ══ LIST — tabla de perfiles ══════════════════════════════
@@ -63,7 +68,16 @@ switch ($action) {
         $res = $stmt2->get_result();
         while ($m = $res->fetch_assoc()) $modulos[] = $m['pm_modulo'];
 
-        echo json_encode(['success' => true, 'perfil' => $perfil, 'modulos' => $modulos]);
+        $permisos = [];
+        $stmt3 = $mysqli->prepare("SELECT pp_permiso FROM perfil_permiso WHERE per_id = ?");
+        if ($stmt3) {
+            $stmt3->bind_param('i', $per_id);
+            $stmt3->execute();
+            $res3 = $stmt3->get_result();
+            while ($pp = $res3->fetch_assoc()) $permisos[] = $pp['pp_permiso'];
+        }
+
+        echo json_encode(['success' => true, 'perfil' => $perfil, 'modulos' => $modulos, 'permisos' => $permisos]);
         break;
 
     // ══ CREAR ════════════════════════════════════════════════
@@ -71,6 +85,7 @@ switch ($action) {
         $nombre      = trim($_POST['nombre'] ?? '');
         $descripcion = trim($_POST['descripcion'] ?? '');
         $modulos     = $_POST['modulos'] ?? [];
+        $permisos    = $_POST['permisos'] ?? [];
 
         if (!$nombre) { echo json_encode(['success' => false, 'mensaje' => 'El nombre es requerido']); break; }
 
@@ -87,6 +102,17 @@ switch ($action) {
                 $ins->execute();
             }
         }
+
+        $insPP = $mysqli->prepare("INSERT INTO perfil_permiso (per_id, pp_permiso) VALUES (?, ?)");
+        if ($insPP) {
+            foreach ($permisos as $pp) {
+                $pp = trim($pp);
+                if (array_key_exists($pp, PERMISOS_GRANULARES)) {
+                    $insPP->bind_param('is', $per_id, $pp);
+                    $insPP->execute();
+                }
+            }
+        }
         // contrasena siempre incluida (no está en checkboxes pero se agrega)
         echo json_encode(['success' => true, 'mensaje' => 'Perfil creado correctamente', 'per_id' => $per_id]);
         break;
@@ -97,6 +123,7 @@ switch ($action) {
         $nombre      = trim($_POST['nombre'] ?? '');
         $descripcion = trim($_POST['descripcion'] ?? '');
         $modulos     = $_POST['modulos'] ?? [];
+        $permisos    = $_POST['permisos'] ?? [];
 
         if (!$nombre || !$per_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
 
@@ -115,6 +142,22 @@ switch ($action) {
             if (array_key_exists($mod, MODULOS_SISTEMA)) {
                 $ins->bind_param('is', $per_id, $mod);
                 $ins->execute();
+            }
+        }
+
+        // Reemplazar permisos granulares
+        $delPP = $mysqli->prepare("DELETE FROM perfil_permiso WHERE per_id=?");
+        if ($delPP) {
+            $delPP->bind_param('i', $per_id);
+            $delPP->execute();
+
+            $insPP = $mysqli->prepare("INSERT INTO perfil_permiso (per_id, pp_permiso) VALUES (?, ?)");
+            foreach ($permisos as $pp) {
+                $pp = trim($pp);
+                if (array_key_exists($pp, PERMISOS_GRANULARES)) {
+                    $insPP->bind_param('is', $per_id, $pp);
+                    $insPP->execute();
+                }
             }
         }
         echo json_encode(['success' => true, 'mensaje' => 'Perfil actualizado correctamente']);
@@ -155,9 +198,10 @@ switch ($action) {
         $cnt = $cu->get_result()->fetch_assoc()['c'];
         if ($cnt > 0) { echo json_encode(['success' => false, 'mensaje' => "No se puede eliminar: tiene $cnt usuario(s) asignado(s)"]); break; }
 
-        $mysqli->prepare("DELETE FROM perfil_modulo WHERE per_id=?")->bind_param('i', $per_id) && $mysqli->prepare("DELETE FROM perfil_modulo WHERE per_id=?")->execute();
         $d1 = $mysqli->prepare("DELETE FROM perfil_modulo WHERE per_id=?");
         $d1->bind_param('i', $per_id); $d1->execute();
+        $d3 = $mysqli->prepare("DELETE FROM perfil_permiso WHERE per_id=?");
+        if ($d3) { $d3->bind_param('i', $per_id); $d3->execute(); }
         $d2 = $mysqli->prepare("DELETE FROM perfil WHERE per_id=?");
         $d2->bind_param('i', $per_id); $d2->execute();
 

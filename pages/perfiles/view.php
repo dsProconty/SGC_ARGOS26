@@ -11,6 +11,12 @@ $modulos_categorias = [
     'Finanzas'        => ['giftcard' => 'Gift Cards', 'estado_cuenta' => 'Estados de Cuenta', 'portal_empresa' => 'Portal Empresa / Nómina'],
     'Administración'  => ['usuarios' => 'Gestión de Usuarios', 'perfiles' => 'Perfiles y Permisos', 'configuracion' => 'Configuración', 'locales' => 'Locales Comerciales', 'clientes' => 'Clientes', 'reportes' => 'Reportes'],
 ];
+
+// US-B: permisos granulares — acciones específicas dentro de un módulo,
+// además de tener acceso al módulo en sí (perfil_modulo).
+$permisos_granulares = [
+    'pos.anular' => 'Anular ventas del mismo día',
+];
 ?>
 <div class="content">
     <header class="page-header">
@@ -92,6 +98,24 @@ $modulos_categorias = [
                     </div>
                 </div>
                 <?php endforeach; ?>
+                <hr>
+                <label class="font-weight-bold mb-3"><i class="icon dripicons-checklist"></i> Permisos específicos</label>
+                <small class="text-muted d-block mb-3">
+                    <i class="icon dripicons-information"></i>
+                    Acciones dentro de un módulo que no todos los que tienen ese módulo deben poder hacer.
+                </small>
+                <div class="row">
+                    <?php foreach ($permisos_granulares as $key => $label): ?>
+                    <div class="col-md-6 mb-2">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input chk-permiso" id="perm_<?php echo $key; ?>" value="<?php echo $key; ?>">
+                            <label class="custom-control-label" for="perm_<?php echo $key; ?>">
+                                <?php echo $label; ?>
+                            </label>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
@@ -141,6 +165,7 @@ $(document).ready(function () {
         $('#per_nombre').val('');
         $('#per_descripcion').val('');
         $('.chk-modulo').prop('checked', false);
+        $('.chk-permiso').prop('checked', false);
         $('#modal_perfil_titulo').html('<i class="icon dripicons-user-group"></i> Nuevo Perfil');
     });
 });
@@ -201,6 +226,7 @@ function renderTabla(perfiles) {
 // ── Abrir modal crear/editar ─────────────────────────────────
 function abrirModalPerfil(per_id) {
     $('.chk-modulo').prop('checked', false);
+    $('.chk-permiso').prop('checked', false);
     $('#per_id_edit').val('');
     $('#per_nombre').val('');
     $('#per_descripcion').val('');
@@ -221,6 +247,9 @@ function abrirModalPerfil(per_id) {
             $('#per_nombre').val(r.perfil.per_nombre);
             $('#per_descripcion').val(r.perfil.per_descripcion || '');
             r.modulos.forEach(function (m) { $('#mod_' + m).prop('checked', true); });
+            // Selector por atributo, no por "#id": la clave del permiso trae
+            // puntos (ej. "pos.anular") que jQuery interpretaría como clase.
+            (r.permisos || []).forEach(function (p) { $('[id="perm_' + p + '"]').prop('checked', true); });
             $('#modal_perfil').modal('show');
         }
     });
@@ -237,9 +266,12 @@ function guardarPerfil() {
     var modulos = [];
     $('.chk-modulo:checked').each(function () { modulos.push($(this).val()); });
 
+    var permisos = [];
+    $('.chk-permiso:checked').each(function () { permisos.push($(this).val()); });
+
     var per_id = $('#per_id_edit').val();
     var action = per_id ? 'editar' : 'crear';
-    var data   = { action: action, nombre: nombre, descripcion: $('#per_descripcion').val(), 'modulos[]': modulos };
+    var data   = { action: action, nombre: nombre, descripcion: $('#per_descripcion').val(), 'modulos[]': modulos, 'permisos[]': permisos };
     if (per_id) data.per_id = per_id;
 
     $('#btn_guardar_perfil').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
