@@ -564,7 +564,7 @@
      MODAL — CARGA MASIVA DE PERSONAL (CL-I)
 ══════════════════════════════════════════════════ -->
 <div class="modal fade" id="modalCargaMasiva" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="icon dripicons-upload"></i> Carga Masiva de Personal</h5>
@@ -572,10 +572,15 @@
             </div>
             <div class="modal-body">
                 <div id="alerta_carga_masiva"></div>
-                <div class="alert alert-info py-2 px-3" style="font-size:.85rem;">
-                    <i class="icon dripicons-information"></i>
-                    Excel o CSV sin encabezados: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
-                    <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo).
+                <div class="alert alert-info py-2 px-3 d-flex justify-content-between align-items-center flex-wrap" style="font-size:.85rem;">
+                    <div class="mr-2">
+                        <i class="icon dripicons-information"></i>
+                        Excel o CSV sin encabezados: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
+                        <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo).
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 mt-md-0" onclick="descargarPlantillaCargaMasiva()">
+                        <i class="icon dripicons-download"></i> Descargar plantilla de ejemplo
+                    </button>
                 </div>
                 <div class="form-group">
                     <label>Acción</label>
@@ -1199,6 +1204,21 @@ function abrirModalCargaMasiva() {
     $('#alerta_carga_masiva').html('');
     $('#cm_resultado').hide().html('');
     $('#modalCargaMasiva').modal('show');
+}
+
+// Plantilla de ejemplo: mismo formato que se procesa (sin encabezados),
+// con filas de muestra para que quede claro qué va en cada columna.
+function descargarPlantillaCargaMasiva() {
+    var datos = [
+        ['0102030405', 'Juan Pérez Ejemplo', 50],
+        ['0607080910', 'María Gómez Ejemplo', 30],
+        ['1112131415', 'Carlos Torres Ejemplo', 100]
+    ];
+    var ws = XLSX.utils.aoa_to_sheet(datos);
+    ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 10 }];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Personal');
+    XLSX.writeFile(wb, 'plantilla_carga_masiva_personal.xlsx');
 }
 
 var _cmFilasPendientes = null;
