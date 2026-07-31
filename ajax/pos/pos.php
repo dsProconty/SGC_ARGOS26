@@ -1,6 +1,9 @@
 <?php
+date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/session_helpers.php';
+mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 header('Content-Type: application/json');
 
@@ -449,7 +452,7 @@ switch ($action) {
             $where .= " AND c.id_user = $id_user";
         }
 
-        $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total,
+        $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total, c.con_estado,
                          c.con_monto_convenio, c.con_monto_externo, c.con_voucher_impreso,
                          p.per_nombre, p.per_documento, cl.cli_descripcion
                   FROM consumo c
@@ -465,6 +468,109 @@ switch ($action) {
         }
 
         echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
+    // ----------------------------------------------------------
+    // PV-F: Anular venta el mismo día, con justificación obligatoria.
+    // Devuelve automáticamente el cupo de convenio o el saldo de Gift
+    // Card que se haya usado en esa venta, y deja registro de quién y
+    // por qué (consumo_anulacion).
+    // ----------------------------------------------------------
+    case 'anular_venta':
+        if (!tienePermiso($mysqli, 'pos.anular')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para anular ventas']);
+            break;
+        }
+        $con_id = (int)($_POST['con_id'] ?? 0);
+        $motivo = trim($_POST['motivo'] ?? '');
+
+        if (!$con_id || $motivo === '') {
+            echo json_encode(['success' => false, 'mensaje' => 'Indique el motivo de la anulación']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare(
+            "SELECT con_id, con_fecha, con_estado, per_id, con_monto_convenio,
+                    con_giftcard_codigo, con_monto_giftcard
+             FROM consumo WHERE con_id = ? LIMIT 1"
+        );
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $con = $stmt->get_result()->fetch_assoc();
+
+        if (!$con) { echo json_encode(['success' => false, 'mensaje' => 'Venta no encontrada']); break; }
+        if ($con['con_fecha'] !== date('Y-m-d')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Solo se pueden anular ventas del mismo día']);
+            break;
+        }
+        if ($con['con_estado'] === 'anulado') {
+            echo json_encode(['success' => false, 'mensaje' => 'Esta venta ya estaba anulada']);
+            break;
+        }
+
+        $mysqli->begin_transaction();
+        try {
+            $upd = $mysqli->prepare("UPDATE consumo SET con_estado = 'anulado' WHERE con_id = ?");
+            $upd->bind_param('i', $con_id);
+            if (!$upd->execute()) throw new Exception('Error al anular la venta');
+
+            // Devolver cupo de convenio consumido
+            $montoConvenio = (float)$con['con_monto_convenio'];
+            if ($montoConvenio > 0 && $con['per_id']) {
+                $updCupo = $mysqli->prepare(
+                    "UPDATE personal SET per_cupo_disponible = LEAST(per_cupo_asignado, per_cupo_disponible + ?) WHERE per_id = ?"
+                );
+                $updCupo->bind_param('di', $montoConvenio, $con['per_id']);
+                if (!$updCupo->execute()) throw new Exception('Error al devolver el cupo');
+            }
+
+            // Devolver saldo de Gift Card consumido
+            $montoGC = (float)$con['con_monto_giftcard'];
+            if ($montoGC > 0 && !empty($con['con_giftcard_codigo'])) {
+                $gc = $mysqli->prepare("SELECT cgc_id, cgc_cupo_inicial, cgc_cupo_disponible FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1");
+                $gc->bind_param('s', $con['con_giftcard_codigo']);
+                $gc->execute();
+                $gcRow = $gc->get_result()->fetch_assoc();
+                if ($gcRow) {
+                    $nuevoSaldo = min((float)$gcRow['cgc_cupo_inicial'], (float)$gcRow['cgc_cupo_disponible'] + $montoGC);
+                    $nuevoEstado = $nuevoSaldo > 0 ? 'activo' : 'consumido';
+                    $updGC = $mysqli->prepare("UPDATE codigo_gift_card SET cgc_cupo_disponible = ?, cgc_estado = ? WHERE cgc_id = ?");
+                    $updGC->bind_param('dsi', $nuevoSaldo, $nuevoEstado, $gcRow['cgc_id']);
+                    if (!$updGC->execute()) throw new Exception('Error al devolver el saldo de la Gift Card');
+                }
+            }
+
+            $idUserSesion = (int)$_SESSION['id_user'];
+            $ins = $mysqli->prepare("INSERT INTO consumo_anulacion (con_id, id_user, can_motivo) VALUES (?, ?, ?)");
+            if (!$ins) throw new Exception('Ejecute la migración bloque12_anulacion_consumo.sql en phpMyAdmin.');
+            $ins->bind_param('iis', $con_id, $idUserSesion, $motivo);
+            if (!$ins->execute()) throw new Exception('Error al registrar la anulación');
+
+            $mysqli->commit();
+            echo json_encode(['success' => true, 'mensaje' => 'Venta anulada correctamente']);
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
+        }
+        break;
+
+    // ----------------------------------------------------------
+    // PV-F: ver quién anuló una venta y por qué (trazabilidad visible)
+    // ----------------------------------------------------------
+    case 'ver_anulacion':
+        $con_id = (int)($_GET['con_id'] ?? 0);
+        $stmt = $mysqli->prepare(
+            "SELECT ca.can_motivo, ca.can_fecha, u.name_user
+             FROM consumo_anulacion ca JOIN usuario u ON ca.id_user = u.id_user
+             WHERE ca.con_id = ? ORDER BY ca.can_fecha DESC LIMIT 1"
+        );
+        if (!$stmt) { echo json_encode(['success' => false]); break; }
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        echo $row
+            ? json_encode(['success' => true, 'data' => $row])
+            : json_encode(['success' => false, 'mensaje' => 'Sin registro de anulación']);
         break;
 
     default:

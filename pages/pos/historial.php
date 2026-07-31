@@ -1,8 +1,9 @@
 <?php
 require_once 'config/database.php';
 require_once 'helpers/session_helpers.php';
-$esAdmin = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador');
-$hoy     = date('Y-m-d');
+$esAdmin     = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador');
+$puedeAnular = esSuperAdmin($mysqli) || tienePermiso($mysqli, 'pos.anular');
+$hoy         = date('Y-m-d');
 ?>
 <div class="content">
     <!-- PAGE HEADER -->
@@ -155,10 +156,55 @@ $hoy     = date('Y-m-d');
     </div>
 </div>
 
+<?php if ($puedeAnular): ?>
+<!-- MODAL ANULAR VENTA (PV-F) -->
+<div class="modal fade" id="modal_anular" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title text-white"><i class="icon dripicons-warning"></i> Anular Venta #<span id="anular_con_id"></span></h5>
+                <button type="button" class="close" data-dismiss="modal"><span class="text-white">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="alerta_anular"></div>
+                <p class="text-muted mb-2">Esta acción no se puede deshacer. Si la venta usó cupo de convenio o Gift Card, el saldo se devuelve automáticamente.</p>
+                <div class="form-group">
+                    <label>Motivo de la anulación <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="anular_motivo" rows="3" placeholder="Ej: Producto no entregado, error de cobro..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btn_confirmar_anular">
+                    <i class="icon dripicons-checkmark"></i> Anular Venta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- MODAL VER MOTIVO DE ANULACIÓN -->
+<div class="modal fade" id="modal_ver_anulacion" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-information"></i> Detalle de Anulación</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" id="ver_anulacion_body">
+                <div class="text-center"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 $(document).ready(function () {
 
     var con_id_actual = null;
+    var puedeAnular = <?php echo $puedeAnular ? 'true' : 'false'; ?>;
+    var hoy = '<?= $hoy ?>';
 
     // Buscar al cargar con fecha de hoy
     buscarVentas();
@@ -220,11 +266,27 @@ $(document).ready(function () {
         _datosActuales = data;
         var html = '';
         data.forEach(function (v) {
+            var anulada = v.con_estado === 'anulado';
             var impreso = v.con_voucher_impreso == 1
                 ? '<span class="badge badge-success">Impreso</span>'
                 : '<span class="badge badge-secondary">Sin imprimir</span>';
-            html += '<tr>'
-                + '<td>#' + v.con_id + '</td>'
+
+            var acciones = '<button class="btn btn-xs btn-outline-secondary btn-reimprimir" data-id="' + v.con_id + '" style="font-size:11px;padding:1px 6px;" title="Reimprimir voucher">'
+                + '<i class="icon dripicons-print"></i></button>';
+
+            if (anulada) {
+                acciones += ' <button class="btn btn-xs btn-outline-info btn-ver-anulacion" data-id="' + v.con_id + '" style="font-size:11px;padding:1px 6px;" title="Ver motivo de anulación">'
+                    + '<i class="icon dripicons-information"></i></button>';
+            } else if (puedeAnular && v.con_fecha === hoy) {
+                acciones += ' <button class="btn btn-xs btn-outline-danger btn-anular" data-id="' + v.con_id + '" style="font-size:11px;padding:1px 6px;" title="Anular venta">'
+                    + '<i class="icon dripicons-cross"></i></button>';
+            }
+
+            var rowClass = anulada ? ' class="table-secondary"' : '';
+            var estadoTxt = anulada ? ' <span class="badge badge-danger">ANULADA</span>' : '';
+
+            html += '<tr' + rowClass + '>'
+                + '<td>#' + v.con_id + estadoTxt + '</td>'
                 + '<td>' + v.con_fecha + '</td>'
                 + '<td>' + v.con_hora + '</td>'
                 + '<td><strong>' + htmlEsc(v.per_nombre) + '</strong><br><small class="text-muted">' + v.per_documento + '</small></td>'
@@ -233,8 +295,7 @@ $(document).ready(function () {
                 + '<td class="text-warning">' + (parseFloat(v.con_monto_externo) > 0 ? '$' + parseFloat(v.con_monto_externo).toFixed(2) : '—') + '</td>'
                 + '<td><strong>$' + parseFloat(v.con_valor_total).toFixed(2) + '</strong></td>'
                 + '<td>' + impreso + '</td>'
-                + '<td><button class="btn btn-xs btn-outline-secondary btn-reimprimir" data-id="' + v.con_id + '" style="font-size:11px;padding:1px 6px;">'
-                + '<i class="icon dripicons-print"></i></button></td>'
+                + '<td>' + acciones + '</td>'
                 + '</tr>';
         });
         $('#tbody_ventas').html(html);
@@ -244,10 +305,11 @@ $(document).ready(function () {
     }
 
     function renderResumen(data) {
-        var totalVentas   = data.length;
+        var vigentes = data.filter(function (v) { return v.con_estado !== 'anulado'; });
+        var totalVentas   = vigentes.length;
         var totalConvenio = 0;
         var totalExterno  = 0;
-        data.forEach(function (v) {
+        vigentes.forEach(function (v) {
             totalConvenio += parseFloat(v.con_monto_convenio) || 0;
             totalExterno  += parseFloat(v.con_monto_externo)  || 0;
         });
@@ -270,6 +332,74 @@ $(document).ready(function () {
                     renderVoucher(resp.data, true);
                     $('#modal_voucher').modal('show');
                 }
+            }
+        });
+    });
+
+    // PV-F: Anular venta del día con justificación
+    $(document).on('click', '.btn-anular', function () {
+        con_id_actual = $(this).data('id');
+        $('#anular_con_id').text(con_id_actual);
+        $('#anular_motivo').val('');
+        $('#alerta_anular').html('');
+        $('#modal_anular').modal('show');
+    });
+
+    $('#btn_confirmar_anular').on('click', function () {
+        var motivo = $('#anular_motivo').val().trim();
+        if (!motivo) {
+            $('#alerta_anular').html('<div class="alert alert-danger">Indique el motivo de la anulación</div>');
+            return;
+        }
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'POST',
+            data: { action: 'anular_venta', con_id: con_id_actual, motivo: motivo },
+            dataType: 'json',
+            success: function (resp) {
+                $btn.prop('disabled', false);
+                if (resp.success) {
+                    $('#modal_anular').modal('hide');
+                    buscarVentas();
+                } else {
+                    $('#alerta_anular').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo anular la venta') + '</div>');
+                }
+            },
+            error: function () {
+                $btn.prop('disabled', false);
+                $('#alerta_anular').html('<div class="alert alert-danger">Error de conexión</div>');
+            }
+        });
+    });
+
+    // PV-F: Ver motivo/trazabilidad de una anulación
+    $(document).on('click', '.btn-ver-anulacion', function () {
+        var con_id = $(this).data('id');
+        $('#ver_anulacion_body').html('<div class="text-center"><span class="spinner-border spinner-border-sm"></span></div>');
+        $('#modal_ver_anulacion').modal('show');
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'GET',
+            data: { action: 'ver_anulacion', con_id: con_id },
+            dataType: 'json',
+            success: function (resp) {
+                if (resp.success) {
+                    var d = resp.data;
+                    $('#ver_anulacion_body').html(
+                        '<table class="table table-sm table-borderless mb-0">'
+                        + '<tr><td><strong>Anulada por</strong></td><td>' + htmlEsc(d.name_user) + '</td></tr>'
+                        + '<tr><td><strong>Fecha</strong></td><td>' + htmlEsc(d.can_fecha) + '</td></tr>'
+                        + '<tr><td><strong>Motivo</strong></td><td>' + htmlEsc(d.can_motivo) + '</td></tr>'
+                        + '</table>'
+                    );
+                } else {
+                    $('#ver_anulacion_body').html('<div class="alert alert-warning mb-0">' + htmlEsc(resp.mensaje || 'Sin registro de anulación') + '</div>');
+                }
+            },
+            error: function () {
+                $('#ver_anulacion_body').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
             }
         });
     });
