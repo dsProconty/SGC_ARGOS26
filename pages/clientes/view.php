@@ -575,8 +575,9 @@
                 <div class="alert alert-info py-2 px-3 d-flex justify-content-between align-items-center flex-wrap" style="font-size:.85rem;">
                     <div class="mr-2">
                         <i class="icon dripicons-information"></i>
-                        Excel o CSV sin encabezados: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
-                        <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo).
+                        Excel o CSV: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
+                        <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo). La fila de
+                        encabezado es opcional, si la incluyes se detecta y se omite sola.
                     </div>
                     <button type="button" class="btn btn-sm btn-light mt-2 mt-md-0" onclick="descargarPlantillaCargaMasiva()">
                         <i class="icon dripicons-download"></i> Descargar plantilla de ejemplo
@@ -1206,10 +1207,14 @@ function abrirModalCargaMasiva() {
     $('#modalCargaMasiva').modal('show');
 }
 
-// Plantilla de ejemplo: mismo formato que se procesa (sin encabezados),
-// con filas de muestra para que quede claro qué va en cada columna.
+// Plantilla de ejemplo con encabezados (columna A cédula, B nombre, C cupo)
+// más filas de muestra. El procesador no requiere encabezados, pero si la
+// primera fila trae uno (texto sin dígitos en la columna cédula) se
+// detecta y se omite solo automáticamente al leer el archivo — ver más
+// abajo en el manejador de #btn_procesar_carga_masiva.
 function descargarPlantillaCargaMasiva() {
     var datos = [
+        ['Cédula', 'Nombre completo', 'Cupo'],
         ['0102030405', 'Juan Pérez Ejemplo', 50],
         ['0607080910', 'María Gómez Ejemplo', 30],
         ['1112131415', 'Carlos Torres Ejemplo', 100]
@@ -1242,10 +1247,13 @@ $('#btn_procesar_carga_masiva').on('click', function () {
         var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
 
         var filas = [];
-        rows.forEach(function (r) {
+        rows.forEach(function (r, idx) {
             var cedula = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '';
             var nombre = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '';
             var cupo   = (r[2] !== undefined && r[2] !== null && r[2] !== '') ? parseFloat(r[2]) : null;
+            // Si la primera fila trae un encabezado (ej. "Cédula", sin dígitos),
+            // se detecta y se omite automáticamente — no hace falta borrarla.
+            if (idx === 0 && cedula && !/\d/.test(cedula)) return;
             if (cedula) filas.push({ cedula: cedula, nombre: nombre, cupo: cupo });
         });
 
