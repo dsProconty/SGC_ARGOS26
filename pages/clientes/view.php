@@ -1254,6 +1254,14 @@ $('#btn_procesar_carga_masiva').on('click', function () {
             // Si la primera fila trae un encabezado (ej. "Cédula", sin dígitos),
             // se detecta y se omite automáticamente — no hace falta borrarla.
             if (idx === 0 && cedula && !/\d/.test(cedula)) return;
+            // Si en Excel la columna cédula quedó con formato numérico (no Texto),
+            // al escribir un valor que empieza en 0 (ej. 0602345678) Excel lo
+            // guarda como número y pierde el/los cero(s) inicial(es). La cédula
+            // ecuatoriana siempre tiene 10 dígitos, así que se recompone
+            // rellenando con ceros a la izquierda antes de buscarla.
+            if (cedula && /^\d+$/.test(cedula) && cedula.length < 10) {
+                cedula = cedula.padStart(10, '0');
+            }
             if (cedula) filas.push({ cedula: cedula, nombre: nombre, cupo: cupo });
         });
 
@@ -1262,21 +1270,56 @@ $('#btn_procesar_carga_masiva').on('click', function () {
             return;
         }
 
-        // Confirmación dentro de la página (no confirm() nativo: Chrome lo
-        // puede silenciar después de varios diálogos, sin avisar).
-        var accionTxt = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' }[accion];
         _cmFilasPendientes = filas;
         _cmAccionPendiente = accion;
-        $('#alerta_carga_masiva').html(
-            '<div class="alert alert-warning mb-0">'
-            + 'Se van a procesar <strong>' + filas.length + '</strong> fila(s) — acción: "<strong>' + accionTxt + '</strong>" — para <strong>' + esc(_cliData.cli_descripcion) + '</strong>.'
-            + '<div class="mt-2"><button type="button" class="btn btn-sm btn-danger" id="btn_confirmar_carga_masiva">Sí, continuar</button> '
-            + '<button type="button" class="btn btn-sm btn-secondary" onclick="$(\'#alerta_carga_masiva\').html(\'\');">Cancelar</button></div>'
-            + '</div>'
-        );
+        $('#alerta_carga_masiva').html('<div class="text-center p-2"><span class="spinner-border spinner-border-sm"></span> Analizando archivo...</div>');
+
+        // Preview: se le pide al backend que evalúe fila por fila (existe,
+        // estado actual, qué haría) SIN guardar nada todavía, para mostrarlo
+        // antes de aplicar cualquier cambio real.
+        $.post('ajax/clientes/clientes.php?action=personal_carga_masiva', {
+            cli_id: _cliId, accion: accion, filas: JSON.stringify(filas), solo_preview: 1
+        }, function (res) {
+            if (!res.success) {
+                $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al analizar el archivo') + '</div>');
+                return;
+            }
+            renderPreviewCargaMasiva(res);
+        }, 'json').fail(function () {
+            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
+        });
     };
     reader.readAsArrayBuffer(archivo);
 });
+
+function renderPreviewCargaMasiva(res) {
+    var accionTxt = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' }[_cmAccionPendiente];
+
+    var filas = '';
+    res.detalle.forEach(function (d) {
+        var rowClass = d.aplica ? '' : ' class="table-secondary text-muted"';
+        filas += '<tr' + rowClass + '>'
+            + '<td>' + esc(d.cedula) + '</td>'
+            + '<td>' + esc(d.nombre || '—') + '</td>'
+            + '<td>' + esc(d.estado_actual || '—') + '</td>'
+            + '<td>' + esc(d.resultado) + '</td>'
+            + '</tr>';
+    });
+
+    var html = '<div class="alert alert-warning mb-2">'
+        + 'Acción: "<strong>' + accionTxt + '</strong>" para <strong>' + esc(_cliData.cli_descripcion) + '</strong>. '
+        + 'De <strong>' + res.total + '</strong> fila(s) leídas, se van a aplicar <strong>' + res.aplicaran + '</strong>.'
+        + '</div>'
+        + '<div style="max-height:35vh; overflow-y:auto;" class="mb-2">'
+        + '<table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr>'
+        + '<th>Cédula</th><th>Nombre (archivo)</th><th>Estado actual</th><th>Resultado</th>'
+        + '</tr></thead><tbody>' + filas + '</tbody></table>'
+        + '</div>'
+        + '<button type="button" class="btn btn-sm btn-danger" id="btn_confirmar_carga_masiva"' + (res.aplicaran === 0 ? ' disabled' : '') + '>Confirmar y aplicar</button> '
+        + '<button type="button" class="btn btn-sm btn-secondary" onclick="$(\'#alerta_carga_masiva\').html(\'\'); _cmFilasPendientes=null; _cmAccionPendiente=null;">Cancelar</button>';
+
+    $('#alerta_carga_masiva').html(html);
+}
 
 // Delegado porque el botón se inserta dinámicamente dentro de #alerta_carga_masiva
 $(document).on('click', '#btn_confirmar_carga_masiva', function () {

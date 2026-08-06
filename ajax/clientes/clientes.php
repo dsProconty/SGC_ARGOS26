@@ -303,9 +303,10 @@ switch ($action) {
     // ya elegido en la ficha — el archivo no trae empresa por fila.
     case 'personal_carga_masiva':
         header('Content-Type: application/json');
-        $cli_id = (int)($_POST['cli_id'] ?? 0);
-        $accion = trim($_POST['accion'] ?? '');
-        $filas  = json_decode($_POST['filas'] ?? '[]', true);
+        $cli_id       = (int)($_POST['cli_id'] ?? 0);
+        $accion       = trim($_POST['accion'] ?? '');
+        $filas        = json_decode($_POST['filas'] ?? '[]', true);
+        $soloPreview  = !empty($_POST['solo_preview']);
 
         if (!$cli_id || !in_array($accion, ['anadir', 'actualizar_cupo', 'bloquear']) || !is_array($filas) || !count($filas)) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
@@ -318,22 +319,44 @@ switch ($action) {
         $cupo_max = (float)($stmtE->get_result()->fetch_assoc()['cli_valor_beneficio'] ?? 0);
 
         $id_user_sesion = (int)$_SESSION['id_user'];
-        $agregados = 0; $actualizados = 0; $bloqueados = 0; $omitidos = [];
+        $agregados = 0; $actualizados = 0; $bloqueados = 0; $omitidos = []; $detalle = [];
 
         foreach ($filas as $fila) {
             $cedula = trim((string)($fila['cedula'] ?? ''));
             $nombre = trim((string)($fila['nombre'] ?? ''));
             $cupo   = isset($fila['cupo']) ? (float)$fila['cupo'] : 0;
 
-            if ($cedula === '') { $omitidos[] = ['cedula' => '(vacía)', 'motivo' => 'Fila sin cédula']; continue; }
+            if ($cedula === '') {
+                $omitidos[] = ['cedula' => '(vacía)', 'motivo' => 'Fila sin cédula'];
+                $detalle[]  = ['cedula' => '(vacía)', 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Fila sin cédula — se omite', 'aplica' => false];
+                continue;
+            }
 
             if ($accion === 'anadir') {
-                if ($nombre === '' || $cupo <= 0) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Nombre o cupo inválido']; continue; }
-                $chk = $mysqli->prepare("SELECT per_id FROM personal WHERE per_documento = ? LIMIT 1");
+                if ($nombre === '' || $cupo <= 0) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Nombre o cupo inválido'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Nombre o cupo inválido — se omite', 'aplica' => false];
+                    continue;
+                }
+                $chk = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_documento = ? LIMIT 1");
                 $chk->bind_param('s', $cedula);
                 $chk->execute();
-                if ($chk->get_result()->fetch_assoc()) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ya existe (en esta u otra empresa)']; continue; }
-                if ($cupo_max > 0 && $cupo > $cupo_max) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')']; continue; }
+                $existente = $chk->get_result()->fetch_assoc();
+                if ($existente) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ya existe (en esta u otra empresa)'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $existente['per_estado'], 'resultado' => 'Ya existe (en esta u otra empresa) — no se hará nada', 'aplica' => false];
+                    continue;
+                }
+                if ($cupo_max > 0 && $cupo > $cupo_max) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'No existe', 'resultado' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ') — se omite', 'aplica' => false];
+                    continue;
+                }
+
+                if ($soloPreview) {
+                    $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'No existe', 'resultado' => 'Se creará como empleado nuevo, cupo $' . number_format($cupo, 2), 'aplica' => true];
+                    continue;
+                }
 
                 $num_tarjeta = str_pad((string)mt_rand(1000, 9999), 4, '0') . str_pad((string)mt_rand(1000, 9999), 4, '0')
                              . str_pad((string)mt_rand(1000, 9999), 4, '0') . str_pad((string)mt_rand(1000, 9999), 4, '0');
@@ -357,17 +380,34 @@ switch ($action) {
                 }
 
             } elseif ($accion === 'actualizar_cupo') {
-                if ($cupo <= 0) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo inválido']; continue; }
-                $find = $mysqli->prepare("SELECT per_id, per_cupo_asignado, per_cupo_disponible FROM personal WHERE per_documento = ? AND cli_id = ? LIMIT 1");
+                if ($cupo <= 0) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo inválido'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Cupo inválido — se omite', 'aplica' => false];
+                    continue;
+                }
+                $find = $mysqli->prepare("SELECT per_id, per_estado, per_cupo_asignado, per_cupo_disponible FROM personal WHERE per_documento = ? AND cli_id = ? LIMIT 1");
                 $find->bind_param('si', $cedula, $cli_id);
                 $find->execute();
                 $emp = $find->get_result()->fetch_assoc();
-                if (!$emp) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'No encontrada en este cliente']; continue; }
-                if ($cupo_max > 0 && $cupo > $cupo_max) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')']; continue; }
+                if (!$emp) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'No encontrada en este cliente'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'No encontrada en este cliente — se omite', 'aplica' => false];
+                    continue;
+                }
+                if ($cupo_max > 0 && $cupo > $cupo_max) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ') — se omite', 'aplica' => false];
+                    continue;
+                }
 
                 $cupo_anterior   = (float)$emp['per_cupo_asignado'];
                 $consumido       = $cupo_anterior - (float)$emp['per_cupo_disponible'];
                 $cupo_disp_nuevo = max(0, $cupo - $consumido);
+
+                if ($soloPreview) {
+                    $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Se actualizará el cupo de $' . number_format($cupo_anterior, 2) . ' a $' . number_format($cupo, 2), 'aplica' => true];
+                    continue;
+                }
 
                 $upd = $mysqli->prepare("UPDATE personal SET per_cupo_asignado = ?, per_cupo_disponible = ? WHERE per_id = ?");
                 $upd->bind_param('ddi', $cupo, $cupo_disp_nuevo, $emp['per_id']);
@@ -388,8 +428,21 @@ switch ($action) {
                 $find->bind_param('si', $cedula, $cli_id);
                 $find->execute();
                 $emp = $find->get_result()->fetch_assoc();
-                if (!$emp) { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'No encontrada en este cliente']; continue; }
-                if ($emp['per_estado'] === 'bloqueado') { $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ya estaba bloqueada']; continue; }
+                if (!$emp) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'No encontrada en este cliente'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'No encontrada en este cliente — se omite', 'aplica' => false];
+                    continue;
+                }
+                if ($emp['per_estado'] === 'bloqueado') {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ya estaba bloqueada'];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'bloqueado', 'resultado' => 'Esta persona ya se encuentra bloqueada — no se hará nada', 'aplica' => false];
+                    continue;
+                }
+
+                if ($soloPreview) {
+                    $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Se bloqueará', 'aplica' => true];
+                    continue;
+                }
 
                 $upd = $mysqli->prepare("UPDATE personal SET per_estado = 'bloqueado' WHERE per_id = ?");
                 $upd->bind_param('i', $emp['per_id']);
@@ -403,6 +456,13 @@ switch ($action) {
                 $tra->execute();
                 $bloqueados++;
             }
+        }
+
+        if ($soloPreview) {
+            $aplicaran = 0;
+            foreach ($detalle as $d) { if ($d['aplica']) $aplicaran++; }
+            echo json_encode(['success' => true, 'preview' => true, 'detalle' => $detalle, 'total' => count($detalle), 'aplicaran' => $aplicaran]);
+            break;
         }
 
         echo json_encode(['success' => true, 'resultados' => [
