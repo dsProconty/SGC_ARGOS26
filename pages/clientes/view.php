@@ -225,7 +225,7 @@
             <div class="card tab-panel" id="tab_personal" style="display:none;">
                 <div class="card-body">
                     <div class="text-right mb-2">
-                        <button class="btn btn-sm btn-outline-info" onclick="abrirModalCargaMasiva()">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="abrirModalCargaMasiva()">
                             <i class="icon dripicons-upload"></i> Carga Masiva
                         </button>
                     </div>
@@ -562,46 +562,198 @@
 
 <!-- ══════════════════════════════════════════════════
      MODAL — CARGA MASIVA DE PERSONAL (CL-I)
+     3 pantallas dentro del mismo modal: Configurar → Revisar → Resultado.
 ══════════════════════════════════════════════════ -->
+<style>
+    #modalCargaMasiva .cm-steps{ display:flex; align-items:center; gap:8px; padding:2px 0 16px; }
+    #modalCargaMasiva .cm-step{ display:flex; align-items:center; gap:7px; font-size:.78rem; color:#97a3b1; font-weight:600; white-space:nowrap; }
+    #modalCargaMasiva .cm-step .dot{ width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.68rem; border:1.5px solid #d9dee4; color:#97a3b1; flex:0 0 auto; }
+    #modalCargaMasiva .cm-step.now{ color:#495057; }
+    #modalCargaMasiva .cm-step.now .dot{ background:#950d1a; border-color:#950d1a; color:#fff; }
+    #modalCargaMasiva .cm-step.done{ color:#495057; }
+    #modalCargaMasiva .cm-step.done .dot{ background:#fff; border-color:#950d1a; color:#950d1a; }
+    #modalCargaMasiva .cm-step-line{ flex:1; height:1.5px; background:#e1e5e9; min-width:14px; }
+    #modalCargaMasiva .cm-step-line.done{ background:#c7ccd1; }
+
+    #modalCargaMasiva .cm-screen{ display:none; }
+    #modalCargaMasiva .cm-screen.active{ display:block; }
+
+    #modalCargaMasiva .cm-field-label{ font-size:.72rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:#8a97a5; margin:0 0 10px; }
+    #modalCargaMasiva .cm-section + .cm-section{ margin-top:22px; }
+
+    #modalCargaMasiva .cm-tiles{ display:flex; gap:10px; flex-wrap:wrap; }
+    #modalCargaMasiva .cm-tile{ flex:1 1 180px; border:1.5px solid #e1e5e9; border-radius:8px; padding:12px; text-align:left; background:#fff; cursor:pointer; }
+    #modalCargaMasiva .cm-tile .ic{ width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; background:#f4f5f7; color:#8a97a5; margin-bottom:8px; }
+    #modalCargaMasiva .cm-tile .t{ font-size:.85rem; font-weight:700; display:block; color:#495057; }
+    #modalCargaMasiva .cm-tile .d{ font-size:.73rem; color:#8a97a5; margin-top:3px; line-height:1.4; display:block; }
+    #modalCargaMasiva .cm-tile.sel{ border-color:#950d1a; background:#f7ecf0; }
+    #modalCargaMasiva .cm-tile.sel .ic{ background:#950d1a; color:#fff; }
+    #modalCargaMasiva .cm-tile.sel .t{ color:#950d1a; }
+    #modalCargaMasiva .cm-tile:not(.sel):hover{ border-color:#c7ccd1; }
+
+    #modalCargaMasiva .cm-dropzone{ border:1.5px dashed #d9dee4; border-radius:8px; padding:18px; text-align:center; background:#fafbfc; cursor:pointer; }
+    #modalCargaMasiva .cm-dropzone.dragover{ border-color:#950d1a; background:#f7ecf0; }
+    #modalCargaMasiva .cm-dropzone .ic{ color:#950d1a; margin-bottom:4px; font-size:1.4rem; }
+    #modalCargaMasiva .cm-dropzone p{ margin:0; font-size:.82rem; color:#8a97a5; }
+    #modalCargaMasiva .cm-dropzone .browse{ color:#950d1a; font-weight:700; text-decoration:underline; }
+
+    #modalCargaMasiva .cm-file-chip{ margin-top:10px; display:none; align-items:center; gap:9px; background:#fff; border:1px solid #e1e5e9; border-radius:7px; padding:8px 10px 8px 12px; font-size:.8rem; }
+    #modalCargaMasiva .cm-file-chip.show{ display:flex; }
+    #modalCargaMasiva .cm-file-chip .name{ flex:1; font-weight:600; color:#495057; word-break:break-all; }
+    #modalCargaMasiva .cm-file-chip .x{ background:none; border:0; color:#8a97a5; cursor:pointer; font-size:1rem; line-height:1; padding:2px; }
+
+    #modalCargaMasiva .cm-help-row{ margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 13px; background:#f4f5f7; border:1px solid #e1e5e9; border-radius:7px; flex-wrap:wrap; }
+    #modalCargaMasiva .cm-help-row .txt{ font-size:.76rem; color:#8a97a5; line-height:1.5; }
+    #modalCargaMasiva .cm-help-row .txt b{ color:#495057; }
+    #modalCargaMasiva .cm-help-row .btn{ flex:0 0 auto; }
+
+    #modalCargaMasiva .cm-stats{ display:flex; gap:10px; }
+    #modalCargaMasiva .cm-stat{ flex:1; border:1px solid #e1e5e9; border-radius:8px; padding:11px 13px; background:#fafbfc; }
+    #modalCargaMasiva .cm-stat .n{ font-size:1.35rem; font-weight:700; color:#495057; line-height:1; }
+    #modalCargaMasiva .cm-stat .l{ font-size:.71rem; color:#8a97a5; margin-top:4px; font-weight:600; }
+    #modalCargaMasiva .cm-stat.apply{ background:#f7ecf0; border-color:#e6cfd8; }
+    #modalCargaMasiva .cm-stat.apply .n{ color:#950d1a; }
+
+    #modalCargaMasiva .cm-ctx-line{ font-size:.8rem; color:#8a97a5; margin:14px 0 10px; }
+    #modalCargaMasiva .cm-ctx-line b{ color:#495057; }
+
+    #modalCargaMasiva .cm-pill{ display:inline-block; padding:3px 9px; border-radius:999px; font-size:.71rem; font-weight:700; white-space:nowrap; }
+    #modalCargaMasiva .cm-pill-apply{ background:#f7ecf0; color:#950d1a; }
+    #modalCargaMasiva .cm-pill-skip{ background:#eef0f2; color:#8a97a5; }
+
+    #modalCargaMasiva .cm-result-banner{ display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:8px; background:#f7ecf0; border:1px solid #e6cfd8; margin-bottom:16px; }
+    #modalCargaMasiva .cm-result-banner .ic{ width:32px; height:32px; border-radius:50%; background:#950d1a; color:#fff; display:flex; align-items:center; justify-content:center; flex:0 0 auto; font-size:1rem; }
+    #modalCargaMasiva .cm-result-banner .t{ font-size:.9rem; font-weight:700; color:#495057; }
+    #modalCargaMasiva .cm-result-banner .s{ font-size:.76rem; color:#8a97a5; margin-top:1px; }
+
+    #modalCargaMasiva .cm-stats4{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    #modalCargaMasiva .cm-stats4 .cm-stat{ min-width:110px; }
+</style>
 <div class="modal fade" id="modalCargaMasiva" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="icon dripicons-upload"></i> Carga Masiva de Personal</h5>
+                <div>
+                    <h5 class="modal-title"><i class="icon dripicons-upload"></i> Carga Masiva de Personal</h5>
+                    <p class="mb-0 text-muted" id="cm_cliente_nombre" style="font-size:.8rem;"></p>
+                </div>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body">
+
+                <div class="cm-steps">
+                    <div class="cm-step" id="cm_step1"><span class="dot">1</span>Configurar</div>
+                    <div class="cm-step-line" id="cm_line1"></div>
+                    <div class="cm-step" id="cm_step2"><span class="dot">2</span>Revisar</div>
+                    <div class="cm-step-line" id="cm_line2"></div>
+                    <div class="cm-step" id="cm_step3"><span class="dot">3</span>Resultado</div>
+                </div>
+
                 <div id="alerta_carga_masiva"></div>
-                <div class="alert alert-info py-2 px-3 d-flex justify-content-between align-items-center flex-wrap" style="font-size:.85rem;">
-                    <div class="mr-2">
-                        <i class="icon dripicons-information"></i>
-                        Excel o CSV: columna <strong>A</strong> cédula, <strong>B</strong> nombre completo,
-                        <strong>C</strong> cupo (solo requerido para Añadir / Actualizar cupo). La fila de
-                        encabezado es opcional, si la incluyes se detecta y se omite sola.
+
+                <!-- ═══ PANTALLA 1: CONFIGURAR ═══ -->
+                <div class="cm-screen active" id="cm_screen_1">
+                    <div class="cm-section">
+                        <p class="cm-field-label">¿Qué querés hacer?</p>
+                        <div class="cm-tiles">
+                            <button type="button" class="cm-tile sel" data-accion="anadir">
+                                <span class="ic"><i class="icon dripicons-user-group"></i></span>
+                                <span class="t">Añadir empleados</span>
+                                <span class="d">Crea empleados nuevos con un cupo inicial.</span>
+                            </button>
+                            <button type="button" class="cm-tile" data-accion="actualizar_cupo">
+                                <span class="ic"><i class="icon dripicons-wallet"></i></span>
+                                <span class="t">Actualizar cupo</span>
+                                <span class="d">Cambia el cupo de empleados que ya existen.</span>
+                            </button>
+                            <button type="button" class="cm-tile" data-accion="bloquear">
+                                <span class="ic"><i class="icon dripicons-lock"></i></span>
+                                <span class="t">Bloquear empleados</span>
+                                <span class="d">Bloquea el acceso de empleados existentes.</span>
+                            </button>
+                        </div>
+                        <input type="hidden" id="cm_accion" value="anadir">
                     </div>
-                    <button type="button" class="btn btn-sm btn-light mt-2 mt-md-0" onclick="descargarPlantillaCargaMasiva()">
-                        <i class="icon dripicons-download"></i> Descargar plantilla de ejemplo
-                    </button>
+
+                    <div class="cm-section">
+                        <p class="cm-field-label">Archivo</p>
+                        <div class="cm-dropzone" id="cm_dropzone">
+                            <div class="ic"><i class="icon dripicons-cloud-upload"></i></div>
+                            <p>Arrastrá tu Excel o CSV aquí, o <span class="browse">buscalo en tu computador</span></p>
+                        </div>
+                        <input type="file" id="cm_archivo" accept=".xlsx,.xls,.csv" style="display:none;">
+                        <div class="cm-file-chip" id="cm_file_chip">
+                            <i class="icon dripicons-document" style="color:#950d1a;"></i>
+                            <span class="name" id="cm_file_name"></span>
+                            <button type="button" class="x" id="cm_file_quitar">&times;</button>
+                        </div>
+
+                        <div class="cm-help-row">
+                            <p class="txt mb-0"><b>Columna A</b> cédula · <b>B</b> nombre completo · <b>C</b> cupo (solo para Añadir / Actualizar). El encabezado es opcional, si lo incluyes se detecta y se omite solo.</p>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="descargarPlantillaCargaMasiva()">
+                                <i class="icon dripicons-download"></i> Plantilla de ejemplo
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Acción</label>
-                    <select class="form-control" id="cm_accion">
-                        <option value="anadir">Añadir empleados nuevos</option>
-                        <option value="actualizar_cupo">Actualizar cupo</option>
-                        <option value="bloquear">Bloquear empleados</option>
-                    </select>
+
+                <!-- ═══ PANTALLA 2: REVISAR CAMBIOS ═══ -->
+                <div class="cm-screen" id="cm_screen_2">
+                    <div class="cm-stats">
+                        <div class="cm-stat"><div class="n" id="cm_stat_total">0</div><div class="l">Filas leídas</div></div>
+                        <div class="cm-stat apply"><div class="n" id="cm_stat_aplican">0</div><div class="l" id="cm_stat_aplican_label">Se van a aplicar</div></div>
+                        <div class="cm-stat"><div class="n" id="cm_stat_omiten">0</div><div class="l">Sin cambios</div></div>
+                    </div>
+                    <p class="cm-ctx-line" id="cm_ctx_line"></p>
+                    <div style="max-height:32vh; overflow-y:auto; border:1px solid #e1e5e9; border-radius:8px;">
+                        <table class="table table-sm mb-0">
+                            <thead class="thead-light" style="position:sticky; top:0;">
+                                <tr><th>Cédula</th><th>Nombre (archivo)</th><th>Estado actual</th><th>Resultado</th></tr>
+                            </thead>
+                            <tbody id="cm_preview_tbody"></tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Archivo (.xlsx, .xls, .csv)</label>
-                    <input type="file" class="form-control-file" id="cm_archivo" accept=".xlsx,.xls,.csv">
+
+                <!-- ═══ PANTALLA 3: RESULTADO ═══ -->
+                <div class="cm-screen" id="cm_screen_3">
+                    <div class="cm-result-banner">
+                        <div class="ic"><i class="icon dripicons-checkmark"></i></div>
+                        <div>
+                            <div class="t" id="cm_result_titulo"></div>
+                            <div class="s" id="cm_result_sub"></div>
+                        </div>
+                    </div>
+                    <div class="cm-stats4">
+                        <div class="cm-stat"><div class="n" id="cm_res_agregados">0</div><div class="l">Agregados</div></div>
+                        <div class="cm-stat"><div class="n" id="cm_res_actualizados">0</div><div class="l">Actualizados</div></div>
+                        <div class="cm-stat"><div class="n" id="cm_res_bloqueados">0</div><div class="l">Bloqueados</div></div>
+                        <div class="cm-stat apply"><div class="n" id="cm_res_omitidos">0</div><div class="l">Omitidos</div></div>
+                    </div>
+                    <div id="cm_omitidos_box" style="display:none; border:1px solid #e1e5e9; border-radius:8px; overflow:hidden;">
+                        <div style="padding:9px 12px; background:#f4f5f7; font-size:.78rem; font-weight:700; color:#495057;">Filas omitidas</div>
+                        <table class="table table-sm mb-0"><thead><tr><th>Cédula</th><th>Motivo</th></tr></thead><tbody id="cm_omitidos_tbody"></tbody></table>
+                    </div>
                 </div>
-                <div id="cm_resultado" style="display:none; max-height:35vh; overflow-y:auto;"></div>
+
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-info" id="btn_procesar_carga_masiva" style="color:#fff;">
-                    <i class="icon dripicons-checkmark"></i> Procesar
+            <div class="modal-footer" id="cm_footer_1">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn_procesar_carga_masiva">
+                    Analizar archivo <i class="icon dripicons-arrow-thin-right"></i>
                 </button>
+            </div>
+            <div class="modal-footer" id="cm_footer_2" style="display:none;">
+                <button type="button" class="btn btn-secondary" id="btn_cm_atras">
+                    <i class="icon dripicons-arrow-thin-left"></i> Atrás
+                </button>
+                <button type="button" class="btn btn-danger" id="btn_confirmar_carga_masiva">
+                    <i class="icon dripicons-checkmark"></i> <span id="btn_confirmar_carga_masiva_txt">Confirmar y aplicar</span>
+                </button>
+            </div>
+            <div class="modal-footer" id="cm_footer_3" style="display:none;">
+                <button type="button" class="btn btn-secondary" id="btn_cm_otra_carga">Hacer otra carga</button>
+                <button type="button" class="btn btn-primary" data-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1199,13 +1351,72 @@ function verAuditoria(per_id) {
 // ══════════════════════════════════════════════
 // CL-I: CARGA MASIVA DE PERSONAL
 // ══════════════════════════════════════════════
+var ACCION_LABEL = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' };
+var ACCION_CONFIRMA_TXT = { anadir: 'Confirmar y añadir', actualizar_cupo: 'Confirmar y actualizar', bloquear: 'Confirmar y bloquear' };
+
 function abrirModalCargaMasiva() {
+    $('#cm_cliente_nombre').text(_cliData ? _cliData.cli_descripcion : '');
+    $('.cm-tile').removeClass('sel');
+    $('.cm-tile[data-accion="anadir"]').addClass('sel');
     $('#cm_accion').val('anadir');
     $('#cm_archivo').val('');
+    $('#cm_file_chip').removeClass('show');
+    $('#cm_file_name').text('');
     $('#alerta_carga_masiva').html('');
-    $('#cm_resultado').hide().html('');
+    _cmFilasPendientes = null;
+    _cmAccionPendiente = null;
+    cmGoScreen(1);
     $('#modalCargaMasiva').modal('show');
 }
+
+// Navegación entre las 3 pantallas del modal (Configurar → Revisar → Resultado)
+function cmGoScreen(n) {
+    $('.cm-screen').removeClass('active');
+    $('#cm_screen_' + n).addClass('active');
+    $('#cm_footer_1, #cm_footer_2, #cm_footer_3').hide();
+    $('#cm_footer_' + n).show();
+
+    [1, 2, 3].forEach(function (i) {
+        var $step = $('#cm_step' + i);
+        $step.removeClass('now done');
+        if (i < n) $step.addClass('done');
+        else if (i === n) $step.addClass('now');
+    });
+    $('#cm_line1').toggleClass('done', n > 1);
+    $('#cm_line2').toggleClass('done', n > 2);
+}
+
+// Selección de acción mediante tarjetas (reemplaza el <select> anterior)
+$(document).on('click', '.cm-tile', function () {
+    $('.cm-tile').removeClass('sel');
+    $(this).addClass('sel');
+    $('#cm_accion').val($(this).data('accion'));
+});
+
+// Dropzone: clic o arrastrar-y-soltar abren/reciben el archivo
+$('#cm_dropzone').on('click', function () { $('#cm_archivo').trigger('click'); });
+$('#cm_dropzone').on('dragover', function (e) { e.preventDefault(); $(this).addClass('dragover'); });
+$('#cm_dropzone').on('dragleave', function () { $(this).removeClass('dragover'); });
+$('#cm_dropzone').on('drop', function (e) {
+    e.preventDefault();
+    $(this).removeClass('dragover');
+    var f = e.originalEvent.dataTransfer.files[0];
+    if (f) {
+        var dt = new DataTransfer();
+        dt.items.add(f);
+        $('#cm_archivo')[0].files = dt.files;
+        $('#cm_archivo').trigger('change');
+    }
+});
+$('#cm_archivo').on('change', function () {
+    var f = this.files[0];
+    if (f) { $('#cm_file_name').text(f.name); $('#cm_file_chip').addClass('show'); }
+});
+$('#cm_file_quitar').on('click', function (e) {
+    e.stopPropagation();
+    $('#cm_archivo').val('');
+    $('#cm_file_chip').removeClass('show');
+});
 
 // Plantilla de ejemplo con encabezados (columna A cédula, B nombre, C cupo)
 // más filas de muestra. El procesador no requiere encabezados, pero si la
@@ -1233,7 +1444,6 @@ $('#btn_procesar_carga_masiva').on('click', function () {
     var archivo = $('#cm_archivo')[0].files[0];
     var accion  = $('#cm_accion').val();
     $('#alerta_carga_masiva').html('');
-    $('#cm_resultado').hide().html('');
 
     if (!archivo) {
         $('#alerta_carga_masiva').html('<div class="alert alert-warning mb-0">Selecciona un archivo.</div>');
@@ -1293,71 +1503,86 @@ $('#btn_procesar_carga_masiva').on('click', function () {
 });
 
 function renderPreviewCargaMasiva(res) {
-    var accionTxt = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' }[_cmAccionPendiente];
+    $('#cm_stat_total').text(res.total);
+    $('#cm_stat_aplican').text(res.aplicaran);
+    $('#cm_stat_omiten').text(res.total - res.aplicaran);
+    $('#cm_stat_aplican_label').text(_cmAccionPendiente === 'bloquear' ? 'Se van a bloquear' : 'Se van a aplicar');
+    $('#cm_ctx_line').html('Acción: <b>' + ACCION_LABEL[_cmAccionPendiente] + '</b> · Archivo analizado');
 
     var filas = '';
     res.detalle.forEach(function (d) {
-        var rowClass = d.aplica ? '' : ' class="table-secondary text-muted"';
-        filas += '<tr' + rowClass + '>'
+        filas += '<tr' + (d.aplica ? '' : ' class="table-light text-muted"') + '>'
             + '<td>' + esc(d.cedula) + '</td>'
             + '<td>' + esc(d.nombre || '—') + '</td>'
             + '<td>' + esc(d.estado_actual || '—') + '</td>'
-            + '<td>' + esc(d.resultado) + '</td>'
+            + '<td><span class="cm-pill ' + (d.aplica ? 'cm-pill-apply' : 'cm-pill-skip') + '">' + esc(d.resultado) + '</span></td>'
             + '</tr>';
     });
+    $('#cm_preview_tbody').html(filas);
 
-    var html = '<div class="alert alert-warning mb-2">'
-        + 'Acción: "<strong>' + accionTxt + '</strong>" para <strong>' + esc(_cliData.cli_descripcion) + '</strong>. '
-        + 'De <strong>' + res.total + '</strong> fila(s) leídas, se van a aplicar <strong>' + res.aplicaran + '</strong>.'
-        + '</div>'
-        + '<div style="max-height:35vh; overflow-y:auto;" class="mb-2">'
-        + '<table class="table table-sm table-bordered mb-0"><thead class="thead-light"><tr>'
-        + '<th>Cédula</th><th>Nombre (archivo)</th><th>Estado actual</th><th>Resultado</th>'
-        + '</tr></thead><tbody>' + filas + '</tbody></table>'
-        + '</div>'
-        + '<button type="button" class="btn btn-sm btn-danger" id="btn_confirmar_carga_masiva"' + (res.aplicaran === 0 ? ' disabled' : '') + '>Confirmar y aplicar</button> '
-        + '<button type="button" class="btn btn-sm btn-secondary" onclick="$(\'#alerta_carga_masiva\').html(\'\'); _cmFilasPendientes=null; _cmAccionPendiente=null;">Cancelar</button>';
+    $('#btn_confirmar_carga_masiva_txt').text(ACCION_CONFIRMA_TXT[_cmAccionPendiente]);
+    $('#btn_confirmar_carga_masiva')
+        .prop('disabled', res.aplicaran === 0)
+        .toggleClass('btn-danger', _cmAccionPendiente === 'bloquear')
+        .toggleClass('btn-primary', _cmAccionPendiente !== 'bloquear');
 
-    $('#alerta_carga_masiva').html(html);
+    cmGoScreen(2);
 }
 
-// Delegado porque el botón se inserta dinámicamente dentro de #alerta_carga_masiva
-$(document).on('click', '#btn_confirmar_carga_masiva', function () {
+$('#btn_cm_atras').on('click', function () { cmGoScreen(1); });
+
+$('#btn_confirmar_carga_masiva').on('click', function () {
     if (!_cmFilasPendientes || !_cmAccionPendiente) return;
     var btn = $(this);
-    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+    var txtOriginal = $('#btn_confirmar_carga_masiva_txt').text();
+    btn.prop('disabled', true);
+    $('#btn_confirmar_carga_masiva_txt').html('<span class="spinner-border spinner-border-sm"></span> Aplicando...');
 
     $.post('ajax/clientes/clientes.php?action=personal_carga_masiva', {
         cli_id: _cliId, accion: _cmAccionPendiente, filas: JSON.stringify(_cmFilasPendientes)
     }, function (res) {
         if (!res.success) {
+            btn.prop('disabled', false);
+            $('#btn_confirmar_carga_masiva_txt').text(txtOriginal);
             $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al procesar') + '</div>');
             return;
         }
         var r = res.resultados;
-        $('#alerta_carga_masiva').html('');
-        var resumen = '<div class="alert alert-success mb-2">'
-            + 'Agregados: <strong>' + r.agregados + '</strong> &nbsp;|&nbsp; '
-            + 'Actualizados: <strong>' + r.actualizados + '</strong> &nbsp;|&nbsp; '
-            + 'Bloqueados: <strong>' + r.bloqueados + '</strong> &nbsp;|&nbsp; '
-            + 'Omitidos: <strong>' + r.omitidos.length + '</strong>'
-            + '</div>';
+        var totalAplicado = r.agregados + r.actualizados + r.bloqueados;
+        $('#cm_result_titulo').text(totalAplicado === 1 ? '1 fila aplicada correctamente' : totalAplicado + ' filas aplicadas correctamente');
+        $('#cm_result_sub').text((_cliData ? _cliData.cli_descripcion : '') + ' · ' + ACCION_LABEL[_cmAccionPendiente]);
+        $('#cm_res_agregados').text(r.agregados);
+        $('#cm_res_actualizados').text(r.actualizados);
+        $('#cm_res_bloqueados').text(r.bloqueados);
+        $('#cm_res_omitidos').text(r.omitidos.length);
+
         if (r.omitidos.length) {
-            resumen += '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Cédula</th><th>Motivo</th></tr></thead><tbody>';
+            var tbody = '';
             r.omitidos.forEach(function (o) {
-                resumen += '<tr><td>' + esc(o.cedula) + '</td><td>' + esc(o.motivo) + '</td></tr>';
+                tbody += '<tr><td>' + esc(o.cedula) + '</td><td>' + esc(o.motivo) + '</td></tr>';
             });
-            resumen += '</tbody></table>';
+            $('#cm_omitidos_tbody').html(tbody);
+            $('#cm_omitidos_box').show();
+        } else {
+            $('#cm_omitidos_box').hide();
         }
-        $('#cm_resultado').html(resumen).show();
+
+        cmGoScreen(3);
         _tabsLoaded['personal'] = false;
         cargarTabPersonal();
     }, 'json').fail(function () {
+        btn.prop('disabled', false);
+        $('#btn_confirmar_carga_masiva_txt').text(txtOriginal);
         $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
-    }).always(function () {
-        _cmFilasPendientes = null;
-        _cmAccionPendiente = null;
     });
+});
+
+$('#btn_cm_otra_carga').on('click', function () {
+    $('#cm_archivo').val('');
+    $('#cm_file_chip').removeClass('show');
+    _cmFilasPendientes = null;
+    _cmAccionPendiente = null;
+    cmGoScreen(1);
 });
 
 function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
