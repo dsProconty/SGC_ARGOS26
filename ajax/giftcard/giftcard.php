@@ -11,6 +11,7 @@ date_default_timezone_set('America/Guayaquil');
 
 session_start();
 require_once '../../config/database.php';
+require_once '../../services/giftcard_solicitud.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -187,7 +188,18 @@ switch ($action) {
         $periodo        = trim($_POST['periodo_facturacion'] ?? '');
         $caducidad      = trim($_POST['fecha_caducidad'] ?? '');
 
-        if ((!$cli_id && $nuevo_cliente === '') || $cantidad <= 0 || $cantidad > 1000 || $cupo <= 0 || !$periodo || !$caducidad) {
+        // La elección del cliente es propia de este modal; el resto de reglas
+        // se comparten con la API externa (services/giftcard_solicitud.php)
+        // para que no se desincronicen. Modo NO estricto: la UI conserva
+        // exactamente las validaciones que ya tenía.
+        $datos_solicitud = [
+            'cantidad'            => $cantidad,
+            'cupo_codigo'         => $cupo,
+            'periodo_facturacion' => $periodo,
+            'fecha_caducidad'     => $caducidad,
+        ];
+
+        if ((!$cli_id && $nuevo_cliente === '') || gc_validar_solicitud($datos_solicitud, false)) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos o inválidos']);
             break;
         }
@@ -206,13 +218,7 @@ switch ($action) {
                 if (!$chkCli->get_result()->fetch_assoc()) throw new Exception('Cliente no encontrado');
             }
 
-            $stmt = $mysqli->prepare(
-                "INSERT INTO giftcard_solicitud (id_user, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion, sol_fecha_caducidad, sol_estado, cli_id)
-                 VALUES (?, ?, ?, ?, ?, 'PENDING', ?)"
-            );
-            if (!$stmt) throw new Exception('Funcionalidad no disponible. Ejecute la migración bloque3_giftcard_approval.sql.');
-            $stmt->bind_param('iidssi', $id_user, $cantidad, $cupo, $periodo, $caducidad, $cli_id);
-            if (!$stmt->execute()) throw new Exception('Error al crear la solicitud');
+            gc_crear_solicitud($mysqli, $id_user, $cli_id, $datos_solicitud);
 
             $mysqli->commit();
             echo json_encode(['success' => true, 'mensaje' => 'Solicitud creada, pendiente de aprobación.']);
