@@ -56,6 +56,22 @@
             </div>
         </div>
 
+        <div class="row mt-2" id="row_resumen_marca" style="display:none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body py-2">
+                        <p class="text-muted mb-2"><small>Desglose por marca</small></p>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Marca</th><th class="text-right">Asignado</th><th class="text-right">Consumido</th><th class="text-right">Disponible</th></tr></thead>
+                                <tbody id="tbody_resumen_marca"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- TABS -->
         <ul class="nav nav-tabs mt-2" id="tabsPortal" role="tablist">
             <li class="nav-item">
@@ -205,13 +221,17 @@
                     <label>Correo electrónico</label>
                     <input type="email" class="form-control" id="new_per_correo" placeholder="correo@empresa.com" maxlength="150">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="grupo_new_cupo_global">
                     <label>Cupo asignado ($) <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <div class="input-group-prepend"><span class="input-group-text">$</span></div>
                         <input type="number" class="form-control" id="new_per_cupo" min="0.01" step="0.01" placeholder="0.00">
                     </div>
                     <small class="text-muted" id="new_cupo_max_hint"></small>
+                </div>
+                <div class="form-group" id="grupo_new_cupo_marca" style="display:none;">
+                    <label>Cupo asignado por marca ($)</label>
+                    <div id="new_cupo_marca_inputs" class="row"></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -325,7 +345,7 @@
                             <input type="email" class="form-control" id="edit_per_correo" maxlength="150">
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-6" id="grupo_edit_cupo_global">
                         <div class="form-group">
                             <label>Cupo asignado ($) <span class="text-danger">*</span></label>
                             <div class="input-group">
@@ -334,6 +354,10 @@
                             </div>
                             <small class="text-muted" id="edit_cupo_max_hint"></small>
                         </div>
+                    </div>
+                    <div class="col-md-12" id="grupo_edit_cupo_marca" style="display:none;">
+                        <label class="mb-1">Cupo asignado por marca ($)</label>
+                        <div id="edit_cupo_marca_inputs" class="row"></div>
                     </div>
                 </div>
                 <!-- Trazabilidad de cambios -->
@@ -359,6 +383,70 @@
 var AJAX_URL = 'ajax/portal_empresa/portal_empresa.php';
 var nominaData = [];
 
+var _modoCupoEmpresa = 'global';
+
+function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+
+// Devuelve un objeto {mar_id: monto} leyendo los inputs por marca dentro del contenedor dado.
+function leerCupoMarcaInputs(containerSelector) {
+    var out = {};
+    $(containerSelector + ' .cupo-marca-input').each(function () {
+        var marId = $(this).data('mar-id');
+        var val   = parseFloat($(this).val());
+        if (val > 0) out[marId] = val;
+    });
+    return out;
+}
+
+// Dibuja un input $ por cada marca del catálogo (porMarca), precargado con valoresActuales si vienen.
+function renderCupoMarcaInputs(containerSelector, porMarca, valoresActuales) {
+    valoresActuales = valoresActuales || {};
+    var html = '';
+    (porMarca || []).forEach(function (m) {
+        var valor = valoresActuales[m.mar_id] || '';
+        html += '<div class="col-md-6 mb-2">'
+            + '<label class="small mb-1">' + esc(m.mar_descripcion) + ' <span class="text-muted">(máx. $' + parseFloat(m.monto_max).toFixed(2) + ')</span></label>'
+            + '<div class="input-group input-group-sm">'
+            + '<div class="input-group-prepend"><span class="input-group-text">$</span></div>'
+            + '<input type="number" class="form-control cupo-marca-input" data-mar-id="' + m.mar_id + '" min="0" step="0.01" value="' + valor + '" placeholder="0.00">'
+            + '</div></div>';
+    });
+    $(containerSelector).html(html);
+}
+
+// Consulta el modo de cupo de la empresa (y, si se pasa per_id, los montos actuales del
+// empleado por marca) y muestra/oculta los grupos globales vs. por-marca en ambos modales.
+// perId es opcional; si se omite (0) solo actualiza el modo y deja los inputs de "por marca" vacíos.
+function cargarModoCupoYActualizarUI(perId, callback) {
+    if (typeof perId === 'function') { callback = perId; perId = 0; }
+    $.getJSON(AJAX_URL, { action: 'cupo_convenio', per_id: perId || 0 }, function (r) {
+        if (!r.success) { if (callback) callback(r); return; }
+        _modoCupoEmpresa = r.modo;
+        if (r.modo === 'marca') {
+            $('#grupo_new_cupo_global, #grupo_edit_cupo_global').hide();
+            $('#grupo_new_cupo_marca, #grupo_edit_cupo_marca').show();
+            var valoresActuales = {};
+            (r.por_marca || []).forEach(function (m) { if (m.monto_actual > 0) valoresActuales[m.mar_id] = m.monto_actual; });
+            var target = perId ? '#edit_cupo_marca_inputs' : '#new_cupo_marca_inputs';
+            renderCupoMarcaInputs(target, r.por_marca, valoresActuales);
+        } else {
+            $('#grupo_new_cupo_global, #grupo_edit_cupo_global').show();
+            $('#grupo_new_cupo_marca, #grupo_edit_cupo_marca').hide();
+            if (r.cupo > 0) {
+                $('#new_per_cupo, #edit_per_cupo').data('cupo-max', r.cupo).attr('max', r.cupo);
+            }
+        }
+        if (callback) callback(r);
+    }).fail(function () {
+        // Si falla la consulta del modo de cupo, no dejamos el modal sin poder abrirse —
+        // se abre igual en modo global (comportamiento previo a esta funcionalidad).
+        _modoCupoEmpresa = 'global';
+        $('#grupo_new_cupo_global, #grupo_edit_cupo_global').show();
+        $('#grupo_new_cupo_marca, #grupo_edit_cupo_marca').hide();
+        if (callback) callback({ success: false });
+    });
+}
+
 // ---- Resumen ----
 function cargarResumen() {
     $.getJSON(AJAX_URL + '?action=resumen', function(r) {
@@ -368,6 +456,20 @@ function cargarResumen() {
         $('#res_asignado').text('$' + parseFloat(d.total_asignado || 0).toFixed(2));
         $('#res_consumido').text('$' + parseFloat(d.total_consumido || 0).toFixed(2));
         $('#res_disponible').text('$' + parseFloat(d.total_disponible || 0).toFixed(2));
+
+        if (d.modo === 'marca' && d.por_marca && d.por_marca.length) {
+            var filas = '';
+            d.por_marca.forEach(function (m) {
+                filas += '<tr><td>' + esc(m.mar_descripcion) + '</td>'
+                    + '<td class="text-right">$' + parseFloat(m.asignado).toFixed(2) + '</td>'
+                    + '<td class="text-right text-danger">$' + parseFloat(m.consumido).toFixed(2) + '</td>'
+                    + '<td class="text-right text-success">$' + parseFloat(m.disponible).toFixed(2) + '</td></tr>';
+            });
+            $('#tbody_resumen_marca').html(filas);
+            $('#row_resumen_marca').show();
+        } else {
+            $('#row_resumen_marca').hide();
+        }
     });
 }
 
@@ -498,31 +600,40 @@ $('#btn_exportar_historial').on('click', function() {
 $('#btn_nuevo_empleado').on('click', function() {
     $('#new_per_nombre, #new_per_documento, #new_per_correo').val('');
     $('#new_per_cupo').val('');
+    $('#new_cupo_marca_inputs').html('');
     $('#alerta_nuevo_emp').hide().html('');
-    // Pre-cargar cupo del convenio
-    $.getJSON(AJAX_URL + '?action=cupo_convenio', function(r) {
-        if (r.success && r.cupo > 0) {
+    cargarModoCupoYActualizarUI(function (r) {
+        if (r.success && r.modo === 'global' && r.cupo > 0) {
             $('#new_per_cupo').val(r.cupo).data('cupo-max', r.cupo).attr('max', r.cupo);
             $('#new_cupo_max_hint').text('Máximo: $' + parseFloat(r.cupo).toFixed(2));
         }
+        $('#modal_nuevo_emp').modal('show');
     });
-    $('#modal_nuevo_emp').modal('show');
 });
 
 $('#btn_guardar_emp').on('click', function() {
     var nombre   = $('#new_per_nombre').val().trim();
     var cedula   = $('#new_per_documento').val().trim();
     var correo   = $('#new_per_correo').val().trim();
-    var cupo     = parseFloat($('#new_per_cupo').val()) || 0;
 
     if (!nombre)      { alertaEmp('warning', 'Ingrese el nombre del empleado'); return; }
     if (!cedula)      { alertaEmp('warning', 'Ingrese la cédula'); return; }
-    if (cupo <= 0)    { alertaEmp('warning', 'Ingrese un cupo válido'); return; }
-    // FIX 3: Validate cupo does not exceed empresa limit
-    var cupoMaxEmpresa = parseFloat($('#new_per_cupo').data('cupo-max') || 0);
-    if (cupoMaxEmpresa > 0 && cupo > cupoMaxEmpresa) {
-        alertaEmp('danger', 'El cupo del empleado no puede ser mayor al cupo asignado a la empresa ($' + cupoMaxEmpresa.toFixed(2) + ')');
-        return;
+
+    var payload = { action: 'crear_empleado', per_nombre: nombre, per_documento: cedula, per_correo: correo };
+
+    if (_modoCupoEmpresa === 'marca') {
+        var cuposMarca = leerCupoMarcaInputs('#new_cupo_marca_inputs');
+        if (!Object.keys(cuposMarca).length) { alertaEmp('warning', 'Asigne un cupo en al menos una marca'); return; }
+        payload.cupo_por_marca = JSON.stringify(cuposMarca);
+    } else {
+        var cupo = parseFloat($('#new_per_cupo').val()) || 0;
+        if (cupo <= 0) { alertaEmp('warning', 'Ingrese un cupo válido'); return; }
+        var cupoMaxEmpresa = parseFloat($('#new_per_cupo').data('cupo-max') || 0);
+        if (cupoMaxEmpresa > 0 && cupo > cupoMaxEmpresa) {
+            alertaEmp('danger', 'El cupo del empleado no puede ser mayor al cupo asignado a la empresa ($' + cupoMaxEmpresa.toFixed(2) + ')');
+            return;
+        }
+        payload.per_cupo = cupo;
     }
 
     var btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
@@ -530,7 +641,7 @@ $('#btn_guardar_emp').on('click', function() {
     $.ajax({
         url: AJAX_URL,
         type: 'POST',
-        data: { action: 'crear_empleado', per_nombre: nombre, per_documento: cedula, per_correo: correo, per_cupo: cupo },
+        data: payload,
         dataType: 'json',
         success: function(r) {
             if (r.success) {
@@ -580,11 +691,12 @@ function editarEmpleado(per_id) {
         $('#edit_per_documento').val(d.per_documento);
         $('#edit_per_correo').val(d.per_correo || '');
         $('#edit_per_cupo').val(parseFloat(d.per_cupo_asignado || 0).toFixed(2));
+        $('#edit_cupo_marca_inputs').html('');
         $('#alerta_editar_emp').hide().html('');
 
-        // Load empresa max quota
-        $.getJSON(AJAX_URL + '?action=cupo_convenio', function(rc) {
-            if (rc.success && rc.cupo > 0) {
+        // Cargar modo de cupo de la empresa (y, si aplica, los montos actuales del empleado por marca)
+        cargarModoCupoYActualizarUI(d.per_id, function (rc) {
+            if (rc.success && rc.modo === 'global' && rc.cupo > 0) {
                 cupoMaxEdicion = rc.cupo;
                 $('#edit_per_cupo').attr('max', rc.cupo);
                 $('#edit_cupo_max_hint').text('Máximo permitido: $' + parseFloat(rc.cupo).toFixed(2));
@@ -625,21 +737,29 @@ $('#btn_guardar_edicion').on('click', function() {
     var nombre  = $('#edit_per_nombre').val().trim();
     var cedula  = $('#edit_per_documento').val().trim();
     var correo  = $('#edit_per_correo').val().trim();
-    var cupo    = parseFloat($('#edit_per_cupo').val()) || 0;
 
     if (!nombre) { alertaEdit('warning', 'Ingrese el nombre'); return; }
     if (!cedula) { alertaEdit('warning', 'Ingrese la cédula'); return; }
-    if (cupo <= 0) { alertaEdit('warning', 'Ingrese un cupo válido'); return; }
-    if (cupoMaxEdicion > 0 && cupo > cupoMaxEdicion) {
-        alertaEdit('danger', 'El cupo no puede ser mayor al cupo de la empresa ($' + cupoMaxEdicion.toFixed(2) + ')');
-        return;
+
+    var payload = { action: 'editar_empleado', per_id: per_id, per_nombre: nombre, per_documento: cedula, per_correo: correo };
+
+    if (_modoCupoEmpresa === 'marca') {
+        payload.cupo_por_marca = JSON.stringify(leerCupoMarcaInputs('#edit_cupo_marca_inputs'));
+    } else {
+        var cupo = parseFloat($('#edit_per_cupo').val()) || 0;
+        if (cupo <= 0) { alertaEdit('warning', 'Ingrese un cupo válido'); return; }
+        if (cupoMaxEdicion > 0 && cupo > cupoMaxEdicion) {
+            alertaEdit('danger', 'El cupo no puede ser mayor al cupo de la empresa ($' + cupoMaxEdicion.toFixed(2) + ')');
+            return;
+        }
+        payload.per_cupo = cupo;
     }
 
     var btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
     $.ajax({
         url: AJAX_URL,
         type: 'POST',
-        data: { action: 'editar_empleado', per_id: per_id, per_nombre: nombre, per_documento: cedula, per_correo: correo, per_cupo: cupo },
+        data: payload,
         dataType: 'json',
         success: function(r) {
             if (r.success) {
