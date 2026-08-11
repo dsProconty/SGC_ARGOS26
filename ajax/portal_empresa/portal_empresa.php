@@ -2,6 +2,7 @@
 date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/cupo_marca_helpers.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -118,9 +119,34 @@ switch ($action) {
     // Cupo del convenio (para pre-llenar el formulario)
     // ----------------------------------------------------------
     case 'cupo_convenio':
-        $q = "SELECT cli_valor_beneficio FROM cliente WHERE cli_id = $cli_id LIMIT 1";
-        $r = mysqli_fetch_assoc(mysqli_query($mysqli, $q));
-        echo json_encode(['success' => true, 'cupo' => (float)($r['cli_valor_beneficio'] ?? 0)]);
+        $modo = cupoObtenerModo($mysqli, $cli_id);
+        // Dos formas de respuesta según el modo: global → {cupo}, marca → {por_marca:[...]} — el frontend debe revisar 'modo' antes de leer los campos.
+        if ($modo['modo'] === 'marca') {
+            $marcas = cupoMarcasActivas($mysqli);
+            $maximos = cupoMaximosPorMarca($mysqli, $cli_id);
+            $per_id_consulta = (int)($_GET['per_id'] ?? 0);
+            $actuales = [];
+            if ($per_id_consulta) {
+                $chkEmp = $mysqli->prepare("SELECT per_id FROM personal WHERE per_id = ? AND cli_id = ?");
+                $chkEmp->bind_param('ii', $per_id_consulta, $cli_id);
+                $chkEmp->execute();
+                if ($chkEmp->get_result()->fetch_assoc()) {
+                    $actuales = cupoEmpleadoPorMarca($mysqli, $per_id_consulta);
+                }
+            }
+            $porMarca = [];
+            foreach ($marcas as $m) {
+                $porMarca[] = [
+                    'mar_id'          => $m['mar_id'],
+                    'mar_descripcion' => $m['mar_descripcion'],
+                    'monto_max'       => isset($maximos[$m['mar_id']]) ? $maximos[$m['mar_id']] : 0.0,
+                    'monto_actual'    => isset($actuales[$m['mar_id']]) ? $actuales[$m['mar_id']]['asignado'] : 0.0,
+                ];
+            }
+            echo json_encode(['success' => true, 'modo' => 'marca', 'por_marca' => $porMarca]);
+        } else {
+            echo json_encode(['success' => true, 'modo' => 'global', 'cupo' => $modo['valor_global']]);
+        }
         break;
 
     // ----------------------------------------------------------
