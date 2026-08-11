@@ -2,6 +2,7 @@
 date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once "../../config/database.php";
+require_once "../../helpers/cupo_marca_helpers.php";
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -68,9 +69,12 @@ switch ($action) {
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $row  = $stmt->get_result()->fetch_assoc();
-        echo $row
-            ? json_encode(['success' => true, 'data' => $row])
-            : json_encode(['success' => false, 'mensaje' => 'Cliente no encontrado']);
+        if (!$row) {
+            echo json_encode(['success' => false, 'mensaje' => 'Cliente no encontrado']);
+            break;
+        }
+        $row['cupo_por_marca'] = cupoMaximosPorMarca($mysqli, $id);
+        echo json_encode(['success' => true, 'data' => $row]);
         break;
 
     // ── CREAR ─────────────────────────────────────────────────────────────────
@@ -79,12 +83,14 @@ switch ($action) {
         $desc = trim($_POST['cli_descripcion'] ?? '');
         if (empty($desc)) { echo json_encode(['success' => false, 'mensaje' => 'El nombre es requerido']); break; }
 
+        $modo_cupo = ($_POST['cli_modo_cupo'] ?? 'global') === 'marca' ? 'marca' : 'global';
+
         $stmt = $mysqli->prepare(
             "INSERT INTO cliente
              (cli_descripcion, cli_numero_convenio, cli_ciudad, cli_contacto,
               cli_email, cli_email2, cli_telefono, cli_telefono2, cli_dia_corte,
-              cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision, cli_tipo_cliente)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+              cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision, cli_tipo_cliente, cli_modo_cupo)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         );
         $conv  = trim($_POST['cli_numero_convenio'] ?? '') ?: null;
         $ciu   = trim($_POST['cli_ciudad']   ?? '') ?: null;
@@ -100,10 +106,19 @@ switch ($action) {
         $com   = !empty($_POST['cli_comision']) ? (float)$_POST['cli_comision'] : 0.00;
         $tcli  = trim($_POST['cli_tipo_cliente'] ?? '') ?: null;
 
-        $stmt->bind_param('ssssssssssdsds', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli);
-        echo $stmt->execute()
-            ? json_encode(['success' => true,  'mensaje' => 'Cliente creado exitosamente', 'id' => $mysqli->insert_id])
-            : json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
+        $stmt->bind_param('ssssssssssdsdss', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $modo_cupo);
+        if (!$stmt->execute()) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
+            break;
+        }
+
+        $nuevo_id = $mysqli->insert_id;
+        if ($tben === 'Cupo' && $modo_cupo === 'marca') {
+            $montos = json_decode($_POST['cupo_por_marca'] ?? '{}', true);
+            cupoGuardarMaximosPorMarca($mysqli, $nuevo_id, is_array($montos) ? $montos : array());
+        }
+
+        echo json_encode(['success' => true, 'mensaje' => 'Cliente creado exitosamente', 'id' => $nuevo_id]);
         break;
 
     // ── EDITAR ────────────────────────────────────────────────────────────────
@@ -126,18 +141,32 @@ switch ($action) {
         $tcar = $_POST['cli_tipo_cartera'] ?? null;
         $com  = !empty($_POST['cli_comision']) ? (float)$_POST['cli_comision'] : 0.00;
         $tcli = trim($_POST['cli_tipo_cliente'] ?? '') ?: null;
+        $modo_cupo = ($_POST['cli_modo_cupo'] ?? 'global') === 'marca' ? 'marca' : 'global';
 
         $stmt = $mysqli->prepare(
             "UPDATE cliente SET
               cli_descripcion=?, cli_numero_convenio=?, cli_ciudad=?, cli_contacto=?,
               cli_email=?, cli_email2=?, cli_telefono=?, cli_telefono2=?, cli_dia_corte=?,
-              cli_tipo_beneficio=?, cli_valor_beneficio=?, cli_tipo_cartera=?, cli_comision=?, cli_tipo_cliente=?
+              cli_tipo_beneficio=?, cli_valor_beneficio=?, cli_tipo_cartera=?, cli_comision=?, cli_tipo_cliente=?, cli_modo_cupo=?
              WHERE cli_id=?"
         );
-        $stmt->bind_param('ssssssssssdsdsi', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $id);
-        echo $stmt->execute()
-            ? json_encode(['success' => true,  'mensaje' => 'Cliente actualizado'])
-            : json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
+        $stmt->bind_param('ssssssssssdsdssi', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $modo_cupo, $id);
+        if (!$stmt->execute()) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
+            break;
+        }
+
+        if ($tben === 'Cupo' && $modo_cupo === 'marca') {
+            $montos = json_decode($_POST['cupo_por_marca'] ?? '{}', true);
+            cupoGuardarMaximosPorMarca($mysqli, $id, is_array($montos) ? $montos : array());
+        } else {
+            // El cliente ya no está en modo "marca" (o dejó de ser tipo Cupo) —
+            // limpiar los topes por marca que pudiera tener de un estado anterior,
+            // para que cliente_cupo_marca no quede con datos obsoletos.
+            cupoGuardarMaximosPorMarca($mysqli, $id, array());
+        }
+
+        echo json_encode(['success' => true, 'mensaje' => 'Cliente actualizado']);
         break;
 
     // ── TAB: PERSONAL ─────────────────────────────────────────────────────────
