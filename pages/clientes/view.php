@@ -415,7 +415,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4" id="col_valor_beneficio">
                             <div class="form-group">
                                 <label id="label_valor">Valor del beneficio</label>
                                 <div class="input-group">
@@ -435,6 +435,24 @@
                                     <option value="90+">90+ días</option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+                    <div class="row" id="row_modo_cupo" style="display:none;">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Modo de cupo</label>
+                                <select class="form-control" id="cli_modo_cupo" name="cli_modo_cupo">
+                                    <option value="global">Global (compartido entre marcas)</option>
+                                    <option value="marca">Por marca (independiente por marca)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="row_cupo_por_marca" style="display:none;">
+                        <div class="col-12">
+                            <label class="mb-1">Monto máximo por marca</label>
+                            <div id="cupo_marca_inputs" class="row"></div>
+                            <input type="hidden" id="cupo_por_marca_input" name="cupo_por_marca" value="{}">
                         </div>
                     </div>
                     <div class="row">
@@ -1169,6 +1187,10 @@ function abrirModalNuevo() {
     $('#cli_id').val('');
     $('#modalClienteLabel').text('Nuevo Cliente');
     actualizarPrefijo('');
+    $('#cli_modo_cupo').val('global');
+    $('#cupo_marca_inputs').html('');
+    $('#cupo_por_marca_input').val('{}');
+    toggleModoCupoUI();
     $('#modalCliente').modal('show');
 }
 
@@ -1192,6 +1214,13 @@ function editarCliente(id) {
         $('#cli_tipo_cliente').val(d.cli_tipo_cliente||'');
         $('#cli_comision').val(d.cli_comision||'0');
         actualizarPrefijo(d.cli_tipo_beneficio||'');
+        $('#cli_modo_cupo').val(d.cli_modo_cupo || 'global');
+        $('#cupo_marca_inputs').html('');
+        $('#cupo_por_marca_input').val('{}');
+        toggleModoCupoUI();
+        if (d.cli_modo_cupo === 'marca') {
+            renderCupoPorMarcaInputs(d.cupo_por_marca || {});
+        }
         $('#modalClienteLabel').text('Editar Cliente');
         $('#modalCliente').modal('show');
     });
@@ -1207,6 +1236,67 @@ function actualizarPrefijo(tipo) {
     }
 }
 
+var _marcasCatalogo = null; // cache: [{mar_id, mar_descripcion}, ...]
+
+function cargarMarcasCatalogo(callback) {
+    if (_marcasCatalogo) { callback(_marcasCatalogo); return; }
+    $.getJSON('ajax/locales/locales.php', { action: 'list_marcas' }, function (res) {
+        _marcasCatalogo = (res && res.success) ? res.data : [];
+        callback(_marcasCatalogo);
+    }).fail(function () {
+        _marcasCatalogo = [];
+        callback(_marcasCatalogo);
+    });
+}
+
+function renderCupoPorMarcaInputs(montosExistentes) {
+    // montosExistentes may be {} , [] (PHP empty-array quirk), or {"3":50,...}
+    if (!montosExistentes || Array.isArray(montosExistentes)) montosExistentes = {};
+    cargarMarcasCatalogo(function (marcas) {
+        var html = '';
+        marcas.forEach(function (m) {
+            var valor = montosExistentes[m.mar_id] || '';
+            html += '<div class="col-md-4 mb-2">'
+                + '<label class="small mb-1">' + esc(m.mar_descripcion) + '</label>'
+                + '<div class="input-group input-group-sm">'
+                + '<div class="input-group-prepend"><span class="input-group-text">$</span></div>'
+                + '<input type="number" class="form-control cupo-marca-input" data-mar-id="' + m.mar_id + '" min="0" step="0.01" value="' + valor + '" placeholder="0.00">'
+                + '</div></div>';
+        });
+        $('#cupo_marca_inputs').html(html);
+    });
+}
+
+function leerCupoPorMarcaInputs() {
+    var out = {};
+    $('#cupo_marca_inputs .cupo-marca-input').each(function () {
+        var marId = $(this).data('mar-id');
+        var val   = parseFloat($(this).val());
+        if (val > 0) out[marId] = val;
+    });
+    return out;
+}
+
+function toggleModoCupoUI() {
+    var esCupo  = $('#cli_tipo_beneficio').val() === 'Cupo';
+    var esMarca = $('#cli_modo_cupo').val() === 'marca';
+    $('#row_modo_cupo').toggle(esCupo);
+    $('#row_cupo_por_marca').toggle(esCupo && esMarca);
+    // El campo único "Valor del beneficio" solo tiene sentido cuando NO es modo marca
+    // (para Porcentaje siempre se muestra; para Cupo+marca se oculta a favor de los inputs por marca).
+    $('#col_valor_beneficio').toggle(!(esCupo && esMarca));
+}
+
+$('#cli_tipo_beneficio, #cli_modo_cupo').on('change', function() {
+    toggleModoCupoUI();
+    // Si el usuario acaba de activar "Por marca" y aún no hay inputs renderizados
+    // (cliente nuevo, o cliente que no tenía modo marca), generarlos vacíos.
+    if ($('#cli_tipo_beneficio').val() === 'Cupo' && $('#cli_modo_cupo').val() === 'marca'
+        && $('#cupo_marca_inputs').children().length === 0) {
+        renderCupoPorMarcaInputs({});
+    }
+});
+
 $('#cli_tipo_beneficio').on('change', function() { actualizarPrefijo($(this).val()); });
 
 $('#formCliente').on('submit', function(e) {
@@ -1214,6 +1304,7 @@ $('#formCliente').on('submit', function(e) {
     var id     = $('#cli_id').val();
     var action = id ? 'editar' : 'crear';
     var btn    = $('#btn_guardar');
+    $('#cupo_por_marca_input').val(JSON.stringify(leerCupoPorMarcaInputs()));
     btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Guardando...');
 
     $.post('ajax/clientes/clientes.php?action='+action, $(this).serialize(), function(res) {
