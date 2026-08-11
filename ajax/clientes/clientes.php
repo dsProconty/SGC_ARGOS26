@@ -194,9 +194,9 @@ switch ($action) {
         $nombre    = trim($_POST['per_nombre']    ?? '');
         $documento = trim($_POST['per_documento'] ?? '');
         $correo    = trim($_POST['per_correo']    ?? '');
-        $cupo      = (float)($_POST['per_cupo_asignado'] ?? 0);
+        $modo      = cupoObtenerModo($mysqli, $cli_id);
 
-        if (!$per_id || !$cli_id || !$nombre || !$documento || $cupo <= 0) {
+        if (!$per_id || !$cli_id || !$nombre || !$documento) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
             break;
         }
@@ -221,13 +221,35 @@ switch ($action) {
             break;
         }
 
-        $empresa = $mysqli->prepare("SELECT cli_valor_beneficio FROM cliente WHERE cli_id = ?");
-        $empresa->bind_param('i', $cli_id);
-        $empresa->execute();
-        $cupo_max = (float)($empresa->get_result()->fetch_assoc()['cli_valor_beneficio'] ?? 0);
-        if ($cupo_max > 0 && $cupo > $cupo_max) {
-            echo json_encode(['success' => false, 'mensaje' => 'El cupo ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo de la empresa ($' . number_format($cupo_max, 2) . ')']);
-            break;
+        $cupo = 0;
+        $cupoPorMarca = [];
+        if ($modo['modo'] === 'marca') {
+            $cupoPorMarca = json_decode($_POST['cupo_por_marca'] ?? '{}', true);
+            if (!is_array($cupoPorMarca)) { $cupoPorMarca = []; }
+            $maximos = cupoMaximosPorMarca($mysqli, $cli_id);
+            foreach ($cupoPorMarca as $mar_id => $monto) {
+                $monto = (float)$monto;
+                if ($monto <= 0) { continue; }
+                if (!isset($maximos[(int)$mar_id])) {
+                    echo json_encode(['success' => false, 'mensaje' => 'El convenio no tiene un tope configurado para esa marca — no se puede asignar cupo ahí']);
+                    exit;
+                }
+                $tope = $maximos[(int)$mar_id];
+                if ($tope > 0 && $monto > $tope) {
+                    echo json_encode(['success' => false, 'mensaje' => 'El cupo asignado en una marca supera el máximo permitido por el convenio ($' . number_format($tope, 2) . ')']);
+                    exit;
+                }
+            }
+        } else {
+            $cupo = (float)($_POST['per_cupo_asignado'] ?? 0);
+            if ($cupo <= 0) {
+                echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+                break;
+            }
+            if ($modo['valor_global'] > 0 && $cupo > $modo['valor_global']) {
+                echo json_encode(['success' => false, 'mensaje' => 'El cupo ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo de la empresa ($' . number_format($modo['valor_global'], 2) . ')']);
+                break;
+            }
         }
 
         $id_user_sesion = (int)$_SESSION['id_user'];
@@ -235,26 +257,52 @@ switch ($action) {
         if ($emp_check['per_nombre'] !== $nombre)       $cambios[] = ['campo' => 'per_nombre',    'label' => 'Nombre', 'anterior' => $emp_check['per_nombre'],    'nuevo' => $nombre];
         if ($emp_check['per_documento'] !== $documento) $cambios[] = ['campo' => 'per_documento', 'label' => 'Cédula', 'anterior' => $emp_check['per_documento'], 'nuevo' => $documento];
         if ($emp_check['per_correo'] !== $correo)       $cambios[] = ['campo' => 'per_correo',    'label' => 'Correo', 'anterior' => $emp_check['per_correo'],    'nuevo' => $correo];
-        $cupo_anterior = (float)$emp_check['per_cupo_asignado'];
-        if (abs($cupo_anterior - $cupo) > 0.001) {
-            $label_cupo = $cupo > $cupo_anterior ? 'Aumento de cupo' : 'Disminución de cupo';
-            $cambios[] = ['campo' => 'per_cupo_asignado', 'label' => $label_cupo, 'anterior' => '$' . number_format($cupo_anterior, 2), 'nuevo' => '$' . number_format($cupo, 2)];
-        }
 
-        // Ajustar cupo disponible proporcionalmente si cambió el cupo asignado
         $cupo_disponible_nuevo = $emp_check['per_cupo_disponible'];
-        if (abs($cupo_anterior - $cupo) > 0.001) {
-            $consumido = $cupo_anterior - (float)$emp_check['per_cupo_disponible'];
-            $cupo_disponible_nuevo = max(0, $cupo - $consumido);
+        if ($modo['modo'] === 'global') {
+            $cupo_anterior = (float)$emp_check['per_cupo_asignado'];
+            if (abs($cupo_anterior - $cupo) > 0.001) {
+                $label_cupo = $cupo > $cupo_anterior ? 'Aumento de cupo' : 'Disminución de cupo';
+                $cambios[] = ['campo' => 'per_cupo_asignado', 'label' => $label_cupo, 'anterior' => '$' . number_format($cupo_anterior, 2), 'nuevo' => '$' . number_format($cupo, 2)];
+                $consumido = $cupo_anterior - (float)$emp_check['per_cupo_disponible'];
+                $cupo_disponible_nuevo = max(0, $cupo - $consumido);
+            }
         }
 
         $upd = $mysqli->prepare(
-            "UPDATE personal SET per_nombre=?, per_documento=?, per_correo=?, per_cupo_asignado=?, per_cupo_disponible=?
-             WHERE per_id=? AND cli_id=?"
+            "UPDATE personal SET per_nombre=?, per_documento=?, per_correo=?"
+            . ($modo['modo'] === 'global' ? ", per_cupo_asignado=?, per_cupo_disponible=?" : '')
+            . " WHERE per_id=? AND cli_id=?"
         );
         $correoParam = $correo !== '' ? $correo : null;
-        $upd->bind_param('sssddii', $nombre, $documento, $correoParam, $cupo, $cupo_disponible_nuevo, $per_id, $cli_id);
+        if ($modo['modo'] === 'global') {
+            $upd->bind_param('sssddii', $nombre, $documento, $correoParam, $cupo, $cupo_disponible_nuevo, $per_id, $cli_id);
+        } else {
+            $upd->bind_param('sssii', $nombre, $documento, $correoParam, $per_id, $cli_id);
+        }
         if (!$upd->execute()) { echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar: ' . $mysqli->error]); break; }
+
+        if ($modo['modo'] === 'marca') {
+            $marcasCatalogo = cupoMarcasActivas($mysqli);
+            $nombresPorId = [];
+            foreach ($marcasCatalogo as $m) { $nombresPorId[$m['mar_id']] = $m['mar_descripcion']; }
+            foreach ($cupoPorMarca as $mar_id => $monto) {
+                $mar_id = (int)$mar_id;
+                $monto  = (float)$monto;
+                if ($monto <= 0) { continue; }
+                $antes = cupoEmpleadoEnMarca($mysqli, $per_id, $mar_id);
+                if (abs($antes['asignado'] - $monto) > 0.001) {
+                    $labelMarca = isset($nombresPorId[$mar_id]) ? $nombresPorId[$mar_id] : ('marca #' . $mar_id);
+                    $cambios[] = [
+                        'campo' => 'per_cupo_marca_' . $mar_id,
+                        'label' => 'Cupo en ' . $labelMarca,
+                        'anterior' => '$' . number_format($antes['asignado'], 2),
+                        'nuevo'    => '$' . number_format($monto, 2),
+                    ];
+                }
+                cupoUpsertEmpleadoMarca($mysqli, $per_id, $mar_id, $monto);
+            }
+        }
 
         foreach ($cambios as $c) {
             $tra = $mysqli->prepare(
