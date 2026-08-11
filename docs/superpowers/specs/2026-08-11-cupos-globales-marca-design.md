@@ -27,19 +27,38 @@ Confirmado por el cliente vía nota de voz: "tengo empresas que sí puedo descon
 
 ## Formularios
 
-### Convenio (`convenio/view.php` + `ajax/convenio/convenio.php`)
+> Nota post-sync: el módulo administrativo activo es **Clientes** (`pages/clientes/view.php` + `ajax/clientes/clientes.php`) — es lo que está enlazado en el sidebar y lo que se ve en producción. `convenio/view.php` / `ajax/convenio/convenio.php` no están enlazados en el menú (código legado); se actualizan igual por consistencia de datos, pero no son la superficie que usan los admins.
+
+### Cliente/convenio (`pages/clientes/view.php:410-423` + `ajax/clientes/clientes.php` `crear`/`editar`)
 
 Cuando `Tipo de beneficio = Cupo`, aparece un select **"Modo de cupo"**: `Global` | `Por marca`.
 
 - `Global` → se muestra el campo actual "Monto del cupo" (sin cambios).
 - `Por marca` → ese campo se reemplaza por una lista dinámica con un input de monto máximo por cada marca activa (catálogo `marca`). Al guardar, se hace upsert en `cliente_cupo_marca` por cada marca con monto > 0 (monto 0 u omitido = sin fila).
+- Se replica el mismo cambio en `convenio/view.php` + `ajax/convenio/convenio.php` por consistencia, aunque no esté enlazado en el menú.
 
-### Empleado (`portal_empresa` — crear/editar, mismo modal)
+### Empleado — alta/edición individual (`ajax/clientes/clientes.php` `personal_editar`, y el mismo patrón en `ajax/portal_empresa/portal_empresa.php`)
 
 - Convenio en modo `global`: formulario sin cambios — un campo "Cupo" validado contra `cli_valor_beneficio`.
 - Convenio en modo `marca`: el formulario muestra un input por marca (con su nombre), cada uno validado contra el máximo definido en `cliente_cupo_marca` para esa marca. Al guardar, se crean/actualizan filas en `personal_cupo_marca` (monto 0 u omitido = sin fila, cupo 0 en esa marca).
-- Edición conserva la lógica actual de ajuste proporcional del disponible cuando cambia el asignado (hoy en `ajax/portal_empresa/portal_empresa.php:217-237`), aplicada por cada marca de forma independiente.
+- Edición conserva la lógica actual de ajuste proporcional del disponible cuando cambia el asignado (hoy en `ajax/portal_empresa/portal_empresa.php:217-237`, y su equivalente en `ajax/clientes/clientes.php` `personal_editar`), aplicada por cada marca de forma independiente.
 - El endpoint `cupo_convenio` (prellenado del máximo permitido) se extiende: modo `global` devuelve el monto único como hoy; modo `marca` devuelve un arreglo `{mar_id, mar_descripcion, monto_max}`.
+
+### Carga Masiva de Personal (`ajax/clientes/clientes.php:304-471` `personal_carga_masiva` + modal en `pages/clientes/view.php`)
+
+Hoy la plantilla Excel tiene 3 columnas fijas (Cédula, Nombre, Cupo) y 3 acciones (Añadir, Actualizar cupo, Bloquear), con vista previa antes de aplicar. Está construida enteramente para modo `global` (usa `cli_valor_beneficio` como tope, escribe en `per_cupo_asignado`/`per_cupo_disponible`). Se adapta así:
+
+- **Plantilla** (`descargarPlantillaCargaMasiva`): si el convenio es `global`, sin cambios (Cédula, Nombre, Cupo). Si es `marca`, la plantilla trae Cédula, Nombre y **una columna "Cupo <nombre de marca>" por cada marca activa** del catálogo.
+- **Lectura del archivo** (`btn_procesar_carga_masiva`): en modo `marca`, en vez de una columna `cupo` fija se lee un mapa `{mar_id: monto}` a partir de los encabezados de marca presentes en el archivo (match por nombre de marca, igual que hoy se detecta el encabezado de la columna Cédula).
+- **Backend `personal_carga_masiva`**: recibe el modo del convenio y bifurca:
+  - `anadir`: en modo `marca`, cada columna de marca se valida contra `cliente_cupo_marca.ccm_monto_max` de esa marca; se requiere al menos una marca con monto > 0 (igual que hoy se requiere `cupo > 0`). Al crear el empleado se insertan las filas correspondientes en `personal_cupo_marca` (una por marca con monto > 0).
+  - `actualizar_cupo`: en modo `marca`, se valida y actualiza **solo las columnas de marca presentes con valor en el archivo** — una celda vacía para una marca **no toca** el cupo que el empleado ya tenía ahí (actualización parcial, no se pone en 0). Cada marca actualizada aplica el mismo ajuste proporcional del disponible que hoy se hace a nivel global (líneas 403-405), pero calculado con los valores de `personal_cupo_marca` de esa marca.
+  - `bloquear`: sin cambios — es a nivel de `personal.per_estado`, no depende del modo de cupo.
+  - El preview (`solo_preview`) muestra, por fila, el detalle de qué marca(s) cambian y a qué monto, igual que hoy muestra el cupo único.
+
+## Historial/trazabilidad (`personal_trazabilidad`)
+
+Los registros de trazabilidad (alta manual, alta masiva, actualización de cupo, bloqueo) siguen igual; para cambios de cupo en modo `marca`, el campo `tra_campo` identifica la marca afectada (ej. `per_cupo_marca_<mar_id>`) para no perder el detalle de cuál marca cambió.
 
 ## Lógica de venta (POS — `ajax/pos/pos.php`)
 
@@ -54,7 +73,7 @@ El widget resumen (hoy `SUM(per_cupo_asignado)`, `SUM(per_cupo_disponible)`) y e
 
 ## Migración
 
-Script SQL nuevo (patrón `shared/migrations/*.sql`):
+Script SQL nuevo (patrón `migrations/bloqueN_*.sql`):
 - Agrega `cli_modo_cupo` a `cliente` con default `global`.
 - Crea `cliente_cupo_marca` y `personal_cupo_marca`.
 - No modifica datos existentes.
@@ -64,3 +83,4 @@ Script SQL nuevo (patrón `shared/migrations/*.sql`):
 - No se permite mezclar ambos modos en un mismo convenio.
 - No se migran convenios existentes a modo `marca` automáticamente.
 - No se rebalancea automáticamente el cupo de empleados existentes cuando se crea una marca nueva.
+- No se construye una carga masiva de *clientes/convenios* (solo existe hoy la de *personal*); no está en el pedido original.
