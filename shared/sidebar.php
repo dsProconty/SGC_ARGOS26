@@ -72,6 +72,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=gestiones&cartera=60"><span>Cartera 60</span></a></li>
                         <li><a href="?module=gestiones&cartera=90"><span>Cartera 90</span></a></li>
                         <li><a href="?module=gestiones&cartera=91"><span>Cartera +90</span></a></li>
+                        <li><a href="?module=gestiones&cartera=GC"><span>Gift Card</span></a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
@@ -130,7 +131,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 </li>
                 <?php endif; ?>
 
-                <?php if ($has('portal_empresa') && $_SESSION['permisos_acceso'] === 'empresa_cliente'): ?>
+                <?php if ($has('portal_empresa') && !empty($_SESSION['cli_id'])): ?>
                 <li class="nav-dropdown <?php if ($cur === 'portal_empresa') echo 'active'; ?>">
                     <a href="?module=portal_empresa">
                         <i class="icon dripicons-briefcase"></i><span>Portal Empresa / Nómina</span>

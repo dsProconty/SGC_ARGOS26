@@ -130,12 +130,13 @@ switch ($action) {
 
         // Detalle de consumos regulares
         $q_det = "SELECT con.con_fecha, con.con_hora, p.per_nombre, p.per_documento,
-                         p.per_numero_tarjeta, l.loc_direccion, con.con_valor_neto, con.con_iva,
+                         p.per_numero_tarjeta, l.loc_direccion, m.mar_descripcion, con.con_valor_neto, con.con_iva,
                          con.con_valor_total, con.con_monto_convenio, con.con_monto_externo,
                          con.con_descripcion, 'consumo' AS origen
                   FROM consumo con
                   JOIN personal p ON con.per_id = p.per_id
                   LEFT JOIN local l ON con.loc_id = l.loc_id
+                  LEFT JOIN marca m ON l.mar_id = m.mar_id
                   WHERE p.cli_id = $cli_id
                     AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'";
         $r_det = mysqli_query($mysqli, $q_det);
@@ -157,6 +158,7 @@ switch ($action) {
                      p.per_documento,
                      p.per_numero_tarjeta,
                      NULL                          AS loc_direccion,
+                     NULL                          AS mar_descripcion,
                      ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2) AS con_valor_neto,
                      ROUND(vd.vd_monto_cuota - ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2), 2) AS con_iva,
                      vd.vd_monto_cuota             AS con_valor_total,
@@ -182,7 +184,49 @@ switch ($action) {
             return strcmp($a['con_fecha'] . ($a['con_hora'] ?? ''), $b['con_fecha'] . ($b['con_hora'] ?? ''));
         });
 
-        echo json_encode(['success' => true, 'ec' => $ec, 'detalles' => $detalles]);
+        // Get all brands with consumptions for this client in this period.
+        // LEFT JOIN + COALESCE: un consumo sin local asignado (loc_id NULL,
+        // ej. registrado por Super Admin) no debe desaparecer del resumen —
+        // se agrupa bajo "Sin local asignado" (mar_id=0) en vez de perderse.
+        $q_marcas = "SELECT DISTINCT COALESCE(m.mar_id, 0) AS mar_id,
+                            COALESCE(m.mar_descripcion, 'Sin local asignado') AS mar_descripcion
+                     FROM consumo con
+                     JOIN personal per ON con.per_id = per.per_id
+                     LEFT JOIN local l ON con.loc_id = l.loc_id
+                     LEFT JOIN marca m ON l.mar_id = m.mar_id
+                     WHERE per.cli_id = $cli_id
+                       AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
+                     ORDER BY mar_descripcion ASC";
+        $r_marcas = mysqli_query($mysqli, $q_marcas);
+        $marcas = [];
+        while ($m = mysqli_fetch_assoc($r_marcas)) $marcas[] = $m;
+
+        // Get pivot: per_id, per_nombre, per_documento + sum per brand in period
+        $q_pivot = "SELECT per.per_id, per.per_nombre, per.per_documento,
+                           COALESCE(m.mar_id, 0) AS mar_id, SUM(con.con_valor_total) AS total_marca
+                    FROM consumo con
+                    JOIN personal per ON con.per_id = per.per_id
+                    LEFT JOIN local l ON con.loc_id = l.loc_id
+                    LEFT JOIN marca m ON l.mar_id = m.mar_id
+                    WHERE per.cli_id = $cli_id
+                      AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
+                    GROUP BY per.per_id, COALESCE(m.mar_id, 0)
+                    ORDER BY per.per_nombre ASC";
+        $r_pivot = mysqli_query($mysqli, $q_pivot);
+        $pivot_rows = [];
+        while ($row = mysqli_fetch_assoc($r_pivot)) $pivot_rows[] = $row;
+
+        // Get saldo acumulado: total consumption per employee across ALL history
+        $q_saldo = "SELECT per.per_id, SUM(con.con_valor_total) AS saldo_acumulado
+                    FROM consumo con
+                    JOIN personal per ON con.per_id = per.per_id
+                    WHERE per.cli_id = $cli_id
+                    GROUP BY per.per_id";
+        $r_saldo = mysqli_query($mysqli, $q_saldo);
+        $saldos = [];
+        while ($row = mysqli_fetch_assoc($r_saldo)) $saldos[$row['per_id']] = (float)$row['saldo_acumulado'];
+
+        echo json_encode(['success' => true, 'ec' => $ec, 'detalles' => $detalles, 'marcas' => $marcas, 'pivot_rows' => $pivot_rows, 'saldos' => $saldos]);
         break;
 
     default:

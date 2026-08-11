@@ -14,6 +14,9 @@ switch ($cartera) {
     case '91':
         $title = 'CARTERA +90 DÍAS';
         break;
+    case 'GC':
+        $title = 'COBRANZA GIFT CARD';
+        break;
     default:
         # code...
         break;

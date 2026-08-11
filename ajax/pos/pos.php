@@ -1,6 +1,9 @@
 <?php
+date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/session_helpers.php';
+mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 header('Content-Type: application/json');
 
@@ -19,6 +22,43 @@ function calcularIva(float $total, float $pct): array {
     $subtotal = round($total / (1 + $pct / 100), 2);
     $iva      = round($total - $subtotal, 2);
     return ['subtotal' => $subtotal, 'iva' => $iva];
+}
+
+// Acepta rol legacy (permisos_acceso) O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+function esSuperAdmin($mysqli) {
+    if (strtolower($_SESSION['permisos_acceso'] ?? '') === 'super admin') {
+        return true;
+    }
+    if (empty($_SESSION['id_user'])) {
+        return false;
+    }
+    $stmt = $mysqli->prepare('SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?');
+    $stmt->bind_param('i', $_SESSION['id_user']);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row && strtolower($row['per_nombre']) === 'super admin';
+}
+
+// Resuelve el local a usar en el consumo. Un cajero con local fijo siempre
+// usa su propio loc_id (no se puede suplantar). Solo si la sesión NO tiene
+// un local asignado Y el usuario es Super Admin se permite elegir uno vía
+// POST, validado contra la tabla local para evitar IDs inventados.
+function resolverLocId($mysqli) {
+    if (!empty($_SESSION['loc_id'])) {
+        return (int)$_SESSION['loc_id'];
+    }
+    if (!esSuperAdmin($mysqli)) {
+        return null;
+    }
+    $posted = (int)($_POST['loc_id'] ?? 0);
+    if ($posted <= 0) {
+        return null;
+    }
+    $stmt = $mysqli->prepare('SELECT loc_id FROM local WHERE loc_id = ? AND loc_activo = 1');
+    $stmt->bind_param('i', $posted);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row ? (int)$row['loc_id'] : null;
 }
 
 switch ($action) {
@@ -40,29 +80,33 @@ switch ($action) {
             break;
         }
 
-        // --- Intentar como cédula (solo dígitos) ---
+        // --- Intentar como cédula o número de tarjeta (solo dígitos) ---
+        // El cajero puede buscar por cédula (10 dígitos) o escaneando la
+        // tarjeta del empleado (16 dígitos, per_numero_tarjeta) — antes solo
+        // se buscaba por cédula, así que un empleado bloqueado localizado por
+        // su tarjeta caía en "no encontrado" en vez de avisar que está bloqueado.
         if (preg_match('/^\d+$/', $input)) {
             $query = "SELECT p.per_id, p.per_nombre, p.per_documento, p.per_estado,
                              p.per_cupo_asignado, p.per_cupo_disponible,
                              c.cli_id, c.cli_descripcion, c.cli_tipo_beneficio, c.cli_valor_beneficio
                       FROM personal p
                       JOIN cliente c ON p.cli_id = c.cli_id
-                      WHERE p.per_documento = '$input'
+                      WHERE p.per_documento = '$input' OR p.per_numero_tarjeta = '$input'
                       LIMIT 1";
             $result = mysqli_query($mysqli, $query);
 
             if ($result && mysqli_num_rows($result) > 0) {
                 $data = mysqli_fetch_assoc($result);
                 if ($data['per_estado'] === 'suspendido') {
-                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Comuníquese con la empresa.']);
+                    echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     exit;
                 }
                 if ($data['per_estado'] === 'bloqueado') {
-                    echo json_encode(['success' => false, 'mensaje' => 'Empleado bloqueado – no puede realizar consumos']);
+                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra bloqueada. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     break;
                 }
                 if ($data['per_estado'] === 'inactivo') {
-                    echo json_encode(['success' => false, 'mensaje' => 'Empleado inactivo – no puede realizar consumos']);
+                    echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra inactiva. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     break;
                 }
                 echo json_encode(['success' => true, 'tipo' => 'empleado', 'data' => $data]);
@@ -71,20 +115,24 @@ switch ($action) {
         }
 
         // --- Intentar como código Gift Card ---
-        $qGC = "SELECT cgc_id, cgc_codigo, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
+        $qGC = "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
                 FROM codigo_gift_card WHERE cgc_codigo = '$input' LIMIT 1";
         $rGC = mysqli_query($mysqli, $qGC);
 
         if ($rGC && mysqli_num_rows($rGC) > 0) {
             $gc = mysqli_fetch_assoc($rGC);
 
-            // Verificar caducidad
+            // Verificar caducidad — se muestra cupo/saldo igual que una tarjeta
+            // válida, para que el cajero vea el cuadro completo, no solo "vencida".
             if ($gc['cgc_fecha_caducidad'] && $gc['cgc_fecha_caducidad'] < date('Y-m-d')) {
                 mysqli_query($mysqli, "UPDATE codigo_gift_card SET cgc_estado='vencido' WHERE cgc_id={$gc['cgc_id']}");
                 echo json_encode([
-                    'success' => false,
-                    'tipo'    => 'giftcard_vencida',
-                    'mensaje' => 'Gift Card vencida el ' . date('d/m/Y', strtotime($gc['cgc_fecha_caducidad']))
+                    'success'         => false,
+                    'tipo'            => 'giftcard_vencida',
+                    'mensaje'         => 'CADUCADA el ' . date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])),
+                    'saldo_original'  => (float)$gc['cgc_cupo_inicial'],
+                    'saldo'           => (float)$gc['cgc_cupo_disponible'],
+                    'fecha_caducidad' => date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])),
                 ]);
                 break;
             }
@@ -105,6 +153,7 @@ switch ($action) {
                 'data'    => [
                     'cgc_id'          => (int)$gc['cgc_id'],
                     'cgc_codigo'      => $gc['cgc_codigo'],
+                    'saldo_original'  => (float)$gc['cgc_cupo_inicial'],
                     'saldo'           => (float)$gc['cgc_cupo_disponible'],
                     'fecha_caducidad' => $gc['cgc_fecha_caducidad']
                         ? date('d/m/Y', strtotime($gc['cgc_fecha_caducidad']))
@@ -126,7 +175,7 @@ switch ($action) {
         $monto_externo  = (float)($_POST['monto_externo']  ?? 0);
         $con_descripcion = mysqli_real_escape_string($mysqli, trim($_POST['con_descripcion'] ?? ''));
         $id_user        = (int)$_SESSION['id_user'];
-        $loc_id         = isset($_SESSION['loc_id']) && $_SESSION['loc_id'] ? (int)$_SESSION['loc_id'] : null;
+        $loc_id         = resolverLocId($mysqli);
 
         if ($cgc_id === 0 || $monto_giftcard <= 0) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
@@ -184,7 +233,10 @@ switch ($action) {
         // Descontar saldo gift card
         $nuevo_saldo  = (float)$gc['cgc_cupo_disponible'] - $monto_giftcard;
         $nuevo_estado = $nuevo_saldo <= 0 ? 'consumido' : 'activo';
-        $fecha_uso    = $nuevo_estado === 'consumido' ? "'" . date('Y-m-d H:i:s') . "'" : 'NULL';
+        // cgc_fecha_uso registra el último uso, sea parcial o total — antes solo
+        // se guardaba cuando la tarjeta quedaba en 0, dejando NULL cualquier
+        // consumo parcial aunque sí se haya usado hoy.
+        $fecha_uso    = "'" . date('Y-m-d H:i:s') . "'";
         mysqli_query($mysqli, "UPDATE codigo_gift_card
                                SET cgc_cupo_disponible = $nuevo_saldo,
                                    cgc_estado = '$nuevo_estado',
@@ -204,7 +256,7 @@ switch ($action) {
         $monto_giftcard = (float)($_POST['monto_giftcard'] ?? 0);
         $cgc_id         = (int)($_POST['cgc_id']           ?? 0);
         $id_user        = (int)$_SESSION['id_user'];
-        $loc_id         = isset($_SESSION['loc_id']) && $_SESSION['loc_id'] ? (int)$_SESSION['loc_id'] : null;
+        $loc_id         = resolverLocId($mysqli);
 
         if ($per_id === 0 || $monto_convenio <= 0) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
@@ -297,7 +349,8 @@ switch ($action) {
         if ($monto_giftcard > 0 && $cgc_id > 0) {
             $nuevo_saldo = (float)$gc['cgc_cupo_disponible'] - $monto_giftcard;
             $nuevo_estado = $nuevo_saldo <= 0 ? 'consumido' : 'activo';
-            $fecha_uso_sql = $nuevo_estado === 'consumido' ? "'" . date('Y-m-d H:i:s') . "'" : 'NULL';
+            // cgc_fecha_uso registra el último uso, sea parcial o total.
+            $fecha_uso_sql = "'" . date('Y-m-d H:i:s') . "'";
             mysqli_query($mysqli, "UPDATE codigo_gift_card
                                    SET cgc_cupo_disponible = $nuevo_saldo,
                                        cgc_estado = '$nuevo_estado',
@@ -399,7 +452,7 @@ switch ($action) {
             $where .= " AND c.id_user = $id_user";
         }
 
-        $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total,
+        $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total, c.con_estado,
                          c.con_monto_convenio, c.con_monto_externo, c.con_voucher_impreso,
                          p.per_nombre, p.per_documento, cl.cli_descripcion
                   FROM consumo c
@@ -415,6 +468,109 @@ switch ($action) {
         }
 
         echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
+    // ----------------------------------------------------------
+    // PV-F: Anular venta el mismo día, con justificación obligatoria.
+    // Devuelve automáticamente el cupo de convenio o el saldo de Gift
+    // Card que se haya usado en esa venta, y deja registro de quién y
+    // por qué (consumo_anulacion).
+    // ----------------------------------------------------------
+    case 'anular_venta':
+        if (!tienePermiso($mysqli, 'pos.anular')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para anular ventas']);
+            break;
+        }
+        $con_id = (int)($_POST['con_id'] ?? 0);
+        $motivo = trim($_POST['motivo'] ?? '');
+
+        if (!$con_id || $motivo === '') {
+            echo json_encode(['success' => false, 'mensaje' => 'Indique el motivo de la anulación']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare(
+            "SELECT con_id, con_fecha, con_estado, per_id, con_monto_convenio,
+                    con_giftcard_codigo, con_monto_giftcard
+             FROM consumo WHERE con_id = ? LIMIT 1"
+        );
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $con = $stmt->get_result()->fetch_assoc();
+
+        if (!$con) { echo json_encode(['success' => false, 'mensaje' => 'Venta no encontrada']); break; }
+        if ($con['con_fecha'] !== date('Y-m-d')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Solo se pueden anular ventas del mismo día']);
+            break;
+        }
+        if ($con['con_estado'] === 'anulado') {
+            echo json_encode(['success' => false, 'mensaje' => 'Esta venta ya estaba anulada']);
+            break;
+        }
+
+        $mysqli->begin_transaction();
+        try {
+            $upd = $mysqli->prepare("UPDATE consumo SET con_estado = 'anulado' WHERE con_id = ?");
+            $upd->bind_param('i', $con_id);
+            if (!$upd->execute()) throw new Exception('Error al anular la venta');
+
+            // Devolver cupo de convenio consumido
+            $montoConvenio = (float)$con['con_monto_convenio'];
+            if ($montoConvenio > 0 && $con['per_id']) {
+                $updCupo = $mysqli->prepare(
+                    "UPDATE personal SET per_cupo_disponible = LEAST(per_cupo_asignado, per_cupo_disponible + ?) WHERE per_id = ?"
+                );
+                $updCupo->bind_param('di', $montoConvenio, $con['per_id']);
+                if (!$updCupo->execute()) throw new Exception('Error al devolver el cupo');
+            }
+
+            // Devolver saldo de Gift Card consumido
+            $montoGC = (float)$con['con_monto_giftcard'];
+            if ($montoGC > 0 && !empty($con['con_giftcard_codigo'])) {
+                $gc = $mysqli->prepare("SELECT cgc_id, cgc_cupo_inicial, cgc_cupo_disponible FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1");
+                $gc->bind_param('s', $con['con_giftcard_codigo']);
+                $gc->execute();
+                $gcRow = $gc->get_result()->fetch_assoc();
+                if ($gcRow) {
+                    $nuevoSaldo = min((float)$gcRow['cgc_cupo_inicial'], (float)$gcRow['cgc_cupo_disponible'] + $montoGC);
+                    $nuevoEstado = $nuevoSaldo > 0 ? 'activo' : 'consumido';
+                    $updGC = $mysqli->prepare("UPDATE codigo_gift_card SET cgc_cupo_disponible = ?, cgc_estado = ? WHERE cgc_id = ?");
+                    $updGC->bind_param('dsi', $nuevoSaldo, $nuevoEstado, $gcRow['cgc_id']);
+                    if (!$updGC->execute()) throw new Exception('Error al devolver el saldo de la Gift Card');
+                }
+            }
+
+            $idUserSesion = (int)$_SESSION['id_user'];
+            $ins = $mysqli->prepare("INSERT INTO consumo_anulacion (con_id, id_user, can_motivo) VALUES (?, ?, ?)");
+            if (!$ins) throw new Exception('Ejecute la migración bloque12_anulacion_consumo.sql en phpMyAdmin.');
+            $ins->bind_param('iis', $con_id, $idUserSesion, $motivo);
+            if (!$ins->execute()) throw new Exception('Error al registrar la anulación');
+
+            $mysqli->commit();
+            echo json_encode(['success' => true, 'mensaje' => 'Venta anulada correctamente']);
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
+        }
+        break;
+
+    // ----------------------------------------------------------
+    // PV-F: ver quién anuló una venta y por qué (trazabilidad visible)
+    // ----------------------------------------------------------
+    case 'ver_anulacion':
+        $con_id = (int)($_GET['con_id'] ?? 0);
+        $stmt = $mysqli->prepare(
+            "SELECT ca.can_motivo, ca.can_fecha, u.name_user
+             FROM consumo_anulacion ca JOIN usuario u ON ca.id_user = u.id_user
+             WHERE ca.con_id = ? ORDER BY ca.can_fecha DESC LIMIT 1"
+        );
+        if (!$stmt) { echo json_encode(['success' => false]); break; }
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        echo $row
+            ? json_encode(['success' => true, 'data' => $row])
+            : json_encode(['success' => false, 'mensaje' => 'Sin registro de anulación']);
         break;
 
     default:

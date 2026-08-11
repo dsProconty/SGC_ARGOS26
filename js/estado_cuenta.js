@@ -9,12 +9,21 @@ $(document).ready(function () {
         ventana.document.write('<html><head><title>Estado de Cuenta - SGC ARGOS</title>');
         ventana.document.write('<link rel="stylesheet" href="assets/vendor/bootstrap/dist/css/bootstrap.min.css">');
         ventana.document.write('<style>');
-        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;}');
+        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;color:#2c2c2c;}');
+        ventana.document.write('h4,h5{color:#6d1b3a;}');
+        ventana.document.write('hr{border-top:2px solid #6d1b3a;}');
+        ventana.document.write('.thead-dark th{background-color:#6d1b3a !important;color:#fff !important;border-color:#6d1b3a !important;}');
+        ventana.document.write('.thead-light th{background-color:#f7ecf0 !important;color:#4a1226 !important;border-color:#e6d3da !important;}');
+        ventana.document.write('.table-warning,.table-warning>td,.table-warning>th{background-color:#faf3f6 !important;}');
+        ventana.document.write('.table-active,.table-active>td,.table-active>th{background-color:#f2dbe4 !important;color:#4a1226 !important;}');
+        ventana.document.write('.table-dark,.table-dark>td,.table-dark>th{background-color:#4a1226 !important;color:#fff !important;}');
+        ventana.document.write('.bg-light{background-color:#f7ecf0 !important;}');
+        ventana.document.write('table.table-bordered,table.table-bordered td,table.table-bordered th{border-color:#e6d3da !important;}');
         ventana.document.write('@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}');
         ventana.document.write('</style>');
         ventana.document.write('</head><body>');
         ventana.document.write('<div class="no-print" style="text-align:right;margin-bottom:15px;">');
-        ventana.document.write('<button onclick="window.print();" style="background:#17a2b8;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
+        ventana.document.write('<button onclick="window.print();" style="background:#6d1b3a;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">');
         ventana.document.write('&#128196; Guardar / Imprimir PDF</button>');
         ventana.document.write('</div>');
         ventana.document.write(contenido);
@@ -92,7 +101,7 @@ function ver_ec(ec_id) {
         dataType: 'json',
         success: function (resp) {
             if (resp.success) {
-                $('#ec_content').html(renderEC(resp.ec, resp.detalles));
+                $('#ec_content').html(renderEC(resp.ec, resp.detalles, resp.marcas || [], resp.pivot_rows || [], resp.saldos || {}));
             } else {
                 $('#ec_content').html('<div class="alert alert-danger">' + resp.mensaje + '</div>');
             }
@@ -103,7 +112,7 @@ function ver_ec(ec_id) {
     });
 }
 
-function renderEC(ec, detalles) {
+function renderEC(ec, detalles, marcas, pivotRows, saldos) {
     var filas       = '';
     var ventaNeta   = 0;
     var totalIva    = 0;
@@ -124,7 +133,7 @@ function renderEC(ec, detalles) {
             '<td>' + d.per_nombre + '</td>' +
             '<td>' + (d.per_documento || '-') + '</td>' +
             '<td>' + (d.per_numero_tarjeta ? maskTarjeta(d.per_numero_tarjeta) : '-') + '</td>' +
-            '<td>' + (d.loc_direccion || '-') + '</td>' +
+            '<td>' + (d.mar_descripcion ? '<strong>' + d.mar_descripcion + '</strong> — ' : '') + (d.loc_direccion || '-') + '</td>' +
             '<td>' + (d.con_descripcion || '-') + '</td>' +
             '<td class="text-right">$' + neto.toFixed(2)  + '</td>' +
             '<td class="text-right">$' + iva.toFixed(2)   + '</td>' +
@@ -147,6 +156,113 @@ function renderEC(ec, detalles) {
         '  </tbody>' +
         '</table>';
 
+    // ── EC-01 / EC-02: Pivot table (one row per employee, one column per brand) ──
+    var pivotTable = '';
+    if (!marcas || marcas.length === 0) {
+        pivotTable = '<div class="alert alert-info mt-3">Sin consumos en el período</div>';
+    } else {
+        // Build pivot data structure
+        var empleados = {};
+        pivotRows.forEach(function(row) {
+            if (!empleados[row.per_id]) {
+                empleados[row.per_id] = {
+                    per_nombre: row.per_nombre,
+                    per_documento: row.per_documento,
+                    brands: {},
+                    total_periodo: 0
+                };
+            }
+            var t = parseFloat(row.total_marca) || 0;
+            empleados[row.per_id].brands[row.mar_id] = t;
+            empleados[row.per_id].total_periodo += t;
+        });
+
+        // Grand totals per brand
+        var brandTotals = {};
+        marcas.forEach(function(m) { brandTotals[m.mar_id] = 0; });
+        var grandTotalPeriodo = 0;
+        var grandTotalSaldo = 0;
+
+        // Header row. Estilos en línea (no clases bg-* de Bootstrap): dentro de
+        // thead-dark, bg-light/bg-warning solo pisaban el fondo y dejaban el
+        // texto blanco heredado sobre fondo claro, ilegible.
+        var thMarcas = marcas.map(function(m) {
+            return '<th class="text-right" style="background-color:#6d1b3a;color:#fff;">' + m.mar_descripcion + '</th>';
+        }).join('');
+        var pivotHeader = '<tr>' +
+            '<th style="background-color:#6d1b3a;color:#fff;">Cédula</th>' +
+            '<th style="background-color:#6d1b3a;color:#fff;">Nombre</th>' +
+            thMarcas +
+            '<th class="text-right" style="background-color:#f7ecf0;color:#4a1226;">Consumido período</th>' +
+            '<th class="text-right" style="background-color:#4a1226;color:#fff;">Saldo acumulado</th></tr>';
+
+        // Body rows
+        var pivotBody = '';
+        Object.keys(empleados).forEach(function(per_id) {
+            var emp = empleados[per_id];
+            var saldo = parseFloat(saldos[per_id]) || 0;
+            var tdMarcas = marcas.map(function(m) {
+                var val = emp.brands[m.mar_id] || 0;
+                brandTotals[m.mar_id] += val;
+                return '<td class="text-right">' +
+                    (val > 0 ? '$' + val.toFixed(2) : '<span class="text-muted">—</span>') +
+                    '</td>';
+            }).join('');
+            grandTotalPeriodo += emp.total_periodo;
+            grandTotalSaldo += saldo;
+            pivotBody += '<tr>' +
+                '<td><small>' + (emp.per_documento || '-') + '</small></td>' +
+                '<td>' + emp.per_nombre + '</td>' +
+                tdMarcas +
+                '<td class="text-right bg-light"><strong>$' + emp.total_periodo.toFixed(2) + '</strong></td>' +
+                '<td class="text-right"><strong>$' + saldo.toFixed(2) + '</strong></td>' +
+                '</tr>';
+        });
+
+        // Footer totals row
+        var tfMarcas = marcas.map(function(m) {
+            return '<td class="text-right"><strong>$' + (brandTotals[m.mar_id] || 0).toFixed(2) + '</strong></td>';
+        }).join('');
+        var pivotFooter = '<tr class="table-active"><td colspan="2"><strong>TOTALES</strong></td>' + tfMarcas +
+            '<td class="text-right bg-light"><strong>$' + grandTotalPeriodo.toFixed(2) + '</strong></td>' +
+            '<td class="text-right"><strong>$' + grandTotalSaldo.toFixed(2) + '</strong></td></tr>';
+
+        pivotTable =
+            '<h6 class="mt-3 mb-2"><strong>Resumen por Beneficiario y Marca</strong></h6>' +
+            '<div style="overflow-x:auto;">' +
+            '<table class="table table-sm table-bordered" style="font-size:12px;">' +
+            '<thead class="thead-dark">' + pivotHeader + '</thead>' +
+            '<tbody>' + pivotBody + '</tbody>' +
+            '<tfoot>' + pivotFooter + '</tfoot>' +
+            '</table></div>';
+    }
+
+    // ── Detail table (collapsible) ──
+    var detalleTable =
+        '<div class="mt-3">' +
+        '<button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#detalle_consumos" aria-expanded="false">' +
+        '<i class="icon dripicons-list"></i> Ver detalle de consumos (' + detalles.length + ' transacciones)' +
+        '</button></div>' +
+        '<div class="collapse" id="detalle_consumos">' +
+        '  <table class="table table-sm table-bordered mt-2" style="font-size:11px;">' +
+        '    <thead class="thead-light">' +
+        '      <tr>' +
+        '        <th>Fecha</th><th>Hora</th><th>Nombres</th><th>Cédula</th><th>Tarjeta/Convenio</th><th>Local</th><th>Descripción</th>' +
+        '        <th class="text-right">Neto</th><th class="text-right">IVA</th><th class="text-right">Total</th>' +
+        '      </tr>' +
+        '    </thead>' +
+        '    <tbody>' + filas + '</tbody>' +
+        '    <tfoot>' +
+        '      <tr class="table-active">' +
+        '        <td colspan="7" class="text-right"><strong>TOTALES</strong></td>' +
+        '        <td class="text-right"><strong>$' + ventaNeta.toFixed(2) + '</strong></td>' +
+        '        <td class="text-right"><strong>$' + totalIva.toFixed(2)  + '</strong></td>' +
+        '        <td class="text-right"><strong>$' + totalVenta.toFixed(2) + '</strong></td>' +
+        '      </tr>' +
+        '    </tfoot>' +
+        '  </table>' +
+        '</div>';
+
     var html =
         '<div style="font-family:Arial,sans-serif; font-size:13px;">' +
         '  <div class="text-center mb-3">' +
@@ -168,23 +284,8 @@ function renderEC(ec, detalles) {
         '    </div>' +
         '  </div>' +
         '  <hr>' +
-        '  <table class="table table-sm table-bordered" style="font-size:12px;">' +
-        '    <thead class="thead-light">' +
-        '      <tr>' +
-        '        <th>Fecha</th><th>Hora</th><th>Nombres</th><th>Cédula</th><th>Tarjeta/Convenio</th><th>Local</th><th>Descripción</th>' +
-        '        <th class="text-right">Neto</th><th class="text-right">IVA</th><th class="text-right">Total</th>' +
-        '      </tr>' +
-        '    </thead>' +
-        '    <tbody>' + filas + '</tbody>' +
-        '    <tfoot>' +
-        '      <tr class="table-active">' +
-        '        <td colspan="7" class="text-right"><strong>TOTALES</strong></td>' +
-        '        <td class="text-right"><strong>$' + ventaNeta.toFixed(2) + '</strong></td>' +
-        '        <td class="text-right"><strong>$' + totalIva.toFixed(2)  + '</strong></td>' +
-        '        <td class="text-right"><strong>$' + totalVenta.toFixed(2) + '</strong></td>' +
-        '      </tr>' +
-        '    </tfoot>' +
-        '  </table>' +
+        pivotTable +
+        detalleTable +
         resumen +
         '  <div class="mt-4 row">' +
         '    <div class="col-6"><p>Firma autorizada: ___________________________</p></div>' +

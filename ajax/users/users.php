@@ -6,11 +6,12 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'list':
-        $query = "SELECT u.*, c.cli_descripcion, l.loc_direccion,
+        $query = "SELECT u.*, c.cli_descripcion, l.loc_direccion, m.mar_descripcion,
                          COALESCE(p.per_nombre, u.permisos_acceso) AS perfil_nombre
                   FROM usuario u
                   LEFT JOIN cliente c ON u.cli_id = c.cli_id
                   LEFT JOIN local   l ON u.loc_id  = l.loc_id
+                  LEFT JOIN marca   m ON l.mar_id  = m.mar_id
                   LEFT JOIN perfil  p ON p.per_id  = u.per_id
                   ORDER BY u.id_user DESC";
 
@@ -45,11 +46,22 @@ switch ($action) {
                     $color    = $badges[$rolLower] ?? 'secondary';
                     $label    = $rolLower === 'empresa_cliente' ? 'Empresa Cliente' : ($rolLower === 'cajero' ? 'Cajero' : $rol);
 
-                    if ($rolLower === 'empresa_cliente' && $row['cli_descripcion']) {
+                    // No confiar solo en permisos_acceso legacy (puede no coincidir con
+                    // un perfil nuevo asignado vía Perfiles y Permisos): loc_id/cli_id
+                    // son la señal real de si un usuario es cajero/empresa.
+                    $esCajeroFila  = ($rolLower === 'cajero') || !empty($row['loc_id']);
+                    $esEmpresaFila = ($rolLower === 'empresa_cliente') || !empty($row['cli_id']);
+                    // El campo "Cédula / Usuario" del formulario de creación se usa para
+                    // TODOS los perfiles, no solo cajeros — mostrar el sub-texto "Cédula:"
+                    // en cualquier fila cuyo username tenga formato de cédula (9-10 dígitos).
+                    $usernameEsCedula = (bool)preg_match('/^\d{9,10}$/', $row['username']);
+
+                    if ($esEmpresaFila && $row['cli_descripcion']) {
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
-                    } elseif ($rolLower === 'cajero' && $row['loc_direccion']) {
-                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($row['loc_direccion']) . '</small>';
-                    } elseif ($rolLower === 'cajero') {
+                    } elseif ($esCajeroFila && $row['loc_direccion']) {
+                        $marca = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong> — ' : '';
+                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . $marca . htmlspecialchars($row['loc_direccion']) . '</small>';
+                    } elseif ($esCajeroFila) {
                         $asignacion = '<small class="text-muted">Sin local asignado</small>';
                     } else {
                         $asignacion = '<span class="text-muted">—</span>';
@@ -60,7 +72,7 @@ switch ($action) {
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
                         <td>
                             <?php echo htmlspecialchars($row['name_user']); ?>
-                            <?php if ($rolLower === 'cajero'): ?>
+                            <?php if ($usernameEsCedula): ?>
                                 <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
                             <?php endif; ?>
                         </td>
@@ -86,7 +98,7 @@ switch ($action) {
                             <a class="btn btn-info btn-sm mr-1" href="?module=formulario&action=edit&id=<?php echo $row['id_user']; ?>" title="Editar" style="color:#fff;">
                                 <i class="icon dripicons-document-edit"></i>
                             </a>
-                            <?php if ($rolLower === 'cajero'): ?>
+                            <?php if ($esCajeroFila): ?>
                                 <a class="btn btn-secondary btn-sm" onclick="cambiarLocal(<?php echo $row['id_user']; ?>, <?php echo (int)$row['loc_id']; ?>)" title="Cambiar Local" style="color:#fff;">
                                     <i class="icon dripicons-location"></i>
                                 </a>

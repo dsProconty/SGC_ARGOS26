@@ -1,5 +1,7 @@
 <?php
-if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admin') {
+require_once 'config/database.php';
+require_once 'helpers/session_helpers.php';
+if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     echo "<meta http-equiv='refresh' content='0; url=index.php'>";
     exit;
 }
@@ -401,6 +403,30 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
 
     <section class="page-content container-fluid">
         <div id="locales-wrap">
+
+            <!-- LC-A: KPI marcas/sucursales -->
+            <?php
+            $totalMarcas = (int)mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) c FROM marca"))['c'];
+            $totalLocales = (int)mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) c FROM local"))['c'];
+            ?>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="card text-center" style="border-left:4px solid var(--arg-blue);">
+                        <div class="card-body py-2">
+                            <h4 class="font-weight-bold mb-0" style="color:var(--arg-blue);"><?= $totalMarcas ?></h4>
+                            <small class="text-muted">Marcas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center" style="border-left:4px solid var(--arg-teal);">
+                        <div class="card-body py-2">
+                            <h4 class="font-weight-bold mb-0" style="color:var(--arg-teal);"><?= $totalLocales ?></h4>
+                            <small class="text-muted">Sucursales</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Header -->
             <div class="loc-header">
