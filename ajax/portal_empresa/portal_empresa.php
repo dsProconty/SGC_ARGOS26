@@ -24,15 +24,60 @@ switch ($action) {
     // Resumen general de la empresa
     // ----------------------------------------------------------
     case 'resumen':
-        $q = "SELECT
-                COUNT(*) AS total_empleados,
-                SUM(per_cupo_asignado)  AS total_asignado,
-                SUM(per_cupo_disponible) AS total_disponible,
-                SUM(per_cupo_asignado - per_cupo_disponible) AS total_consumido,
-                SUM(CASE WHEN per_estado = 'activo' THEN 1 ELSE 0 END) AS activos
-              FROM personal
-              WHERE cli_id = $cli_id";
-        $r = mysqli_fetch_assoc(mysqli_query($mysqli, $q));
+        $modo = cupoObtenerModo($mysqli, $cli_id);
+
+        $qBase = "SELECT COUNT(*) AS total_empleados,
+                         SUM(CASE WHEN per_estado = 'activo' THEN 1 ELSE 0 END) AS activos
+                  FROM personal WHERE cli_id = $cli_id";
+        $r = mysqli_fetch_assoc(mysqli_query($mysqli, $qBase));
+
+        if ($modo['modo'] === 'marca') {
+            $marcas = cupoMarcasActivas($mysqli);
+            $qMarca = "SELECT pcm.mar_id, SUM(pcm.pcm_asignado) AS asignado, SUM(pcm.pcm_disponible) AS disponible
+                       FROM personal_cupo_marca pcm
+                       JOIN personal p ON pcm.per_id = p.per_id
+                       WHERE p.cli_id = $cli_id
+                       GROUP BY pcm.mar_id";
+            $res = mysqli_query($mysqli, $qMarca);
+            $sumasPorMarca = [];
+            while ($row = mysqli_fetch_assoc($res)) {
+                $sumasPorMarca[(int)$row['mar_id']] = [
+                    'asignado' => (float)$row['asignado'],
+                    'disponible' => (float)$row['disponible'],
+                ];
+            }
+            $porMarca = [];
+            $totalAsignado = 0.0;
+            $totalDisponible = 0.0;
+            foreach ($marcas as $m) {
+                $s = isset($sumasPorMarca[$m['mar_id']]) ? $sumasPorMarca[$m['mar_id']] : ['asignado' => 0.0, 'disponible' => 0.0];
+                $porMarca[] = [
+                    'mar_id' => $m['mar_id'],
+                    'mar_descripcion' => $m['mar_descripcion'],
+                    'asignado' => $s['asignado'],
+                    'disponible' => $s['disponible'],
+                    'consumido' => $s['asignado'] - $s['disponible'],
+                ];
+                $totalAsignado += $s['asignado'];
+                $totalDisponible += $s['disponible'];
+            }
+            $r['total_asignado']   = $totalAsignado;
+            $r['total_disponible'] = $totalDisponible;
+            $r['total_consumido']  = $totalAsignado - $totalDisponible;
+            $r['modo'] = 'marca';
+            $r['por_marca'] = $porMarca;
+        } else {
+            $qGlobal = "SELECT SUM(per_cupo_asignado) AS total_asignado,
+                               SUM(per_cupo_disponible) AS total_disponible,
+                               SUM(per_cupo_asignado - per_cupo_disponible) AS total_consumido
+                        FROM personal WHERE cli_id = $cli_id";
+            $rGlobal = mysqli_fetch_assoc(mysqli_query($mysqli, $qGlobal));
+            $r['total_asignado']   = (float)$rGlobal['total_asignado'];
+            $r['total_disponible'] = (float)$rGlobal['total_disponible'];
+            $r['total_consumido']  = (float)$rGlobal['total_consumido'];
+            $r['modo'] = 'global';
+        }
+
         echo json_encode(['success' => true, 'data' => $r]);
         break;
 
