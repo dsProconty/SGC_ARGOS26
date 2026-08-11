@@ -156,25 +156,55 @@ switch ($action) {
         $nombre    = mysqli_real_escape_string($mysqli, trim($_POST['per_nombre']    ?? ''));
         $documento = mysqli_real_escape_string($mysqli, trim($_POST['per_documento'] ?? ''));
         $correo    = mysqli_real_escape_string($mysqli, trim($_POST['per_correo']    ?? ''));
-        $cupo      = (float)($_POST['per_cupo'] ?? 0);
+        $modo      = cupoObtenerModo($mysqli, $cli_id);
 
-        if (!$nombre || !$documento || $cupo <= 0) {
+        if (!$nombre || !$documento) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
             break;
+        }
+
+        $cupoPorMarca = [];
+        $cupo = 0;
+        if ($modo['modo'] === 'marca') {
+            $cupoPorMarca = json_decode($_POST['cupo_por_marca'] ?? '{}', true);
+            if (!is_array($cupoPorMarca)) { $cupoPorMarca = []; }
+            $maximos = cupoMaximosPorMarca($mysqli, $cli_id);
+            $algunaMarca = false;
+            foreach ($cupoPorMarca as $mar_id => $monto) {
+                $monto = (float)$monto;
+                if ($monto <= 0) { continue; }
+                $algunaMarca = true;
+                if (!isset($maximos[(int)$mar_id])) {
+                    echo json_encode(['success' => false, 'mensaje' => 'El convenio no tiene un tope configurado para esa marca — no se puede asignar cupo ahí']);
+                    exit;
+                }
+                $tope = $maximos[(int)$mar_id];
+                if ($tope > 0 && $monto > $tope) {
+                    echo json_encode(['success' => false, 'mensaje' => 'El cupo asignado en una marca supera el máximo permitido por el convenio ($' . number_format($tope, 2) . ')']);
+                    exit;
+                }
+            }
+            if (!$algunaMarca) {
+                echo json_encode(['success' => false, 'mensaje' => 'Asigne un cupo en al menos una marca']);
+                break;
+            }
+        } else {
+            $cupo = (float)($_POST['per_cupo'] ?? 0);
+            if ($cupo <= 0) {
+                echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+                break;
+            }
+            $cupo_max = $modo['valor_global'];
+            if ($cupo_max > 0 && $cupo > $cupo_max) {
+                echo json_encode(['success' => false, 'mensaje' => 'El cupo del empleado ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo asignado a la empresa ($' . number_format($cupo_max, 2) . ')']);
+                break;
+            }
         }
 
         // Verificar que la cédula no exista ya
         $chk = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT per_id FROM personal WHERE per_documento = '$documento' LIMIT 1"));
         if ($chk) {
             echo json_encode(['success' => false, 'mensaje' => 'Ya existe un empleado con esa cédula']);
-            break;
-        }
-
-        // FIX 3: Validate cupo does not exceed empresa max
-        $empresa = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cli_valor_beneficio FROM cliente WHERE cli_id = $cli_id LIMIT 1"));
-        $cupo_max = (float)($empresa['cli_valor_beneficio'] ?? 0);
-        if ($cupo_max > 0 && $cupo > $cupo_max) {
-            echo json_encode(['success' => false, 'mensaje' => 'El cupo del empleado ($' . number_format($cupo, 2) . ') no puede ser mayor al cupo asignado a la empresa ($' . number_format($cupo_max, 2) . ')']);
             break;
         }
 
@@ -187,11 +217,22 @@ switch ($action) {
         $q = "INSERT INTO personal (per_nombre, per_documento, per_numero_tarjeta, per_correo, cli_id, per_estado, per_cupo_asignado, per_cupo_disponible)
               VALUES ('$nombre', '$documento', '$num_tarjeta', $correo_sql, $cli_id, 'activo', $cupo, $cupo)";
 
-        if (mysqli_query($mysqli, $q)) {
-            echo json_encode(['success' => true, 'per_id' => mysqli_insert_id($mysqli)]);
-        } else {
+        if (!mysqli_query($mysqli, $q)) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al guardar: ' . mysqli_error($mysqli)]);
+            break;
         }
+
+        $nuevo_per_id = mysqli_insert_id($mysqli);
+        if ($modo['modo'] === 'marca') {
+            foreach ($cupoPorMarca as $mar_id => $monto) {
+                $monto = (float)$monto;
+                if ($monto > 0) {
+                    cupoUpsertEmpleadoMarca($mysqli, $nuevo_per_id, $mar_id, $monto);
+                }
+            }
+        }
+
+        echo json_encode(['success' => true, 'per_id' => $nuevo_per_id]);
         break;
 
 
