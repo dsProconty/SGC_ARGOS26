@@ -130,6 +130,9 @@
                                     <h4 class="text-success font-weight-bold" id="emp_cupo_disponible">$0.00</h4>
                                 </div>
                             </div>
+                            <div class="alert alert-warning mt-2 mb-0 py-2 px-3" id="alerta_marca_no_resuelta" style="display:none; font-size:.85rem;">
+                                <i class="icon dripicons-warning"></i> <strong>Error de sistema:</strong> no se pudo calcular el cupo. No informe "sin cupo" al empleado — contacte a soporte.
+                            </div>
                             <!-- Descuento solo si tipo=Porcentaje -->
                             <div id="fila_descuento" style="display:none;" class="text-center mt-2">
                                 <p class="mb-1 text-muted"><small>Descuento aplicable</small></p>
@@ -372,6 +375,7 @@ $(document).ready(function () {
     var cupo_disponible = 0;
     var con_id_actual   = null;
     var modo            = null;   // 'empleado' | 'giftcard'
+    var marca_no_resuelta_actual = false;
     var gc_cgc_id       = null;
     var gc_saldo        = 0;
     var IVA_PCT         = 15;     // se actualiza desde el servidor al cargar
@@ -442,6 +446,16 @@ $(document).ready(function () {
         $('#per_id_hidden').val(data.per_id);
         $('#cupo_disponible_hidden').val(cupo_disponible);
 
+        // CU-01: si el backend no pudo resolver la marca del local para calcular
+        // el cupo (convenio en modo "por marca"), avisa al cajero en vez de dejar
+        // que un $0.00 se confunda con "este empleado no tiene cupo" — y además
+        // apaga visualmente las cifras para que no se lean como un saldo real.
+        var marcaNoResuelta = !!data.marca_no_resuelta;
+        marca_no_resuelta_actual = marcaNoResuelta;
+        $('#alerta_marca_no_resuelta').toggle(marcaNoResuelta);
+        $('#emp_cupo_disponible, #emp_cupo_asignado').toggleClass('text-muted', marcaNoResuelta);
+        $('#emp_cupo_disponible').toggleClass('text-success', !marcaNoResuelta);
+
         if (data.cli_tipo_beneficio === 'Porcentaje') {
             $('#emp_tipo_beneficio').html('<span class="badge badge-info">Descuento ' + data.cli_valor_beneficio + '%</span>');
             $('#fila_cupo').hide();
@@ -472,6 +486,9 @@ $(document).ready(function () {
         modo       = 'giftcard';
         gc_cgc_id  = data.cgc_id;
         gc_saldo   = parseFloat(data.saldo) || 0;
+        // Las Gift Card no tienen concepto de "marca del local" — limpiar el
+        // flag por si la búsqueda anterior (un empleado) lo había dejado en true.
+        marca_no_resuelta_actual = false;
 
         $('#gc_codigo_display').text(data.cgc_codigo);
         $('#gc_saldo_original_display').text('$' + (parseFloat(data.saldo_original) || 0).toFixed(2));
@@ -500,6 +517,16 @@ $(document).ready(function () {
         $('#div_aviso_mixto').hide();
         $('#div_resumen').hide();
         ocultarAlerta('alerta_venta');
+
+        // CU-01: si no se pudo determinar la marca del local para calcular el
+        // cupo, el $0.00 mostrado no es confiable — no dejar que el cajero
+        // confirme una venta sobre ese dato. Se reevalúa en cada búsqueda para
+        // no dejar el botón bloqueado si la siguiente resuelve bien.
+        if (marca_no_resuelta_actual) {
+            $('#btn_confirmar').prop('disabled', true).attr('title', 'No se puede cobrar: no se determinó la marca del local. Contacte a soporte.');
+        } else {
+            $('#btn_confirmar').prop('disabled', false).removeAttr('title');
+        }
     }
 
     // -------------------------------------------------------
