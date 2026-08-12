@@ -102,6 +102,32 @@ switch ($action) {
         while ($row = mysqli_fetch_assoc($result)) {
             $rows[] = $row;
         }
+
+        // En modo "marca" el cupo real vive en personal_cupo_marca (per_cupo_asignado/
+        // disponible quedan en 0 a propósito en la tabla personal) — se reemplazan los
+        // mismos campos de respuesta por la suma entre todas las marcas del empleado,
+        // para que la tabla de nómina no muestre $0.00 a empleados que sí tienen cupo.
+        $modo = cupoObtenerModo($mysqli, $cli_id);
+        if ($modo['modo'] === 'marca' && count($rows)) {
+            $qSumas = "SELECT pcm.per_id, SUM(pcm.pcm_asignado) AS asignado, SUM(pcm.pcm_disponible) AS disponible
+                       FROM personal_cupo_marca pcm
+                       JOIN personal p ON pcm.per_id = p.per_id
+                       WHERE p.cli_id = $cli_id
+                       GROUP BY pcm.per_id";
+            $resSumas = mysqli_query($mysqli, $qSumas);
+            $sumasPorEmpleado = [];
+            while ($s = mysqli_fetch_assoc($resSumas)) {
+                $sumasPorEmpleado[$s['per_id']] = ['asignado' => (float)$s['asignado'], 'disponible' => (float)$s['disponible']];
+            }
+            foreach ($rows as &$row) {
+                $s = isset($sumasPorEmpleado[$row['per_id']]) ? $sumasPorEmpleado[$row['per_id']] : ['asignado' => 0.0, 'disponible' => 0.0];
+                $row['per_cupo_asignado']   = $s['asignado'];
+                $row['per_cupo_disponible'] = $s['disponible'];
+                $row['consumido']           = $s['asignado'] - $s['disponible'];
+            }
+            unset($row);
+        }
+
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
@@ -148,6 +174,21 @@ switch ($action) {
               WHERE p.per_id = $per_id AND p.cli_id = $cli_id LIMIT 1";
         $row = mysqli_fetch_assoc(mysqli_query($mysqli, $q));
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']); exit; }
+
+        // Mismo fix que 'nomina': en modo marca el cupo real vive en
+        // personal_cupo_marca, se reemplaza por el total sumado entre marcas.
+        $modo = cupoObtenerModo($mysqli, $cli_id);
+        if ($modo['modo'] === 'marca') {
+            $porMarca = cupoEmpleadoPorMarca($mysqli, $per_id);
+            $asignado = 0.0;
+            $disponible = 0.0;
+            foreach ($porMarca as $m) {
+                $asignado   += $m['asignado'];
+                $disponible += $m['disponible'];
+            }
+            $row['per_cupo_asignado']   = $asignado;
+            $row['per_cupo_disponible'] = $disponible;
+        }
 
         // Últimos 5 consumos
         $qc = "SELECT con_fecha, con_descripcion, con_valor_total
