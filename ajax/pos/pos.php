@@ -3,6 +3,7 @@ date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
 require_once '../../helpers/session_helpers.php';
+require_once '../../helpers/cupo_marca_helpers.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 header('Content-Type: application/json');
@@ -109,6 +110,22 @@ switch ($action) {
                     echo json_encode(['success' => false, 'mensaje' => 'Esta persona se encuentra inactiva. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     break;
                 }
+                $modo = cupoObtenerModo($mysqli, $data['cli_id']);
+                $data['cli_modo_cupo'] = $modo['modo'];
+                if ($modo['modo'] === 'marca') {
+                    $loc_id_actual = resolverLocId($mysqli);
+                    $mar_id_actual = $loc_id_actual ? cupoMarcaDeLocal($mysqli, $loc_id_actual) : null;
+                    if ($mar_id_actual === null) {
+                        $data['per_cupo_asignado']   = 0;
+                        $data['per_cupo_disponible'] = 0;
+                        $data['marca_no_resuelta']   = true;
+                    } else {
+                        $cupoMarca = cupoEmpleadoEnMarca($mysqli, $data['per_id'], $mar_id_actual);
+                        $data['per_cupo_asignado']   = $cupoMarca['asignado'];
+                        $data['per_cupo_disponible'] = $cupoMarca['disponible'];
+                    }
+                }
+
                 echo json_encode(['success' => true, 'tipo' => 'empleado', 'data' => $data]);
                 break;
             }
