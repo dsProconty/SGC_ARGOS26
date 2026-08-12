@@ -1497,6 +1497,16 @@ function verAuditoria(per_id) {
 var ACCION_LABEL = { anadir: 'Añadir empleados nuevos', actualizar_cupo: 'Actualizar cupo', bloquear: 'Bloquear empleados' };
 var ACCION_CONFIRMA_TXT = { anadir: 'Confirmar y añadir', actualizar_cupo: 'Confirmar y actualizar', bloquear: 'Confirmar y bloquear' };
 
+var _cmModoCupo = 'global';
+var _cmMarcasCatalogo = [];
+
+// Único punto de verdad para "¿esta carga usa columnas por marca?" — evita que
+// el texto de ayuda, la plantilla y el lector de columnas queden desincronizados
+// si el modo es "marca" pero el catálogo de marcas está vacío.
+function cmUsaColumnasPorMarca() {
+    return _cmModoCupo === 'marca' && _cmMarcasCatalogo.length > 0;
+}
+
 function abrirModalCargaMasiva() {
     $('#cm_cliente_nombre').text(_cliData ? _cliData.cli_descripcion : '');
     $('.cm-tile').removeClass('sel');
@@ -1509,6 +1519,19 @@ function abrirModalCargaMasiva() {
     _cmFilasPendientes = null;
     _cmAccionPendiente = null;
     cmGoScreen(1);
+
+    $.getJSON('ajax/clientes/clientes.php', { action: 'cupo_convenio_cliente', cli_id: _cliId }, function (r) {
+        _cmModoCupo = (r.success && r.modo === 'marca') ? 'marca' : 'global';
+        _cmMarcasCatalogo = (r.success && r.por_marca) ? r.por_marca : [];
+        var columnas = cmUsaColumnasPorMarca()
+            ? '<b>' + 'Cupo ' + _cmMarcasCatalogo.map(function (m) { return esc(m.mar_descripcion); }).join(' · Cupo ') + '</b>'
+            : '<b>C</b> cupo';
+        $('.cm-help-row .txt').html('<b>Columna A</b> cédula · <b>B</b> nombre completo · ' + columnas + ' (solo para Añadir / Actualizar). El encabezado es opcional, si lo incluyes se detecta y se omite solo.');
+    }).fail(function () {
+        _cmModoCupo = 'global';
+        _cmMarcasCatalogo = [];
+    });
+
     $('#modalCargaMasiva').modal('show');
 }
 
@@ -1561,20 +1584,32 @@ $('#cm_file_quitar').on('click', function (e) {
     $('#cm_file_chip').removeClass('show');
 });
 
-// Plantilla de ejemplo con encabezados (columna A cédula, B nombre, C cupo)
-// más filas de muestra. El procesador no requiere encabezados, pero si la
-// primera fila trae uno (texto sin dígitos en la columna cédula) se
-// detecta y se omite solo automáticamente al leer el archivo — ver más
-// abajo en el manejador de #btn_procesar_carga_masiva.
+// Plantilla de ejemplo con encabezados (columna A cédula, B nombre, y C en
+// adelante el/los cupo(s)) más filas de muestra. El procesador no requiere
+// encabezados, pero si la primera fila trae uno (texto sin dígitos en la
+// columna cédula) se detecta y se omite solo automáticamente al leer el
+// archivo — ver más abajo en el manejador de #btn_procesar_carga_masiva.
+// En modo "marca" hay una columna de cupo por cada marca activa, en vez de
+// una sola columna "Cupo" — el orden de columnas coincide siempre con
+// _cmMarcasCatalogo, tanto al generar la plantilla como al leer el archivo.
 function descargarPlantillaCargaMasiva() {
-    var datos = [
-        ['Cédula', 'Nombre completo', 'Cupo'],
-        ['0102030405', 'Juan Pérez Ejemplo', 50],
-        ['0607080910', 'María Gómez Ejemplo', 30],
-        ['1112131415', 'Carlos Torres Ejemplo', 100]
-    ];
+    var encabezados, filaEjemplo1, filaEjemplo2, filaEjemplo3, anchos;
+    if (cmUsaColumnasPorMarca()) {
+        encabezados = ['Cédula', 'Nombre completo'].concat(_cmMarcasCatalogo.map(function (m) { return 'Cupo ' + m.mar_descripcion; }));
+        filaEjemplo1 = ['0102030405', 'Juan Pérez Ejemplo'].concat(_cmMarcasCatalogo.map(function (_, i) { return i === 0 ? 50 : ''; }));
+        filaEjemplo2 = ['0607080910', 'María Gómez Ejemplo'].concat(_cmMarcasCatalogo.map(function (_, i) { return i === 1 ? 30 : ''; }));
+        filaEjemplo3 = ['1112131415', 'Carlos Torres Ejemplo'].concat(_cmMarcasCatalogo.map(function () { return ''; }));
+        anchos = [{ wch: 14 }, { wch: 28 }].concat(_cmMarcasCatalogo.map(function () { return { wch: 14 }; }));
+    } else {
+        encabezados = ['Cédula', 'Nombre completo', 'Cupo'];
+        filaEjemplo1 = ['0102030405', 'Juan Pérez Ejemplo', 50];
+        filaEjemplo2 = ['0607080910', 'María Gómez Ejemplo', 30];
+        filaEjemplo3 = ['1112131415', 'Carlos Torres Ejemplo', 100];
+        anchos = [{ wch: 14 }, { wch: 28 }, { wch: 10 }];
+    }
+    var datos = [encabezados, filaEjemplo1, filaEjemplo2, filaEjemplo3];
     var ws = XLSX.utils.aoa_to_sheet(datos);
-    ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 10 }];
+    ws['!cols'] = anchos;
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Personal');
     XLSX.writeFile(wb, 'plantilla_carga_masiva_personal.xlsx');
@@ -1603,7 +1638,6 @@ $('#btn_procesar_carga_masiva').on('click', function () {
         rows.forEach(function (r, idx) {
             var cedula = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '';
             var nombre = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '';
-            var cupo   = (r[2] !== undefined && r[2] !== null && r[2] !== '') ? parseFloat(r[2]) : null;
             // Si la primera fila trae un encabezado (ej. "Cédula", sin dígitos),
             // se detecta y se omite automáticamente — no hace falta borrarla.
             if (idx === 0 && cedula && !/\d/.test(cedula)) return;
@@ -1615,7 +1649,20 @@ $('#btn_procesar_carga_masiva').on('click', function () {
             if (cedula && /^\d+$/.test(cedula) && cedula.length < 10) {
                 cedula = cedula.padStart(10, '0');
             }
-            if (cedula) filas.push({ cedula: cedula, nombre: nombre, cupo: cupo });
+            if (!cedula) return;
+
+            if (cmUsaColumnasPorMarca()) {
+                var cupos_marca = {};
+                _cmMarcasCatalogo.forEach(function (m, i) {
+                    var col = 2 + i; // columna C en adelante, una por marca, mismo orden que la plantilla
+                    var val = (r[col] !== undefined && r[col] !== null && r[col] !== '') ? parseFloat(r[col]) : null;
+                    if (val !== null && !isNaN(val)) cupos_marca[m.mar_id] = val;
+                });
+                filas.push({ cedula: cedula, nombre: nombre, cupos_marca: cupos_marca });
+            } else {
+                var cupo = (r[2] !== undefined && r[2] !== null && r[2] !== '') ? parseFloat(r[2]) : null;
+                filas.push({ cedula: cedula, nombre: nombre, cupo: cupo });
+            }
         });
 
         if (!filas.length) {
