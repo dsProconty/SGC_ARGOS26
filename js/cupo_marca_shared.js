@@ -5,6 +5,10 @@
 // en Portal Empresa, renderCupoPorMarcaInputsGenerico/leerCupoPorMarcaInputsGenerico
 // en Clientes) que delegan aquí — esto centraliza la lógica sin tener que
 // tocar ningún punto de llamada existente en ninguna de las dos páginas.
+//
+// Requiere que la página que lo incluye ya tenga definida una función global
+// esc(s) para escapar texto a HTML (ambas páginas actuales la definen antes
+// de que este archivo se use) — este archivo no la redefine.
 function cupoMarcaRenderInputs(containerSelector, cssClass, porMarca, valoresActuales) {
     valoresActuales = valoresActuales || {};
     var html = '';
