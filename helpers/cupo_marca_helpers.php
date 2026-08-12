@@ -32,6 +32,46 @@ if (!function_exists('cupoObtenerModo')) {
     }
 }
 
+if (!function_exists('cupoValidarPorMarca')) {
+    // Decodifica y valida un payload cupo_por_marca (JSON: {mar_id: monto, ...}) contra
+    // los topes configurados del convenio. Rechaza cualquier marca sin tope configurado
+    // (nunca se trata como "ilimitado") y cualquier monto que exceda su tope.
+    // $requiereAlMenosUna = true exige que al menos una marca tenga un monto positivo
+    // (usado al crear un empleado; no se exige al editar, donde un no-op es válido).
+    // Devuelve array('ok' => bool, 'mensaje' => string|null, 'cupo_por_marca' => array).
+    // 'cupo_por_marca' en caso de error viene vacío — el llamador no debe usarlo si 'ok' es false.
+    function cupoValidarPorMarca($mysqli, $cli_id, $rawJson, $requiereAlMenosUna) {
+        $cupoPorMarca = json_decode($rawJson !== null && $rawJson !== '' ? $rawJson : '{}', true);
+        if (!is_array($cupoPorMarca)) {
+            $cupoPorMarca = array();
+        }
+
+        $maximos = cupoMaximosPorMarca($mysqli, $cli_id);
+        $algunaValida = false;
+
+        foreach ($cupoPorMarca as $mar_id => $monto) {
+            $monto = (float)$monto;
+            if ($monto <= 0) {
+                continue;
+            }
+            if (!isset($maximos[(int)$mar_id])) {
+                return array('ok' => false, 'mensaje' => 'El convenio no tiene un tope configurado para esa marca — no se puede asignar cupo ahí', 'cupo_por_marca' => array());
+            }
+            $tope = $maximos[(int)$mar_id];
+            if ($tope > 0 && $monto > $tope) {
+                return array('ok' => false, 'mensaje' => 'El cupo asignado en una marca supera el máximo permitido por el convenio ($' . number_format($tope, 2) . ')', 'cupo_por_marca' => array());
+            }
+            $algunaValida = true;
+        }
+
+        if ($requiereAlMenosUna && !$algunaValida) {
+            return array('ok' => false, 'mensaje' => 'Asigne un cupo en al menos una marca', 'cupo_por_marca' => array());
+        }
+
+        return array('ok' => true, 'mensaje' => null, 'cupo_por_marca' => $cupoPorMarca);
+    }
+}
+
 if (!function_exists('cupoMaximosPorMarca')) {
     // array mar_id => monto_max, para un convenio en modo 'marca'.
     function cupoMaximosPorMarca($mysqli, $cli_id) {

@@ -211,28 +211,12 @@ switch ($action) {
         $cupoPorMarca = [];
         $cupo = 0;
         if ($modo['modo'] === 'marca') {
-            $cupoPorMarca = json_decode($_POST['cupo_por_marca'] ?? '{}', true);
-            if (!is_array($cupoPorMarca)) { $cupoPorMarca = []; }
-            $maximos = cupoMaximosPorMarca($mysqli, $cli_id);
-            $algunaMarca = false;
-            foreach ($cupoPorMarca as $mar_id => $monto) {
-                $monto = (float)$monto;
-                if ($monto <= 0) { continue; }
-                $algunaMarca = true;
-                if (!isset($maximos[(int)$mar_id])) {
-                    echo json_encode(['success' => false, 'mensaje' => 'El convenio no tiene un tope configurado para esa marca — no se puede asignar cupo ahí']);
-                    exit;
-                }
-                $tope = $maximos[(int)$mar_id];
-                if ($tope > 0 && $monto > $tope) {
-                    echo json_encode(['success' => false, 'mensaje' => 'El cupo asignado en una marca supera el máximo permitido por el convenio ($' . number_format($tope, 2) . ')']);
-                    exit;
-                }
-            }
-            if (!$algunaMarca) {
-                echo json_encode(['success' => false, 'mensaje' => 'Asigne un cupo en al menos una marca']);
+            $val = cupoValidarPorMarca($mysqli, $cli_id, $_POST['cupo_por_marca'] ?? '{}', true);
+            if (!$val['ok']) {
+                echo json_encode(['success' => false, 'mensaje' => $val['mensaje']]);
                 break;
             }
+            $cupoPorMarca = $val['cupo_por_marca'];
         } else {
             $cupo = (float)($_POST['per_cupo'] ?? 0);
             if ($cupo <= 0) {
@@ -318,22 +302,12 @@ switch ($action) {
         $cupo = 0;
         $cupoPorMarca = [];
         if ($modo['modo'] === 'marca') {
-            $cupoPorMarca = json_decode($_POST['cupo_por_marca'] ?? '{}', true);
-            if (!is_array($cupoPorMarca)) { $cupoPorMarca = []; }
-            $maximos = cupoMaximosPorMarca($mysqli, $cli_id);
-            foreach ($cupoPorMarca as $mar_id => $monto) {
-                $monto = (float)$monto;
-                if ($monto <= 0) { continue; }
-                if (!isset($maximos[(int)$mar_id])) {
-                    echo json_encode(['success' => false, 'mensaje' => 'El convenio no tiene un tope configurado para esa marca — no se puede asignar cupo ahí']);
-                    exit;
-                }
-                $tope = $maximos[(int)$mar_id];
-                if ($tope > 0 && $monto > $tope) {
-                    echo json_encode(['success' => false, 'mensaje' => 'El cupo asignado en una marca supera el máximo permitido por el convenio ($' . number_format($tope, 2) . ')']);
-                    exit;
-                }
+            $val = cupoValidarPorMarca($mysqli, $cli_id, $_POST['cupo_por_marca'] ?? '{}', false);
+            if (!$val['ok']) {
+                echo json_encode(['success' => false, 'mensaje' => $val['mensaje']]);
+                break;
             }
+            $cupoPorMarca = $val['cupo_por_marca'];
         } else {
             $cupo = (float)($_POST['per_cupo'] ?? 0);
             if ($cupo <= 0) {
