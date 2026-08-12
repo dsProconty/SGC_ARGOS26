@@ -520,9 +520,13 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="grupo_emp_cupo_global">
                     <label>Cupo asignado ($)</label>
                     <input type="number" class="form-control" id="emp_cupo" min="0.01" step="0.01">
+                </div>
+                <div class="form-group" id="grupo_emp_cupo_marca" style="display:none;">
+                    <label class="mb-1">Cupo asignado por marca ($)</label>
+                    <div id="emp_cupo_marca_inputs" class="row"></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1277,6 +1281,34 @@ function leerCupoPorMarcaInputs() {
     return out;
 }
 
+// Variante genérica (parametrizada por contenedor) de renderCupoPorMarcaInputs/leerCupoPorMarcaInputs,
+// usada por el modal de Editar Empleado (admin) — ese modal necesita su propio contenedor
+// (#emp_cupo_marca_inputs), distinto del que usa el modal de Cliente (#cupo_marca_inputs).
+function renderCupoPorMarcaInputsGenerico(containerSelector, porMarca, valoresActuales) {
+    valoresActuales = valoresActuales || {};
+    var html = '';
+    (porMarca || []).forEach(function (m) {
+        var valor = valoresActuales[m.mar_id] || '';
+        html += '<div class="col-md-6 mb-2">'
+            + '<label class="small mb-1">' + esc(m.mar_descripcion) + ' <span class="text-muted">(máx. $' + parseFloat(m.monto_max).toFixed(2) + ')</span></label>'
+            + '<div class="input-group input-group-sm">'
+            + '<div class="input-group-prepend"><span class="input-group-text">$</span></div>'
+            + '<input type="number" class="form-control cupo-marca-input-generico" data-mar-id="' + m.mar_id + '" min="0" step="0.01" value="' + valor + '" placeholder="0.00">'
+            + '</div></div>';
+    });
+    $(containerSelector).html(html);
+}
+
+function leerCupoPorMarcaInputsGenerico(containerSelector) {
+    var out = {};
+    $(containerSelector + ' .cupo-marca-input-generico').each(function () {
+        var marId = $(this).data('mar-id');
+        var val   = parseFloat($(this).val());
+        if (val > 0) out[marId] = val;
+    });
+    return out;
+}
+
 function toggleModoCupoUI() {
     var esCupo  = $('#cli_tipo_beneficio').val() === 'Cupo';
     var esMarca = $('#cli_modo_cupo').val() === 'marca';
@@ -1340,7 +1372,26 @@ function editarEmpleado(per_id) {
     $('#emp_documento').val(p.per_documento || '');
     $('#emp_correo').val(p.per_correo || '');
     $('#emp_cupo').val(p.per_cupo_asignado || '');
-    $('#modalEmpleado').modal('show');
+    $('#emp_cupo_marca_inputs').html('');
+
+    $.getJSON('ajax/clientes/clientes.php', { action: 'cupo_convenio_cliente', cli_id: _cliId, per_id: per_id }, function (r) {
+        if (r.success && r.modo === 'marca') {
+            $('#grupo_emp_cupo_global').hide();
+            $('#grupo_emp_cupo_marca').show();
+            var valoresActuales = {};
+            (r.por_marca || []).forEach(function (m) { if (m.monto_actual > 0) valoresActuales[m.mar_id] = m.monto_actual; });
+            renderCupoPorMarcaInputsGenerico('#emp_cupo_marca_inputs', r.por_marca, valoresActuales);
+        } else {
+            $('#grupo_emp_cupo_global').show();
+            $('#grupo_emp_cupo_marca').hide();
+        }
+        $('#modalEmpleado').modal('show');
+    }).fail(function () {
+        // Si falla la consulta del modo, abrimos igual en modo global (comportamiento previo).
+        $('#grupo_emp_cupo_global').show();
+        $('#grupo_emp_cupo_marca').hide();
+        $('#modalEmpleado').modal('show');
+    });
 }
 
 $('#btn_guardar_empleado').on('click', function() {
@@ -1352,7 +1403,8 @@ $('#btn_guardar_empleado').on('click', function() {
         per_nombre: $('#emp_nombre').val(),
         per_documento: $('#emp_documento').val(),
         per_correo: $('#emp_correo').val(),
-        per_cupo_asignado: $('#emp_cupo').val()
+        per_cupo_asignado: $('#emp_cupo').val(),
+        cupo_por_marca: JSON.stringify(leerCupoPorMarcaInputsGenerico('#emp_cupo_marca_inputs'))
     }, function(res) {
         btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar');
         if (res.success) {

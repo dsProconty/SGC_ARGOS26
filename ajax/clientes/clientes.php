@@ -342,6 +342,39 @@ switch ($action) {
         echo json_encode(['success' => true, 'mensaje' => 'Estado actualizado']);
         break;
 
+    // ── Cupo del convenio + valores actuales de un empleado, para el modal de edición ──
+    case 'cupo_convenio_cliente':
+        header('Content-Type: application/json');
+        $cli_id_consulta = (int)($_GET['cli_id'] ?? 0);
+        $per_id_consulta = (int)($_GET['per_id'] ?? 0);
+        $modo = cupoObtenerModo($mysqli, $cli_id_consulta);
+        if ($modo['modo'] !== 'marca') {
+            echo json_encode(['success' => true, 'modo' => 'global']);
+            break;
+        }
+        $marcas = cupoMarcasActivas($mysqli);
+        $maximos = cupoMaximosPorMarca($mysqli, $cli_id_consulta);
+        $actuales = [];
+        if ($per_id_consulta) {
+            $chkEmp = $mysqli->prepare("SELECT per_id FROM personal WHERE per_id = ? AND cli_id = ?");
+            $chkEmp->bind_param('ii', $per_id_consulta, $cli_id_consulta);
+            $chkEmp->execute();
+            if ($chkEmp->get_result()->fetch_assoc()) {
+                $actuales = cupoEmpleadoPorMarca($mysqli, $per_id_consulta);
+            }
+        }
+        $porMarca = [];
+        foreach ($marcas as $m) {
+            $porMarca[] = [
+                'mar_id'          => $m['mar_id'],
+                'mar_descripcion' => $m['mar_descripcion'],
+                'monto_max'       => isset($maximos[$m['mar_id']]) ? $maximos[$m['mar_id']] : 0.0,
+                'monto_actual'    => isset($actuales[$m['mar_id']]) ? $actuales[$m['mar_id']]['asignado'] : 0.0,
+            ];
+        }
+        echo json_encode(['success' => true, 'modo' => 'marca', 'por_marca' => $porMarca]);
+        break;
+
     // ── CL-F: TRAZABILIDAD / AUDITORÍA DE EMPLEADO ─────────────────────────────
     case 'personal_trazabilidad_list':
         header('Content-Type: application/json');
