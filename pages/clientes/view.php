@@ -785,6 +785,7 @@
      JAVASCRIPT
 ══════════════════════════════════════════════════ -->
 <script src="assets/vendor/sheetjs/xlsx.full.min.js"></script>
+<script src="js/cupo_marca_shared.js"></script>
 <script>
 var _cliId   = null;   // ID del cliente en vista detalle
 var _cliData = null;   // Datos del cliente actual
@@ -1285,28 +1286,11 @@ function leerCupoPorMarcaInputs() {
 // usada por el modal de Editar Empleado (admin) — ese modal necesita su propio contenedor
 // (#emp_cupo_marca_inputs), distinto del que usa el modal de Cliente (#cupo_marca_inputs).
 function renderCupoPorMarcaInputsGenerico(containerSelector, porMarca, valoresActuales) {
-    valoresActuales = valoresActuales || {};
-    var html = '';
-    (porMarca || []).forEach(function (m) {
-        var valor = valoresActuales[m.mar_id] || '';
-        html += '<div class="col-md-6 mb-2">'
-            + '<label class="small mb-1">' + esc(m.mar_descripcion) + ' <span class="text-muted">(máx. $' + parseFloat(m.monto_max).toFixed(2) + ')</span></label>'
-            + '<div class="input-group input-group-sm">'
-            + '<div class="input-group-prepend"><span class="input-group-text">$</span></div>'
-            + '<input type="number" class="form-control cupo-marca-input-generico" data-mar-id="' + m.mar_id + '" min="0" step="0.01" value="' + valor + '" placeholder="0.00">'
-            + '</div></div>';
-    });
-    $(containerSelector).html(html);
+    cupoMarcaRenderInputs(containerSelector, 'cupo-marca-input-generico', porMarca, valoresActuales);
 }
 
 function leerCupoPorMarcaInputsGenerico(containerSelector) {
-    var out = {};
-    $(containerSelector + ' .cupo-marca-input-generico').each(function () {
-        var marId = $(this).data('mar-id');
-        var val   = parseFloat($(this).val());
-        if (val > 0) out[marId] = val;
-    });
-    return out;
+    return cupoMarcaLeerInputs(containerSelector, 'cupo-marca-input-generico');
 }
 
 function toggleModoCupoUI() {

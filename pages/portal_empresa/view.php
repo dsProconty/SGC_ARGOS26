@@ -379,6 +379,7 @@
 </div>
 <script src="assets/vendor/exceljs/exceljs.min.js"></script>
 <script src="js/export_theme.js"></script>
+<script src="js/cupo_marca_shared.js"></script>
 <script>
 var AJAX_URL = 'ajax/portal_empresa/portal_empresa.php';
 var nominaData = [];
@@ -389,29 +390,12 @@ function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
 
 // Devuelve un objeto {mar_id: monto} leyendo los inputs por marca dentro del contenedor dado.
 function leerCupoMarcaInputs(containerSelector) {
-    var out = {};
-    $(containerSelector + ' .cupo-marca-input').each(function () {
-        var marId = $(this).data('mar-id');
-        var val   = parseFloat($(this).val());
-        if (val > 0) out[marId] = val;
-    });
-    return out;
+    return cupoMarcaLeerInputs(containerSelector, 'cupo-marca-input');
 }
 
 // Dibuja un input $ por cada marca del catálogo (porMarca), precargado con valoresActuales si vienen.
 function renderCupoMarcaInputs(containerSelector, porMarca, valoresActuales) {
-    valoresActuales = valoresActuales || {};
-    var html = '';
-    (porMarca || []).forEach(function (m) {
-        var valor = valoresActuales[m.mar_id] || '';
-        html += '<div class="col-md-6 mb-2">'
-            + '<label class="small mb-1">' + esc(m.mar_descripcion) + ' <span class="text-muted">(máx. $' + parseFloat(m.monto_max).toFixed(2) + ')</span></label>'
-            + '<div class="input-group input-group-sm">'
-            + '<div class="input-group-prepend"><span class="input-group-text">$</span></div>'
-            + '<input type="number" class="form-control cupo-marca-input" data-mar-id="' + m.mar_id + '" min="0" step="0.01" value="' + valor + '" placeholder="0.00">'
-            + '</div></div>';
-    });
-    $(containerSelector).html(html);
+    cupoMarcaRenderInputs(containerSelector, 'cupo-marca-input', porMarca, valoresActuales);
 }
 
 // Consulta el modo de cupo de la empresa (y, si se pasa per_id, los montos actuales del
