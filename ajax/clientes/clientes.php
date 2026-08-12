@@ -399,8 +399,10 @@ switch ($action) {
 
     // ── CL-I: CARGA MASIVA DE PERSONAL ─────────────────────────────────────────
     // Filas ya vienen parseadas en JSON desde el navegador (SheetJS leyó el
-    // Excel/CSV: columna A cédula, B nombre, C cupo). Siempre para el cliente
-    // ya elegido en la ficha — el archivo no trae empresa por fila.
+    // Excel/CSV). En modo global: columna A cédula, B nombre, C cupo. En modo
+    // marca: columna A cédula, B nombre, y una columna de cupo por cada marca
+    // (fila['cupos_marca'] = {mar_id: monto}). Siempre para el cliente ya
+    // elegido en la ficha — el archivo no trae empresa por fila.
     case 'personal_carga_masiva':
         header('Content-Type: application/json');
         $cli_id       = (int)($_POST['cli_id'] ?? 0);
@@ -413,10 +415,11 @@ switch ($action) {
             break;
         }
 
-        $stmtE = $mysqli->prepare("SELECT cli_valor_beneficio FROM cliente WHERE cli_id = ?");
-        $stmtE->bind_param('i', $cli_id);
-        $stmtE->execute();
-        $cupo_max = (float)($stmtE->get_result()->fetch_assoc()['cli_valor_beneficio'] ?? 0);
+        $modo = cupoObtenerModo($mysqli, $cli_id);
+        $cupo_max = $modo['valor_global'];
+        $marcasCatalogo = $modo['modo'] === 'marca' ? cupoMarcasActivas($mysqli) : [];
+        $nombresMarcaPorId = [];
+        foreach ($marcasCatalogo as $m) { $nombresMarcaPorId[$m['mar_id']] = $m['mar_descripcion']; }
 
         $id_user_sesion = (int)$_SESSION['id_user'];
         $agregados = 0; $actualizados = 0; $bloqueados = 0; $omitidos = []; $detalle = [];
@@ -432,12 +435,42 @@ switch ($action) {
                 continue;
             }
 
-            if ($accion === 'anadir') {
-                if ($nombre === '' || $cupo <= 0) {
-                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Nombre o cupo inválido'];
-                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Nombre o cupo inválido — se omite', 'aplica' => false];
+            $cuposMarcaFila = [];
+            if ($modo['modo'] === 'marca' && $accion !== 'bloquear') {
+                $rawCuposMarca = isset($fila['cupos_marca']) && is_array($fila['cupos_marca']) ? $fila['cupos_marca'] : [];
+                $val = cupoValidarPorMarca($mysqli, $cli_id, json_encode($rawCuposMarca), false);
+                if (!$val['ok']) {
+                    $omitidos[] = ['cedula' => $cedula, 'motivo' => $val['mensaje']];
+                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => $val['mensaje'] . ' — se omite', 'aplica' => false];
                     continue;
                 }
+                // El helper devuelve el array de montos tal cual se lo pasaron (solo
+                // ignora los <= 0 para efectos de validar el tope, no los quita del
+                // array) — lo filtramos aquí para que count($cuposMarcaFila) refleje
+                // cuántas marcas tienen realmente un monto positivo asignado.
+                $cuposMarcaFila = [];
+                foreach ($val['cupo_por_marca'] as $mar_id_val => $monto_val) {
+                    if ((float)$monto_val > 0) {
+                        $cuposMarcaFila[$mar_id_val] = (float)$monto_val;
+                    }
+                }
+            }
+
+            if ($accion === 'anadir') {
+                if ($modo['modo'] === 'marca') {
+                    if ($nombre === '' || !count($cuposMarcaFila)) {
+                        $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Nombre o cupo inválido'];
+                        $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Nombre o cupo inválido — se omite', 'aplica' => false];
+                        continue;
+                    }
+                } else {
+                    if ($nombre === '' || $cupo <= 0) {
+                        $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Nombre o cupo inválido'];
+                        $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Nombre o cupo inválido — se omite', 'aplica' => false];
+                        continue;
+                    }
+                }
+
                 $chk = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_documento = ? LIMIT 1");
                 $chk->bind_param('s', $cedula);
                 $chk->execute();
@@ -447,27 +480,47 @@ switch ($action) {
                     $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $existente['per_estado'], 'resultado' => 'Ya existe (en esta u otra empresa) — no se hará nada', 'aplica' => false];
                     continue;
                 }
-                if ($cupo_max > 0 && $cupo > $cupo_max) {
+
+                if ($modo['modo'] !== 'marca' && $cupo_max > 0 && $cupo > $cupo_max) {
+                    // Llega aquí solo si la cédula NO existe (chequeo anterior), así
+                    // que 'No existe' sigue siendo correcto para estado_actual — mismo
+                    // orden que el archivo original: nombre/cupo → cédula → tope.
                     $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')'];
                     $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'No existe', 'resultado' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ') — se omite', 'aplica' => false];
                     continue;
                 }
 
                 if ($soloPreview) {
-                    $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'No existe', 'resultado' => 'Se creará como empleado nuevo, cupo $' . number_format($cupo, 2), 'aplica' => true];
+                    if ($modo['modo'] === 'marca') {
+                        $resumenMarcas = [];
+                        foreach ($cuposMarcaFila as $mar_id => $monto) {
+                            $resumenMarcas[] = (isset($nombresMarcaPorId[(int)$mar_id]) ? $nombresMarcaPorId[(int)$mar_id] : ('marca #' . $mar_id)) . ' $' . number_format($monto, 2);
+                        }
+                        $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'No existe', 'resultado' => 'Se creará como empleado nuevo — ' . implode(', ', $resumenMarcas), 'aplica' => true];
+                    } else {
+                        $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => 'No existe', 'resultado' => 'Se creará como empleado nuevo, cupo $' . number_format($cupo, 2), 'aplica' => true];
+                    }
                     continue;
                 }
 
                 $num_tarjeta = str_pad((string)mt_rand(1000, 9999), 4, '0') . str_pad((string)mt_rand(1000, 9999), 4, '0')
                              . str_pad((string)mt_rand(1000, 9999), 4, '0') . str_pad((string)mt_rand(1000, 9999), 4, '0');
+                $cupoInsert = $modo['modo'] === 'marca' ? 0 : $cupo;
                 $ins = $mysqli->prepare(
                     "INSERT INTO personal (per_nombre, per_documento, per_numero_tarjeta, cli_id, per_estado, per_cupo_asignado, per_cupo_disponible)
                      VALUES (?, ?, ?, ?, 'activo', ?, ?)"
                 );
-                $ins->bind_param('sssidd', $nombre, $cedula, $num_tarjeta, $cli_id, $cupo, $cupo);
+                $ins->bind_param('sssidd', $nombre, $cedula, $num_tarjeta, $cli_id, $cupoInsert, $cupoInsert);
                 if ($ins->execute()) {
                     $nuevo_id = $mysqli->insert_id;
-                    $cupoTxt = '$' . number_format($cupo, 2);
+                    if ($modo['modo'] === 'marca') {
+                        foreach ($cuposMarcaFila as $mar_id => $monto) {
+                            cupoUpsertEmpleadoMarca($mysqli, $nuevo_id, $mar_id, $monto);
+                        }
+                        $cupoTxt = 'Alta por carga masiva (por marca)';
+                    } else {
+                        $cupoTxt = '$' . number_format($cupo, 2);
+                    }
                     $tra = $mysqli->prepare(
                         "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
                          VALUES (?, ?, 'alta_masiva', 'Alta por carga masiva', '', ?)"
@@ -480,11 +533,16 @@ switch ($action) {
                 }
 
             } elseif ($accion === 'actualizar_cupo') {
-                if ($cupo <= 0) {
+                if ($modo['modo'] !== 'marca' && $cupo <= 0) {
+                    // Chequeo barato (sin BD) antes de la consulta de búsqueda —
+                    // mismo orden que el archivo original. El modo marca no tiene
+                    // un chequeo equivalente aquí (ya se validó vía cupoValidarPorMarca
+                    // antes de este switch), así que esto no le aplica.
                     $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo inválido'];
                     $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'Cupo inválido — se omite', 'aplica' => false];
                     continue;
                 }
+
                 $find = $mysqli->prepare("SELECT per_id, per_estado, per_cupo_asignado, per_cupo_disponible FROM personal WHERE per_documento = ? AND cli_id = ? LIMIT 1");
                 $find->bind_param('si', $cedula, $cli_id);
                 $find->execute();
@@ -494,34 +552,75 @@ switch ($action) {
                     $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => '—', 'resultado' => 'No encontrada en este cliente — se omite', 'aplica' => false];
                     continue;
                 }
-                if ($cupo_max > 0 && $cupo > $cupo_max) {
-                    $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')'];
-                    $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ') — se omite', 'aplica' => false];
-                    continue;
+
+                if ($modo['modo'] === 'marca') {
+                    // Actualización parcial: solo se tocan las marcas presentes con
+                    // valor en el archivo (cuposMarcaFila ya viene filtrado de montos
+                    // <= 0 por cupoValidarPorMarca) — una marca ausente en la fila deja
+                    // el cupo existente sin tocar, no se pone en 0 (regla confirmada con
+                    // el cliente).
+                    if (!count($cuposMarcaFila)) {
+                        $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Ninguna marca con cupo en el archivo'];
+                        $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Ninguna marca con cupo en el archivo — se omite', 'aplica' => false];
+                        continue;
+                    }
+
+                    if ($soloPreview) {
+                        $resumenMarcas = [];
+                        foreach ($cuposMarcaFila as $mar_id => $monto) {
+                            $resumenMarcas[] = (isset($nombresMarcaPorId[(int)$mar_id]) ? $nombresMarcaPorId[(int)$mar_id] : ('marca #' . $mar_id)) . ' → $' . number_format($monto, 2);
+                        }
+                        $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Se actualizará: ' . implode(', ', $resumenMarcas), 'aplica' => true];
+                        continue;
+                    }
+
+                    foreach ($cuposMarcaFila as $mar_id => $monto) {
+                        $antes = cupoEmpleadoEnMarca($mysqli, $emp['per_id'], $mar_id);
+                        cupoUpsertEmpleadoMarca($mysqli, $emp['per_id'], $mar_id, $monto);
+                        $labelMarca = isset($nombresMarcaPorId[(int)$mar_id]) ? $nombresMarcaPorId[(int)$mar_id] : ('marca #' . $mar_id);
+                        $campoTra = 'per_cupo_marca_' . $mar_id;
+                        $antTxt = '$' . number_format($antes['asignado'], 2);
+                        $nvoTxt = '$' . number_format($monto, 2);
+                        $tra = $mysqli->prepare(
+                            "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                             VALUES (?, ?, ?, 'Cupo actualizado por carga masiva', ?, ?)"
+                        );
+                        $tra->bind_param('iisss', $emp['per_id'], $id_user_sesion, $campoTra, $antTxt, $nvoTxt);
+                        $tra->execute();
+                    }
+                    $actualizados++;
+                } else {
+                    // cupo <= 0 ya se validó arriba (antes de la consulta $find), en
+                    // el mismo punto donde lo hacía el archivo original.
+                    if ($cupo_max > 0 && $cupo > $cupo_max) {
+                        $omitidos[] = ['cedula' => $cedula, 'motivo' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ')'];
+                        $detalle[]  = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Cupo excede el máximo de la empresa ($' . number_format($cupo_max, 2) . ') — se omite', 'aplica' => false];
+                        continue;
+                    }
+
+                    $cupo_anterior   = (float)$emp['per_cupo_asignado'];
+                    $consumido       = $cupo_anterior - (float)$emp['per_cupo_disponible'];
+                    $cupo_disp_nuevo = max(0, $cupo - $consumido);
+
+                    if ($soloPreview) {
+                        $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Se actualizará el cupo de $' . number_format($cupo_anterior, 2) . ' a $' . number_format($cupo, 2), 'aplica' => true];
+                        continue;
+                    }
+
+                    $upd = $mysqli->prepare("UPDATE personal SET per_cupo_asignado = ?, per_cupo_disponible = ? WHERE per_id = ?");
+                    $upd->bind_param('ddi', $cupo, $cupo_disp_nuevo, $emp['per_id']);
+                    $upd->execute();
+
+                    $antTxt = '$' . number_format($cupo_anterior, 2);
+                    $nvoTxt = '$' . number_format($cupo, 2);
+                    $tra = $mysqli->prepare(
+                        "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+                         VALUES (?, ?, 'per_cupo_asignado', 'Cupo actualizado por carga masiva', ?, ?)"
+                    );
+                    $tra->bind_param('iiss', $emp['per_id'], $id_user_sesion, $antTxt, $nvoTxt);
+                    $tra->execute();
+                    $actualizados++;
                 }
-
-                $cupo_anterior   = (float)$emp['per_cupo_asignado'];
-                $consumido       = $cupo_anterior - (float)$emp['per_cupo_disponible'];
-                $cupo_disp_nuevo = max(0, $cupo - $consumido);
-
-                if ($soloPreview) {
-                    $detalle[] = ['cedula' => $cedula, 'nombre' => $nombre, 'estado_actual' => $emp['per_estado'], 'resultado' => 'Se actualizará el cupo de $' . number_format($cupo_anterior, 2) . ' a $' . number_format($cupo, 2), 'aplica' => true];
-                    continue;
-                }
-
-                $upd = $mysqli->prepare("UPDATE personal SET per_cupo_asignado = ?, per_cupo_disponible = ? WHERE per_id = ?");
-                $upd->bind_param('ddi', $cupo, $cupo_disp_nuevo, $emp['per_id']);
-                $upd->execute();
-
-                $antTxt = '$' . number_format($cupo_anterior, 2);
-                $nvoTxt = '$' . number_format($cupo, 2);
-                $tra = $mysqli->prepare(
-                    "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
-                     VALUES (?, ?, 'per_cupo_asignado', 'Cupo actualizado por carga masiva', ?, ?)"
-                );
-                $tra->bind_param('iiss', $emp['per_id'], $id_user_sesion, $antTxt, $nvoTxt);
-                $tra->execute();
-                $actualizados++;
 
             } elseif ($accion === 'bloquear') {
                 $find = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_documento = ? AND cli_id = ? LIMIT 1");
