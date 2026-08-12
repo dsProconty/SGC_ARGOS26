@@ -281,7 +281,7 @@ switch ($action) {
         }
 
         // Validar empleado y cupo
-        $qEmp = "SELECT per_nombre, per_estado, per_cupo_disponible FROM personal WHERE per_id = $per_id";
+        $qEmp = "SELECT per_nombre, per_estado, per_cupo_disponible, cli_id FROM personal WHERE per_id = $per_id";
         $rEmp = mysqli_query($mysqli, $qEmp);
 
         if (!$rEmp || mysqli_num_rows($rEmp) === 0) {
@@ -300,9 +300,24 @@ switch ($action) {
             break;
         }
 
-        if ($monto_convenio > (float)$emp['per_cupo_disponible']) {
-            echo json_encode(['success' => false, 'mensaje' => 'El monto supera el cupo disponible ($' . number_format($emp['per_cupo_disponible'], 2) . ')']);
-            break;
+        $modoCupoEmp = cupoObtenerModo($mysqli, $emp['cli_id']);
+        $mar_id_venta = null;
+        if ($modoCupoEmp['modo'] === 'marca') {
+            $mar_id_venta = $loc_id ? cupoMarcaDeLocal($mysqli, $loc_id) : null;
+            if ($mar_id_venta === null) {
+                echo json_encode(['success' => false, 'mensaje' => 'No se pudo determinar la marca del local para validar el cupo. Contacte a soporte.']);
+                break;
+            }
+            $cupoMarcaEmp = cupoEmpleadoEnMarca($mysqli, $per_id, $mar_id_venta);
+            if ($monto_convenio > $cupoMarcaEmp['disponible']) {
+                echo json_encode(['success' => false, 'mensaje' => 'El monto supera el cupo disponible en esta marca ($' . number_format($cupoMarcaEmp['disponible'], 2) . ')']);
+                break;
+            }
+        } else {
+            if ($monto_convenio > (float)$emp['per_cupo_disponible']) {
+                echo json_encode(['success' => false, 'mensaje' => 'El monto supera el cupo disponible ($' . number_format($emp['per_cupo_disponible'], 2) . ')']);
+                break;
+            }
         }
 
         // Validar gift card si aplica
@@ -359,8 +374,12 @@ switch ($action) {
 
         $con_id = mysqli_insert_id($mysqli);
 
-        // Descontar cupo del empleado
-        mysqli_query($mysqli, "UPDATE personal SET per_cupo_disponible = per_cupo_disponible - $monto_convenio WHERE per_id = $per_id");
+        // Descontar cupo del empleado (por marca si el convenio está en ese modo)
+        if ($modoCupoEmp['modo'] === 'marca') {
+            cupoDescontarEmpleadoMarca($mysqli, $per_id, $mar_id_venta, $monto_convenio);
+        } else {
+            mysqli_query($mysqli, "UPDATE personal SET per_cupo_disponible = per_cupo_disponible - $monto_convenio WHERE per_id = $per_id");
+        }
 
         // Descontar saldo de gift card
         if ($monto_giftcard > 0 && $cgc_id > 0) {
