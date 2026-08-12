@@ -527,7 +527,7 @@ switch ($action) {
 
         $stmt = $mysqli->prepare(
             "SELECT con_id, con_fecha, con_estado, per_id, con_monto_convenio,
-                    con_giftcard_codigo, con_monto_giftcard
+                    con_giftcard_codigo, con_monto_giftcard, loc_id
              FROM consumo WHERE con_id = ? LIMIT 1"
         );
         $stmt->bind_param('i', $con_id);
@@ -550,14 +550,30 @@ switch ($action) {
             $upd->bind_param('i', $con_id);
             if (!$upd->execute()) throw new Exception('Error al anular la venta');
 
-            // Devolver cupo de convenio consumido
+            // Devolver cupo de convenio consumido (por marca si el convenio está en ese modo)
             $montoConvenio = (float)$con['con_monto_convenio'];
             if ($montoConvenio > 0 && $con['per_id']) {
-                $updCupo = $mysqli->prepare(
-                    "UPDATE personal SET per_cupo_disponible = LEAST(per_cupo_asignado, per_cupo_disponible + ?) WHERE per_id = ?"
-                );
-                $updCupo->bind_param('di', $montoConvenio, $con['per_id']);
-                if (!$updCupo->execute()) throw new Exception('Error al devolver el cupo');
+                $perCli = $mysqli->prepare("SELECT cli_id FROM personal WHERE per_id = ?");
+                $perCli->bind_param('i', $con['per_id']);
+                $perCli->execute();
+                $cliDeEmpleado = $perCli->get_result()->fetch_assoc();
+                $modoAnulacion = $cliDeEmpleado ? cupoObtenerModo($mysqli, $cliDeEmpleado['cli_id']) : ['modo' => 'global'];
+
+                if ($modoAnulacion['modo'] === 'marca') {
+                    // Usa el loc_id GUARDADO en la venta original (con.loc_id), NUNCA
+                    // resolverLocId() del cajero que está anulando — la anulación puede
+                    // hacerse desde otro local/terminal, y el cupo debe devolverse a la
+                    // marca donde se cobró originalmente, no a la del cajero actual.
+                    $marDeVenta = $con['loc_id'] ? cupoMarcaDeLocal($mysqli, $con['loc_id']) : null;
+                    if ($marDeVenta === null) throw new Exception('No se pudo determinar la marca de la venta original para devolver el cupo. Contacte a soporte.');
+                    cupoDevolverEmpleadoMarca($mysqli, $con['per_id'], $marDeVenta, $montoConvenio);
+                } else {
+                    $updCupo = $mysqli->prepare(
+                        "UPDATE personal SET per_cupo_disponible = LEAST(per_cupo_asignado, per_cupo_disponible + ?) WHERE per_id = ?"
+                    );
+                    $updCupo->bind_param('di', $montoConvenio, $con['per_id']);
+                    if (!$updCupo->execute()) throw new Exception('Error al devolver el cupo');
+                }
             }
 
             // Devolver saldo de Gift Card consumido
