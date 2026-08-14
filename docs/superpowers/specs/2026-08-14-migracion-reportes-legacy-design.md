@@ -198,6 +198,53 @@ que el sistema ya muestra hoy en el módulo Reportes existente (ej.
 ya es visible internamente en el sistema — no se requiere anonimización
 adicional en pantalla.
 
+## Segunda ronda: revisión 1 a 1 de los 11 descartados
+
+Después de desplegar los primeros 8, se revisó cada uno de los 11 reportes
+que habían quedado fuera (excluyendo Estado de Cuenta, ya resuelto). De esa
+revisión, 8 sí resultaron migrables — algunos gracias a tablas que no se
+habían tenido en cuenta la primera vez (`personal_trazabilidad`,
+`codigo_gift_card`, `lote_gift_card`):
+
+- **Reporte Detalle de Tarjetas** → dos reportes nuevos: `detalle de
+  tarjetas` (listado de clientes con contacto/comisión/corte, dato directo
+  de `cliente`) y `detalle de tarjetas por cliente` (empleados de un
+  cliente con su cupo asignado/disponible y estado, en vez del concepto de
+  tarjeta individual del legacy).
+- **GiftPoint** y **Reporte GifCards** → se migran ambos, por separado
+  (aunque comparten tablas), usando el sistema de gift cards ya existente
+  (`codigo_gift_card`, `lote_gift_card`, `consumo.con_giftcard_codigo`) en
+  vez del modelo de tarjeta certificado nominal del legacy.
+- **Registro Pagos Gift** → se migra solo la parte de solo-lectura
+  (listado + total por cliente/período); la parte de acción del legacy
+  (registrar pago, cerrar estado de cuenta) es un workflow de cobro nuevo,
+  fuera de alcance de "reportes".
+- **Comisión Mensual Empresas** → se migra con una sola comisión
+  (`cliente.cli_comision`), la real que se define al crear el cliente —
+  no el desglose de dos comisiones (empresa + marca/Argos) del legacy.
+- **Detalle Cobranza** (reabierto) → se migra como `detalle cobranza
+  ventas`, con el mismo criterio de comisión real por empresa
+  (`cli_comision`), agregando el desglose Business Card / Gift Card que
+  "Comisión Mensual Empresas" no tiene. Importante: el legacy usaba tasas
+  globales hardcodeadas (1,5%/3%) sin relación con `cli_comision` — se
+  descartó esa lógica y se aplicó la comisión real por empresa en su
+  lugar.
+- **Ventas por Locales (Liquidación)** → se migra sin ninguna comisión
+  (`ventas por locales liquidacion`), aun sabiendo que es parecido a
+  "Ventas Locales" ya migrado — acá no hay ningún dato de respaldo (ni
+  parcial) para el concepto de comisión por marca del legacy, a diferencia
+  de los dos anteriores.
+- **Reporte Recargas** → se migra como `reporte recargas`, usando
+  `personal_trazabilidad` (que ya audita cambios de `per_cupo_asignado`
+  con fecha, valor anterior/nuevo y usuario) como equivalente de una
+  "recarga" — no fue necesario construir nada nuevo.
+
+Quedan confirmados fuera de alcance: **Tarjetas Virtuales** (no hay
+concepto de emisión/canje de tarjeta), **Reporte Landing** (no hay
+formulario de captación ni tabla asociada) y **Transacciones DataFast**
+(no hay integración con esa pasarela; `con_monto_externo` no es un
+sustituto válido).
+
 ## Testing
 
 Sin framework de tests en el proyecto (ver CLAUDE.md). Verificación:

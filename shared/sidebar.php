@@ -101,6 +101,16 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=reportes&tipo=cobranza pendiente por mes"><span>Cobranza Pendiente por Mes</span></a></li>
                         <li><a href="?module=reportes&tipo=pendiente empresas"><span>Reporte Pendiente Empresas</span></a></li>
                         <li><a href="?module=reportes&tipo=ranking de locales"><span>Ranking de Locales</span></a></li>
+                        <li><a href="?module=reportes&tipo=detalle de tarjetas"><span>Detalle de Tarjetas</span></a></li>
+                        <li><a href="?module=reportes&tipo=detalle de tarjetas por cliente"><span>Detalle de Tarjetas por Cliente</span></a></li>
+                        <li><a href="?module=reportes&tipo=giftpoint"><span>GiftPoint</span></a></li>
+                        <li><a href="?module=reportes&tipo=giftpoint transacciones"><span>GiftPoint - Transacciones</span></a></li>
+                        <li><a href="?module=reportes&tipo=reporte gifcards"><span>Reporte GifCards</span></a></li>
+                        <li><a href="?module=reportes&tipo=registro pagos gift"><span>Registro Pagos Gift</span></a></li>
+                        <li><a href="?module=reportes&tipo=comision mensual empresas"><span>Comisión Mensual Empresas</span></a></li>
+                        <li><a href="?module=reportes&tipo=detalle cobranza ventas"><span>Detalle Cobranza (Ventas)</span></a></li>
+                        <li><a href="?module=reportes&tipo=ventas por locales liquidacion"><span>Ventas por Locales (Liquidación)</span></a></li>
+                        <li><a href="?module=reportes&tipo=reporte recargas"><span>Reporte Recargas</span></a></li>
                     </ul>
                 </li>
                 <?php endif; ?>

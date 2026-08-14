@@ -988,6 +988,575 @@ switch ($tipo) {
     <?php
         break;
 
+    case 'detalle de tarjetas':
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('DETALLE DE TARJETAS - CLIENTES') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CONTACTO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMAIL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TELEFONO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">COMISION %</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DIA DE CORTE</td>
+            </tr>
+            <?php
+            $query = "SELECT cli_descripcion, cli_contacto, cli_email, cli_telefono, cli_comision, cli_dia_corte FROM cliente ORDER BY cli_descripcion ASC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo utf8_decode($row['cli_contacto']) ?></td>
+                    <td><?php echo $row['cli_email'] ?></td>
+                    <td><?php echo $row['cli_telefono'] ?></td>
+                    <td><?php echo number_format($row['cli_comision'], 2) ?></td>
+                    <td><?php echo $row['cli_dia_corte'] ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="6">No hay clientes registrados.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'detalle de tarjetas por cliente':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        if ($cliente <= 0) {
+            echo "<table><tr><td>Debe seleccionar un cliente.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('DETALLE DE TARJETAS POR CLIENTE') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPLEADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DOCUMENTO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TARJETA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO ASIGNADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO DISPONIBLE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ESTADO</td>
+            </tr>
+            <?php
+            $query = "SELECT per_nombre, per_documento, per_numero_tarjeta, per_cupo_asignado, per_cupo_disponible, per_estado
+                      FROM personal WHERE cli_id = $cliente ORDER BY per_nombre ASC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo $row['per_documento'] ?></td>
+                    <td><?php echo $row['per_numero_tarjeta'] ?></td>
+                    <td><?php echo number_format($row['per_cupo_asignado'], 2) ?></td>
+                    <td><?php echo number_format($row['per_cupo_disponible'], 2) ?></td>
+                    <td><?php echo $row['per_estado'] ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="6">Este cliente no tiene empleados registrados.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'giftpoint':
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="7" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('GIFTPOINT - LISTADO DE CODIGOS') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CODIGO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO INICIAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CONSUMIDO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO DISPONIBLE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ESTADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA ACTIVACION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA CADUCIDAD</td>
+            </tr>
+            <?php
+            $query = "SELECT cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad
+                      FROM codigo_gift_card ORDER BY cgc_fecha_activacion DESC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $consumido = $row['cgc_cupo_inicial'] - $row['cgc_cupo_disponible'];
+            ?>
+                <tr>
+                    <td><?php echo $row['cgc_codigo'] ?></td>
+                    <td><?php echo number_format($row['cgc_cupo_inicial'], 2) ?></td>
+                    <td><?php echo number_format($consumido, 2) ?></td>
+                    <td><?php echo number_format($row['cgc_cupo_disponible'], 2) ?></td>
+                    <td><?php echo $row['cgc_estado'] ?></td>
+                    <td><?php echo $row['cgc_fecha_activacion'] ?></td>
+                    <td><?php echo $row['cgc_fecha_caducidad'] ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="7">No hay códigos de gift card registrados.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'giftpoint transacciones':
+        $codigo = mysqli_real_escape_string($mysqli, trim($_GET['codigo'] ?? ''));
+        if ($codigo === '') {
+            echo "<table><tr><td>Debe indicar un código de gift card.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="7" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TRANSACCIONES DE LA TARJETA ' . $codigo) ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">HORA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">LOCAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DOCUMENTO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">NOMBRES</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AUTORIZACION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+            </tr>
+            <?php
+            $query = "SELECT con.con_fecha, con.con_hora, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label,
+                             per.per_documento, per.per_nombre, con.con_autorizacion, con.con_monto_giftcard
+                      FROM consumo con
+                      JOIN personal per ON con.per_id = per.per_id
+                      LEFT JOIN local l ON con.loc_id = l.loc_id
+                      WHERE con.con_giftcard_codigo = '$codigo'
+                      ORDER BY con.con_fecha DESC, con.con_hora DESC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+            ?>
+                <tr>
+                    <td><?php echo $row['con_fecha'] ?></td>
+                    <td><?php echo $row['con_hora'] ?></td>
+                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo $row['per_documento'] ?></td>
+                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo $row['con_autorizacion'] ?></td>
+                    <td><?php echo number_format($row['con_monto_giftcard'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="7">No hay transacciones registradas para este código.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'reporte gifcards':
+        $fechaini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fechafin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
+        $cliente = (int)($_GET['cliente'] ?? 0);
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="8" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REPORTE GIFCARDS') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CODIGO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO INICIAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO DISPONIBLE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ESTADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA CADUCIDAD</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ULTIMA AUTORIZACION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ULTIMO LOCAL DE CONSUMO</td>
+            </tr>
+            <?php
+            $where = [];
+            if ($fechaini !== '') $where[] = "cgc.cgc_fecha_activacion >= '$fechaini'";
+            if ($fechafin !== '') $where[] = "cgc.cgc_fecha_activacion <= '$fechafin'";
+            if ($cliente > 0) $where[] = "lgc.cli_id = $cliente";
+            $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+            $query = "SELECT cgc.cgc_codigo, cgc.cgc_cupo_inicial, cgc.cgc_cupo_disponible, cgc.cgc_estado, cgc.cgc_fecha_caducidad,
+                             cli.cli_descripcion, uc.con_autorizacion, uc.loc_label
+                      FROM codigo_gift_card cgc
+                      LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
+                      LEFT JOIN cliente cli ON lgc.cli_id = cli.cli_id
+                      LEFT JOIN (
+                          SELECT c1.con_giftcard_codigo, c1.con_autorizacion, COALESCE(l1.loc_nombre, l1.loc_direccion) AS loc_label
+                          FROM consumo c1
+                          LEFT JOIN local l1 ON c1.loc_id = l1.loc_id
+                          WHERE c1.con_id = (SELECT MAX(c2.con_id) FROM consumo c2 WHERE c2.con_giftcard_codigo = c1.con_giftcard_codigo)
+                      ) uc ON uc.con_giftcard_codigo = cgc.cgc_codigo
+                      $whereSql
+                      ORDER BY cgc.cgc_fecha_activacion DESC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+            ?>
+                <tr>
+                    <td><?php echo $row['cgc_codigo'] ?></td>
+                    <td><?php echo $row['cli_descripcion'] !== null ? utf8_decode($row['cli_descripcion']) : '' ?></td>
+                    <td><?php echo number_format($row['cgc_cupo_inicial'], 2) ?></td>
+                    <td><?php echo number_format($row['cgc_cupo_disponible'], 2) ?></td>
+                    <td><?php echo $row['cgc_estado'] ?></td>
+                    <td><?php echo $row['cgc_fecha_caducidad'] ?></td>
+                    <td><?php echo $row['con_autorizacion'] ?></td>
+                    <td><?php echo $row['loc_label'] !== null ? utf8_decode($row['loc_label']) : '' ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="8">No hay gift cards para los filtros seleccionados.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'registro pagos gift':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $anio = (int)($_GET['anio'] ?? 0);
+        $mes = (int)($_GET['mes'] ?? 0);
+        if ($cliente <= 0 || $anio <= 0 || $mes <= 0) {
+            echo "<table><tr><td>Debe seleccionar cliente, año y mes.</td></tr></table>";
+            break;
+        }
+        $q_cli = mysqli_query($mysqli, "SELECT cli_descripcion FROM cliente WHERE cli_id = $cliente");
+        $cliData = mysqli_fetch_assoc($q_cli);
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="4" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
+                <?php echo utf8_decode('REGISTRO PAGOS GIFT - ' . ($cliData ? $cliData['cli_descripcion'] : '') . ' - ' . $mes . '/' . $anio) ?>
+            </td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CODIGO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO INICIAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO DISPONIBLE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ESTADO</td>
+            </tr>
+            <?php
+            $query = "SELECT cgc.cgc_codigo, cgc.cgc_cupo_inicial, cgc.cgc_cupo_disponible, cgc.cgc_estado
+                      FROM lote_gift_card lgc
+                      JOIN codigo_gift_card cgc ON cgc.lgc_id = lgc.lgc_id
+                      WHERE lgc.cli_id = $cliente
+                        AND YEAR(lgc.lgc_periodo_facturacion) = $anio
+                        AND MONTH(lgc.lgc_periodo_facturacion) = $mes";
+            $result = mysqli_query($mysqli, $query);
+            $total = 0.00;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $total += $row['cgc_cupo_inicial'];
+            ?>
+                <tr>
+                    <td><?php echo $row['cgc_codigo'] ?></td>
+                    <td><?php echo number_format($row['cgc_cupo_inicial'], 2) ?></td>
+                    <td><?php echo number_format($row['cgc_cupo_disponible'], 2) ?></td>
+                    <td><?php echo $row['cgc_estado'] ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="4">No hay gift cards emitidas para este cliente en el período.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL A PAGAR</td>
+                    <td><strong><?php echo number_format($total, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'comision mensual empresas':
+        $marca = (int)($_GET['marca'] ?? 0);
+        $anio = (int)($_GET['anio'] ?? 0);
+        $mes = (int)($_GET['mes'] ?? 0);
+        if ($marca <= 0 || $anio <= 0 || $mes <= 0) {
+            echo "<table><tr><td>Debe seleccionar marca, año y mes.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COMISION MENSUAL EMPRESAS') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">% COMISION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VENTA NETA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">IVA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">COMISION</td>
+            </tr>
+            <?php
+            $query = "SELECT cli.cli_descripcion, cli.cli_comision,
+                             SUM(con.con_valor_total - con.con_iva) AS venta_neta, SUM(con.con_iva) AS iva
+                      FROM consumo con
+                      JOIN personal per ON con.per_id = per.per_id
+                      JOIN cliente cli ON per.cli_id = cli.cli_id
+                      JOIN local l ON con.loc_id = l.loc_id
+                      WHERE l.mar_id = $marca
+                        AND YEAR(con.con_fecha) = $anio
+                        AND MONTH(con.con_fecha) = $mes
+                      GROUP BY cli.cli_id
+                      ORDER BY cli.cli_descripcion ASC";
+            $result = mysqli_query($mysqli, $query);
+            $totalNeto = 0;
+            $totalIva = 0;
+            $totalComision = 0;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $comision = $row['venta_neta'] * $row['cli_comision'] / 100;
+                $totalNeto += $row['venta_neta'];
+                $totalIva += $row['iva'];
+                $totalComision += $comision;
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo number_format($row['cli_comision'], 2) ?></td>
+                    <td><?php echo number_format($row['venta_neta'], 2) ?></td>
+                    <td><?php echo number_format($row['iva'], 2) ?></td>
+                    <td><?php echo number_format($comision, 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="5">No hay ventas registradas para esta marca en el período.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+                    <td></td>
+                    <td><strong><?php echo number_format($totalNeto, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($totalIva, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($totalComision, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'detalle cobranza ventas':
+        $marca = (int)($_GET['marca'] ?? 0);
+        $anio = (int)($_GET['anio'] ?? 0);
+        $mes = (int)($_GET['mes'] ?? 0);
+        if ($marca <= 0 || $anio <= 0 || $mes <= 0) {
+            echo "<table><tr><td>Debe seleccionar marca, año y mes.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('DETALLE COBRANZA - VENTAS POR EMPRESA') ?></td></tr>
+            <tr><td colspan="5" style="background-color:#eee;font-weight:bold;"><?php echo utf8_decode('VENTAS BUSINESS CARD') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VENTA NETA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">IVA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">% COMISION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">COMISION</td>
+            </tr>
+            <?php
+            $queryBc = "SELECT cli.cli_descripcion, cli.cli_comision,
+                               SUM(con.con_valor_total - con.con_iva) AS venta_neta, SUM(con.con_iva) AS iva
+                        FROM consumo con
+                        JOIN personal per ON con.per_id = per.per_id
+                        JOIN cliente cli ON per.cli_id = cli.cli_id
+                        JOIN local l ON con.loc_id = l.loc_id
+                        WHERE l.mar_id = $marca
+                          AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
+                          AND con.con_monto_giftcard = 0
+                        GROUP BY cli.cli_id
+                        ORDER BY cli.cli_descripcion ASC";
+            $resultBc = mysqli_query($mysqli, $queryBc);
+            $totalVentaNeta = 0;
+            $totalIva = 0;
+            $totalComision = 0;
+            $hayBc = false;
+            while ($row = mysqli_fetch_array($resultBc)) {
+                $hayBc = true;
+                $comision = $row['venta_neta'] * $row['cli_comision'] / 100;
+                $totalVentaNeta += $row['venta_neta'];
+                $totalIva += $row['iva'];
+                $totalComision += $comision;
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo number_format($row['venta_neta'], 2) ?></td>
+                    <td><?php echo number_format($row['iva'], 2) ?></td>
+                    <td><?php echo number_format($row['cli_comision'], 2) ?></td>
+                    <td><?php echo number_format($comision, 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hayBc): ?>
+                <tr><td colspan="5">Sin ventas Business Card en el período.</td></tr>
+            <?php endif; ?>
+            <tr><td colspan="5" style="background-color:#eee;font-weight:bold;"><?php echo utf8_decode('VENTAS GIFT CARD') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;" colspan="4">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+            </tr>
+            <?php
+            $queryGift = "SELECT cli.cli_descripcion, SUM(con.con_monto_giftcard) AS valor_gift
+                          FROM consumo con
+                          JOIN personal per ON con.per_id = per.per_id
+                          JOIN cliente cli ON per.cli_id = cli.cli_id
+                          JOIN local l ON con.loc_id = l.loc_id
+                          WHERE l.mar_id = $marca
+                            AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
+                            AND con.con_monto_giftcard > 0
+                          GROUP BY cli.cli_id
+                          ORDER BY cli.cli_descripcion ASC";
+            $resultGift = mysqli_query($mysqli, $queryGift);
+            $totalGift = 0;
+            $hayGift = false;
+            while ($row = mysqli_fetch_array($resultGift)) {
+                $hayGift = true;
+                $totalGift += $row['valor_gift'];
+            ?>
+                <tr>
+                    <td colspan="4"><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo number_format($row['valor_gift'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hayGift): ?>
+                <tr><td colspan="5">Sin ventas Gift Card en el período.</td></tr>
+            <?php endif; ?>
+            <tr>
+                <td colspan="4" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL VENTA NETA</td>
+                <td><strong><?php echo number_format($totalVentaNeta, 2) ?></strong></td>
+            </tr>
+            <tr>
+                <td colspan="4" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL IVA</td>
+                <td><strong><?php echo number_format($totalIva, 2) ?></strong></td>
+            </tr>
+            <tr>
+                <td colspan="4" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL VENTA GIFT</td>
+                <td><strong><?php echo number_format($totalGift, 2) ?></strong></td>
+            </tr>
+            <tr>
+                <td colspan="4" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL COMISION</td>
+                <td><strong><?php echo number_format($totalComision, 2) ?></strong></td>
+            </tr>
+        </table>
+    <?php
+        break;
+
+    case 'ventas por locales liquidacion':
+        $marca = (int)($_GET['marca'] ?? 0);
+        $anio = (int)($_GET['anio'] ?? 0);
+        $mes = (int)($_GET['mes'] ?? 0);
+        if ($marca <= 0 || $anio <= 0 || $mes <= 0) {
+            echo "<table><tr><td>Debe seleccionar marca, año y mes.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="2" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('VENTAS POR LOCALES (LIQUIDACION) - ' . $mes . '/' . $anio) ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">LOCAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+            </tr>
+            <?php
+            $query = "SELECT COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label, SUM(con.con_valor_total) AS valor
+                      FROM consumo con
+                      JOIN local l ON con.loc_id = l.loc_id
+                      WHERE l.mar_id = $marca
+                        AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
+                      GROUP BY l.loc_id
+                      ORDER BY loc_label ASC";
+            $result = mysqli_query($mysqli, $query);
+            $totalVenta = 0;
+            $totalIva = 0;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $totalVenta += $row['valor'];
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo number_format($row['valor'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="2">No hay ventas registradas para esta marca en el período.</td></tr>
+            <?php else:
+                $q_iva = mysqli_query($mysqli, "SELECT SUM(con.con_iva) AS iva FROM consumo con JOIN local l ON con.loc_id = l.loc_id WHERE l.mar_id = $marca AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes");
+                $totalIva = (float)mysqli_fetch_assoc($q_iva)['iva'];
+            ?>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL VENTA</td>
+                    <td><strong><?php echo number_format($totalVenta, 2) ?></strong></td>
+                </tr>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">SUB TOTAL VENTA (SIN IVA)</td>
+                    <td><strong><?php echo number_format($totalVenta - $totalIva, 2) ?></strong></td>
+                </tr>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">IVA</td>
+                    <td><strong><?php echo number_format($totalIva, 2) ?></strong></td>
+                </tr>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL FACT</td>
+                    <td><strong><?php echo number_format($totalVenta, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'reporte recargas':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $empleado = (int)($_GET['empleado'] ?? 0);
+        if ($cliente <= 0) {
+            echo "<table><tr><td>Debe seleccionar un cliente.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REPORTE RECARGAS (HISTORIAL DE CUPO)') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPLEADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR ANTERIOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR NUEVO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">REALIZADO POR</td>
+            </tr>
+            <?php
+            $where = ["per.cli_id = $cliente", "tra.tra_campo = 'per_cupo_asignado'"];
+            if ($empleado > 0) $where[] = "tra.per_id = $empleado";
+            $whereSql = implode(' AND ', $where);
+
+            $query = "SELECT tra.tra_fecha, tra.tra_valor_anterior, tra.tra_valor_nuevo, per.per_nombre, u.name_user
+                      FROM personal_trazabilidad tra
+                      JOIN personal per ON tra.per_id = per.per_id
+                      LEFT JOIN usuario u ON tra.id_user = u.id_user
+                      WHERE $whereSql
+                      ORDER BY tra.tra_fecha DESC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+            ?>
+                <tr>
+                    <td><?php echo $row['tra_fecha'] ?></td>
+                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo $row['tra_valor_anterior'] ?></td>
+                    <td><?php echo $row['tra_valor_nuevo'] ?></td>
+                    <td><?php echo $row['name_user'] !== null ? utf8_decode($row['name_user']) : '' ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="5">No hay cambios de cupo registrados para los filtros seleccionados.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
     default:
         # code...
         break;
