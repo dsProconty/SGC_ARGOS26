@@ -528,6 +528,466 @@ switch ($tipo) {
 <?php
         break;
 
+    case 'transacciones por local':
+        $marca = (int)($_GET['marca'] ?? 0);
+        $provincia = $_GET['provincia'] ?? '';
+        $local = (int)($_GET['local'] ?? 0);
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $fechaini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fechafin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
+        if ($marca <= 0) {
+            echo "<table><tr><td>Debe seleccionar una marca.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr>
+                <td colspan="9" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TRANSACCIONES POR LOCAL') ?></td>
+            </tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">HORA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">LOCAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TARJETA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DOCUMENTO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">NOMBRES</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AUTORIZACION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR CONSUMO</td>
+            </tr>
+            <?php
+            $where = ["l.mar_id = $marca"];
+            if ($provincia === 'SIN_ESPECIFICAR') {
+                $where[] = "(l.loc_provincia IS NULL OR l.loc_provincia = '')";
+            } elseif ($provincia !== '') {
+                $where[] = "l.loc_provincia = '" . mysqli_real_escape_string($mysqli, $provincia) . "'";
+            }
+            if ($local > 0) $where[] = "l.loc_id = $local";
+            if ($cliente > 0) $where[] = "cli.cli_id = $cliente";
+            if ($fechaini !== '') $where[] = "con.con_fecha >= '$fechaini'";
+            if ($fechafin !== '') $where[] = "con.con_fecha <= '$fechafin'";
+            $whereSql = implode(' AND ', $where);
+
+            $query = "SELECT con.con_fecha, con.con_hora, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label,
+                             cli.cli_descripcion, con.con_numero_tarjeta, per.per_documento, per.per_nombre,
+                             con.con_autorizacion, con.con_valor_total
+                      FROM consumo con
+                      JOIN personal per ON con.per_id = per.per_id
+                      JOIN cliente cli ON per.cli_id = cli.cli_id
+                      JOIN local l ON con.loc_id = l.loc_id
+                      WHERE $whereSql
+                      ORDER BY con.con_fecha DESC, con.con_hora DESC";
+            $result = mysqli_query($mysqli, $query);
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+            ?>
+                <tr>
+                    <td><?php echo $row['con_fecha'] ?></td>
+                    <td><?php echo $row['con_hora'] ?></td>
+                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo $row['con_numero_tarjeta'] ?></td>
+                    <td><?php echo $row['per_documento'] ?></td>
+                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo $row['con_autorizacion'] ?></td>
+                    <td><?php echo $row['con_valor_total'] ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="9">No hay transacciones para los filtros seleccionados.</td></tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'total ventas':
+        $marca = (int)($_GET['marca'] ?? 0);
+        if ($marca <= 0) {
+            echo "<table><tr><td>Debe seleccionar una marca.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr>
+                <td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TOTAL VENTAS - VALORES PONDERADOS (SIN IVA)') ?></td>
+            </tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AÑO</td>
+                <?php
+                $meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+                foreach ($meses as $mesLabel) {
+                    echo '<td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">' . $mesLabel . '</td>';
+                }
+                ?>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+            </tr>
+            <?php
+            $query = "SELECT YEAR(con.con_fecha) AS anio, MONTH(con.con_fecha) AS mes,
+                             SUM(con.con_valor_total - con.con_iva) AS neto
+                      FROM consumo con
+                      JOIN local l ON con.loc_id = l.loc_id
+                      WHERE l.mar_id = $marca
+                      GROUP BY YEAR(con.con_fecha), MONTH(con.con_fecha)
+                      ORDER BY anio ASC, mes ASC";
+            $result = mysqli_query($mysqli, $query);
+            $matriz = [];
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $matriz[$row['anio']][(int)$row['mes']] = (float)$row['neto'];
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="14">No hay ventas registradas para esta marca.</td></tr>
+            <?php else:
+                foreach ($matriz as $anio => $mesesData) {
+                    $totalAnio = 0;
+                    echo "<tr><td>$anio</td>";
+                    for ($m = 1; $m <= 12; $m++) {
+                        $valor = $mesesData[$m] ?? 0;
+                        $totalAnio += $valor;
+                        echo '<td>' . number_format($valor, 2) . '</td>';
+                    }
+                    echo '<td><strong>' . number_format($totalAnio, 2) . '</strong></td></tr>';
+                }
+            endif;
+            ?>
+        </table>
+    <?php
+        break;
+
+    case 'registro cobranza':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $fechaini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fechafin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REGISTRO COBRANZA') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA REGISTRO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA DESDE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA HASTA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MORA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+            </tr>
+            <?php
+            $where = [];
+            if ($cliente > 0) $where[] = "car.cli_id = $cliente";
+            if ($fechaini !== '') $where[] = "car.car_fecha_ingreso >= '$fechaini'";
+            if ($fechafin !== '') $where[] = "car.car_fecha_ingreso <= '$fechafin'";
+            $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+            $query = "SELECT cli.cli_descripcion, car.car_fecha_ingreso, car.car_fecha_inicio, car.car_fecha_fin,
+                             car.car_tipo, car.cli_valor_pagar
+                      FROM cartera car
+                      JOIN cliente cli ON car.cli_id = cli.cli_id
+                      $whereSql
+                      ORDER BY car.car_fecha_ingreso DESC";
+            $result = mysqli_query($mysqli, $query);
+            $total = 0.00;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $total += $row['cli_valor_pagar'];
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo $row['car_fecha_ingreso'] ?></td>
+                    <td><?php echo $row['car_fecha_inicio'] ?></td>
+                    <td><?php echo $row['car_fecha_fin'] ?></td>
+                    <td><?php echo $row['car_tipo'] ?></td>
+                    <td><?php echo number_format($row['cli_valor_pagar'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="6">No hay registros de cartera para los filtros seleccionados.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+                    <td><strong><?php echo number_format($total, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'ventas locales':
+        $marca = (int)($_GET['marca'] ?? 0);
+        $fechaini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fechafin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
+        if ($marca <= 0) {
+            echo "<table><tr><td>Debe seleccionar una marca.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('VENTAS LOCALES') ?></td></tr>
+            <?php
+            $where = ["l.mar_id = $marca"];
+            if ($fechaini !== '') $where[] = "con.con_fecha >= '$fechaini'";
+            if ($fechafin !== '') $where[] = "con.con_fecha <= '$fechafin'";
+            $whereSql = implode(' AND ', $where);
+
+            $query = "SELECT COALESCE(l.loc_provincia, '') AS provincia, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label,
+                             SUM(con.con_valor_total) AS bruto, SUM(con.con_valor_total - con.con_iva) AS neto
+                      FROM consumo con
+                      JOIN local l ON con.loc_id = l.loc_id
+                      WHERE $whereSql
+                      GROUP BY provincia, l.loc_id
+                      ORDER BY provincia ASC, loc_label ASC";
+            $result = mysqli_query($mysqli, $query);
+            $grupos = [];
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $prov = $row['provincia'] !== '' ? $row['provincia'] : 'Sin especificar';
+                $grupos[$prov][] = $row;
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="3">No hay ventas registradas para esta marca en el período.</td></tr>
+            <?php else:
+                foreach ($grupos as $provincia => $locales) {
+                    echo '<tr><td colspan="3" style="background-color:#eee;font-weight:bold;">' . utf8_decode(strtoupper($provincia)) . '</td></tr>';
+                    echo '<tr><td>LOCAL</td><td>VALOR BRUTO</td><td>VALOR NETO (SIN IVA)</td></tr>';
+                    $totalBruto = 0;
+                    $totalNeto = 0;
+                    foreach ($locales as $row) {
+                        $totalBruto += $row['bruto'];
+                        $totalNeto += $row['neto'];
+                        echo '<tr><td>' . utf8_decode($row['loc_label']) . '</td><td>' . number_format($row['bruto'], 2) . '</td><td>' . number_format($row['neto'], 2) . '</td></tr>';
+                    }
+                    echo '<tr><td><strong>TOTAL ' . utf8_decode(strtoupper($provincia)) . '</strong></td><td><strong>' . number_format($totalBruto, 2) . '</strong></td><td><strong>' . number_format($totalNeto, 2) . '</strong></td></tr>';
+                }
+            endif;
+            ?>
+        </table>
+    <?php
+        break;
+
+    case 'cobranza pendiente por empresa':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $fechaCorte = mysqli_real_escape_string($mysqli, $_GET['fecha_corte'] ?? '');
+        if ($fechaCorte === '') {
+            echo "<table><tr><td>Debe indicar la fecha de corte.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COBRANZA PENDIENTE POR EMPRESA') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AÑO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+            </tr>
+            <?php
+            $where = ["car.car_estado IN ('pendiente','notificacion','compromiso')", "car.car_fecha_ingreso <= '$fechaCorte'"];
+            if ($cliente > 0) $where[] = "car.cli_id = $cliente";
+            $whereSql = implode(' AND ', $where);
+
+            $query = "SELECT cli.cli_descripcion, YEAR(car.car_fecha_ingreso) AS anio, SUM(car.cli_valor_pagar) AS valor
+                      FROM cartera car
+                      JOIN cliente cli ON car.cli_id = cli.cli_id
+                      WHERE $whereSql
+                      GROUP BY car.cli_id, anio
+                      ORDER BY cli.cli_descripcion ASC, anio ASC";
+            $result = mysqli_query($mysqli, $query);
+            $total = 0.00;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $total += $row['valor'];
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo $row['anio'] ?></td>
+                    <td><?php echo number_format($row['valor'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="3">No hay cartera pendiente para los filtros seleccionados.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="2" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+                    <td><strong><?php echo number_format($total, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'cobranza pendiente por mes':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $fechaCorte = mysqli_real_escape_string($mysqli, $_GET['fecha_corte'] ?? '');
+        if ($fechaCorte === '') {
+            echo "<table><tr><td>Debe indicar la fecha de corte.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COBRANZA PENDIENTE POR MES') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AÑO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MES</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+            </tr>
+            <?php
+            $where = ["car.car_estado IN ('pendiente','notificacion','compromiso')", "car.car_fecha_ingreso <= '$fechaCorte'"];
+            if ($cliente > 0) $where[] = "car.cli_id = $cliente";
+            $whereSql = implode(' AND ', $where);
+
+            $query = "SELECT YEAR(car.car_fecha_ingreso) AS anio, MONTH(car.car_fecha_ingreso) AS mes, SUM(car.cli_valor_pagar) AS valor
+                      FROM cartera car
+                      WHERE $whereSql
+                      GROUP BY anio, mes
+                      ORDER BY anio ASC, mes ASC";
+            $result = mysqli_query($mysqli, $query);
+            $total = 0.00;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $total += $row['valor'];
+            ?>
+                <tr>
+                    <td><?php echo $row['anio'] ?></td>
+                    <td><?php echo $row['mes'] ?></td>
+                    <td><?php echo number_format($row['valor'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="3">No hay cartera pendiente para los filtros seleccionados.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="2" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+                    <td><strong><?php echo number_format($total, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'pendiente empresas':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $anio = (int)($_GET['anio'] ?? 0);
+        if ($anio <= 0) {
+            echo "<table><tr><td>Debe seleccionar un año.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REPORTE PENDIENTE EMPRESAS ' . $anio) ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <?php
+                $meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+                foreach ($meses as $mesLabel) echo '<td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">' . $mesLabel . '</td>';
+                ?>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+            </tr>
+            <?php
+            $whereCli = $cliente > 0 ? "AND cli.cli_id = $cliente" : "";
+            $queryClientes = "SELECT cli_id, cli_descripcion FROM cliente cli WHERE 1=1 $whereCli ORDER BY cli_descripcion ASC";
+            $resClientes = mysqli_query($mysqli, $queryClientes);
+
+            $queryValores = "SELECT car.cli_id, MONTH(car.car_fecha_ingreso) AS mes, SUM(car.cli_valor_pagar) AS valor
+                             FROM cartera car
+                             WHERE car.car_estado IN ('pendiente','notificacion','compromiso')
+                               AND YEAR(car.car_fecha_ingreso) = $anio
+                             GROUP BY car.cli_id, mes";
+            $resValores = mysqli_query($mysqli, $queryValores);
+            $valores = [];
+            while ($v = mysqli_fetch_assoc($resValores)) {
+                $valores[$v['cli_id']][(int)$v['mes']] = (float)$v['valor'];
+            }
+
+            $totalGeneral = 0;
+            $hay_datos = false;
+            while ($cli = mysqli_fetch_assoc($resClientes)) {
+                $hay_datos = true;
+                $totalEmpresa = 0;
+                echo '<tr><td>' . utf8_decode($cli['cli_descripcion']) . '</td>';
+                for ($m = 1; $m <= 12; $m++) {
+                    $v = $valores[$cli['cli_id']][$m] ?? 0;
+                    $totalEmpresa += $v;
+                    echo '<td>' . number_format($v, 2) . '</td>';
+                }
+                $totalGeneral += $totalEmpresa;
+                echo '<td><strong>' . number_format($totalEmpresa, 2) . '</strong></td></tr>';
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="14">No hay clientes registrados.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="13" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL POR COBRAR</td>
+                    <td><strong><?php echo number_format($totalGeneral, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
+    case 'ranking de locales':
+        $marca = (int)($_GET['marca'] ?? 0);
+        $fechaini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fechafin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
+        if ($marca <= 0) {
+            echo "<table><tr><td>Debe seleccionar una marca.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('RANKING DE LOCALES POR VENTAS') ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">LOCAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR BRUTO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR NETO (SIN IVA)</td>
+            </tr>
+            <?php
+            $where = ["l.mar_id = $marca"];
+            if ($fechaini !== '') $where[] = "con.con_fecha >= '$fechaini'";
+            if ($fechafin !== '') $where[] = "con.con_fecha <= '$fechafin'";
+            $whereSql = implode(' AND ', $where);
+
+            $query = "SELECT COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label,
+                             SUM(con.con_valor_total) AS bruto, SUM(con.con_valor_total - con.con_iva) AS neto
+                      FROM consumo con
+                      JOIN local l ON con.loc_id = l.loc_id
+                      WHERE $whereSql
+                      GROUP BY l.loc_id
+                      ORDER BY bruto DESC";
+            $result = mysqli_query($mysqli, $query);
+            $totalBruto = 0;
+            $totalNeto = 0;
+            $hay_datos = false;
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $totalBruto += $row['bruto'];
+                $totalNeto += $row['neto'];
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo number_format($row['bruto'], 2) ?></td>
+                    <td><?php echo number_format($row['neto'], 2) ?></td>
+                </tr>
+            <?php
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="3">No hay ventas registradas para esta marca en el período.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td><strong>TOTAL</strong></td>
+                    <td><strong><?php echo number_format($totalBruto, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($totalNeto, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
     default:
         # code...
         break;

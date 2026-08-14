@@ -90,7 +90,17 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=reportes&tipo=dinero por edades de cartera"><span>Dinero por edades de cartera</span></a></li>
                         <li><a href="?module=reportes&tipo=cartera recuperada"><span>Cartera recuperada</span></a></li>
                         <li><a href="?module=reportes&tipo=cliente consumos"><span>Cliente + Consumos</span></a></li>
+                        <li><a href="?module=reportes&tipo=cliente - consumos"><span>Cliente - Consumos</span></a></li>
                         <li><a href="?module=reportes&tipo=cobranza por gestor"><span>Detalle de cobranza por gestores</span></a></li>
+                        <li><a href="?module=reportes&tipo=consumos del mes"><span>Consumos del mes</span></a></li>
+                        <li><a href="?module=reportes&tipo=transacciones por local"><span>Transacciones por Local</span></a></li>
+                        <li><a href="?module=reportes&tipo=total ventas"><span>Total Ventas</span></a></li>
+                        <li><a href="?module=reportes&tipo=registro cobranza"><span>Registro Cobranza</span></a></li>
+                        <li><a href="?module=reportes&tipo=ventas locales"><span>Ventas Locales</span></a></li>
+                        <li><a href="?module=reportes&tipo=cobranza pendiente por empresa"><span>Cobranza Pendiente por Empresa</span></a></li>
+                        <li><a href="?module=reportes&tipo=cobranza pendiente por mes"><span>Cobranza Pendiente por Mes</span></a></li>
+                        <li><a href="?module=reportes&tipo=pendiente empresas"><span>Reporte Pendiente Empresas</span></a></li>
+                        <li><a href="?module=reportes&tipo=ranking de locales"><span>Ranking de Locales</span></a></li>
                     </ul>
                 </li>
                 <?php endif; ?>

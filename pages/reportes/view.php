@@ -302,6 +302,342 @@ $tipo = $_GET['tipo'];
                                 </div>
                         <?php
                                 break;
+                            case 'transacciones por local':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-10 offset-sm-1">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-3">
+                                                    <label for="">Marca</label>
+                                                    <select name="marca" id="marca" class="form-control" required>
+                                                        <option value="">— Seleccione —</option>
+                                                        <?php
+                                                        $resMarcas = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE mar_id != 9999 ORDER BY mar_descripcion ASC");
+                                                        while ($m = mysqli_fetch_assoc($resMarcas)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$m['mar_id']; ?>"><?php echo htmlspecialchars($m['mar_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label for="">Provincia</label>
+                                                    <select name="provincia" id="provincia" class="form-control">
+                                                        <option value="">— Todas —</option>
+                                                        <?php
+                                                        $resProv = mysqli_query($mysqli, "SELECT DISTINCT loc_provincia FROM local WHERE loc_provincia IS NOT NULL AND loc_provincia != '' ORDER BY loc_provincia ASC");
+                                                        while ($p = mysqli_fetch_assoc($resProv)):
+                                                        ?>
+                                                            <option value="<?php echo htmlspecialchars($p['loc_provincia']); ?>"><?php echo htmlspecialchars(ucfirst($p['loc_provincia'])); ?></option>
+                                                        <?php endwhile; ?>
+                                                        <option value="SIN_ESPECIFICAR">Sin especificar</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label for="">Local</label>
+                                                    <select name="local" id="local" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resLoc = mysqli_query($mysqli, "SELECT loc_id, COALESCE(loc_nombre, loc_direccion) AS loc_label FROM local WHERE loc_activo = 1 ORDER BY loc_label ASC");
+                                                        while ($l = mysqli_fetch_assoc($resLoc)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$l['loc_id']; ?>"><?php echo htmlspecialchars($l['loc_label']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-3">
+                                                    <label for="">Cliente</label>
+                                                    <select name="cliente" id="cliente" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                        while ($c = mysqli_fetch_assoc($resCli)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$c['cli_id']; ?>"><?php echo htmlspecialchars($c['cli_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Inicio</label>
+                                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Fin</label>
+                                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'total ventas':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-6 offset-sm-3">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-12">
+                                                    <label for="">Marca</label>
+                                                    <select name="marca" id="marca" class="form-control" required>
+                                                        <option value="">— Seleccione —</option>
+                                                        <?php
+                                                        $resMarcas = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE mar_id != 9999 ORDER BY mar_descripcion ASC");
+                                                        while ($m = mysqli_fetch_assoc($resMarcas)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$m['mar_id']; ?>"><?php echo htmlspecialchars($m['mar_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'registro cobranza':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-4">
+                                                    <label for="">Cliente</label>
+                                                    <select name="cliente" id="cliente" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                        while ($c = mysqli_fetch_assoc($resCli)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$c['cli_id']; ?>"><?php echo htmlspecialchars($c['cli_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Inicio</label>
+                                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Fin</label>
+                                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'ventas locales':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-4">
+                                                    <label for="">Marca</label>
+                                                    <select name="marca" id="marca" class="form-control" required>
+                                                        <option value="">— Seleccione —</option>
+                                                        <?php
+                                                        $resMarcas = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE mar_id != 9999 ORDER BY mar_descripcion ASC");
+                                                        while ($m = mysqli_fetch_assoc($resMarcas)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$m['mar_id']; ?>"><?php echo htmlspecialchars($m['mar_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Inicio</label>
+                                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Fin</label>
+                                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'cobranza pendiente por empresa':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <label for="">Cliente</label>
+                                                    <select name="cliente" id="cliente" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                        while ($c = mysqli_fetch_assoc($resCli)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$c['cli_id']; ?>"><?php echo htmlspecialchars($c['cli_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label for="">Fecha Corte</label>
+                                                    <input type="date" name="fecha_corte" id="fecha_corte" class="form-control" required>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'cobranza pendiente por mes':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <label for="">Fecha Corte</label>
+                                                    <input type="date" name="fecha_corte" id="fecha_corte" class="form-control" required>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label for="">Cliente</label>
+                                                    <select name="cliente" id="cliente" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                        while ($c = mysqli_fetch_assoc($resCli)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$c['cli_id']; ?>"><?php echo htmlspecialchars($c['cli_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'pendiente empresas':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <label for="">Cliente</label>
+                                                    <select name="cliente" id="cliente" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                        while ($c = mysqli_fetch_assoc($resCli)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$c['cli_id']; ?>"><?php echo htmlspecialchars($c['cli_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label for="">Año</label>
+                                                    <select name="anio" id="anio" class="form-control" required>
+                                                        <option value="">— Seleccione —</option>
+                                                        <?php for ($y = (int)date('Y'); $y >= 2018; $y--): ?>
+                                                            <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
+                                                        <?php endfor; ?>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
+                            case 'ranking de locales':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-4">
+                                                    <label for="">Marca</label>
+                                                    <select name="marca" id="marca" class="form-control" required>
+                                                        <option value="">— Seleccione —</option>
+                                                        <?php
+                                                        $resMarcas = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE mar_id != 9999 ORDER BY mar_descripcion ASC");
+                                                        while ($m = mysqli_fetch_assoc($resMarcas)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$m['mar_id']; ?>"><?php echo htmlspecialchars($m['mar_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Inicio</label>
+                                                    <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control">
+                                                </div>
+                                                <div class="col-sm-4">
+                                                    <label for="">Fecha Fin</label>
+                                                    <input type="date" name="fecha_fin" id="fecha_fin" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
                             default:
                                 # code...
                                 break;
