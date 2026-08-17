@@ -1,5 +1,18 @@
 <?php
 session_start();
+if (isset($_SESSION['id_user'])) {
+    require_once "config/database.php";
+    $_sv = $mysqli->prepare("SELECT session_version FROM usuario WHERE id_user = ? LIMIT 1");
+    $_sv->bind_param('i', $_SESSION['id_user']);
+    $_sv->execute();
+    $_svRow = $_sv->get_result()->fetch_assoc();
+    if ($_svRow && isset($_SESSION['session_version']) && (int)$_svRow['session_version'] !== (int)$_SESSION['session_version']) {
+        session_unset();
+        session_destroy();
+        header('Location: index.php?alert=3');
+        exit;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -34,6 +47,8 @@ session_start();
 	<link rel="stylesheet" href="./assets/css/layouts/vertical/menu-type/default.css">
 	<!-- ======================= THEME COLOR STYLES ===========================-->
 	<link rel="stylesheet" href="./assets/css/layouts/vertical/themes/theme-a.css">
+	<!-- ======================= CORRECCIONES PROPIAS (cargar al final) =======-->
+	<link rel="stylesheet" href="./assets/css/custom-overrides.css">
 
 	<script src="./assets/vendor/jquery/dist/jquery.min.js"></script>
 
@@ -65,6 +80,60 @@ session_start();
 	<!-- ================== GLOBAL APP SCRIPTS ==================-->
 	<script src="./assets/js/global/app.js"></script>
 
+	<script>
+	// Elimina overlay de Pace.js si queda atascado
+	window.addEventListener('load', function() {
+		setTimeout(function() {
+			document.querySelectorAll('.pace, .pace-progress, .pace-progress-inner, .pace-activity').forEach(function(el) {
+				el.style.display = 'none';
+				el.style.opacity = '0';
+				el.style.visibility = 'hidden';
+			});
+		}, 800);
+	});
+
+	// Elimina backdrop huérfano si no hay ningún modal real abierto
+	function _limpiarBackdropHuerfano() {
+		if (document.querySelectorAll('.modal.show').length === 0 &&
+			document.querySelectorAll('.modal[style*="display: block"]').length === 0) {
+			document.querySelectorAll('.modal-backdrop').forEach(function(el){ el.remove(); });
+			document.body.classList.remove('modal-open');
+			document.body.style.overflow = '';
+			document.body.style.paddingRight = '';
+		}
+	}
+
+	// Ejecutar en carga y en restauración desde caché del navegador
+	document.addEventListener('DOMContentLoaded', function() {
+		_limpiarBackdropHuerfano();
+		setTimeout(_limpiarBackdropHuerfano, 400);
+		setTimeout(_limpiarBackdropHuerfano, 1200);
+	});
+	window.addEventListener('pageshow', function(e) {
+		_limpiarBackdropHuerfano();
+	});
+
+	// MutationObserver: si alguien agrega un .modal-backdrop sin abrir un modal real, lo borra
+	var _backdropObserver = new MutationObserver(function(mutations) {
+		mutations.forEach(function(m) {
+			m.addedNodes.forEach(function(node) {
+				if (node.classList && node.classList.contains('modal-backdrop')) {
+					setTimeout(function() {
+						if (document.querySelectorAll('.modal.show').length === 0 &&
+							document.querySelectorAll('.modal[style*="display: block"]').length === 0) {
+							node.remove();
+							document.body.classList.remove('modal-open');
+							document.body.style.overflow = '';
+							document.body.style.paddingRight = '';
+						}
+					}, 50);
+				}
+			});
+		});
+	});
+	_backdropObserver.observe(document.body, { childList: true, subtree: false });
+	</script>
+
 	<script src="./assets/vendor/jvectormap-next/jquery-jvectormap.min.js"></script>
 	<script src="./assets/vendor/jvectormap-next/jquery-jvectormap-world-mill.js"></script>
 	<!-- ================== PAGE LEVEL VENDOR SCRIPTS ==================-->
@@ -73,6 +142,10 @@ session_start();
 	<script src="./assets/vendor/select2/select2.min.js"></script>
 	
 	<script src="./assets/vendor/chartist/dist/chartist.js"></script>
+
+	<div style="position:fixed;bottom:6px;left:8px;font-size:15px;font-weight:bold;color:#777;opacity:.85;z-index:9999;pointer-events:none;font-family:monospace;">
+		v<?php echo htmlspecialchars(trim(@file_get_contents(__DIR__ . '/VERSION')) ?: '?'); ?>
+	</div>
 
 </body>
 

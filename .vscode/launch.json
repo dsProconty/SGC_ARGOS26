@@ -2,14 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Listen for Xdebug",
+            "name": "Listen for Xdebug (Docker)",
             "type": "php",
             "request": "launch",
             "port": 9003,
             "pathMappings": {
-                "${workspaceFolder}": "${workspaceFolder}"
-            },
-            "hostname": "127.0.0.1"
+                // Izquierda: ruta DENTRO del contenedor. Derecha: ruta en tu disco.
+                "/var/www/html": "${workspaceFolder}"
+            }
         }
     ]
 }

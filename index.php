@@ -28,6 +28,8 @@
     <link rel="stylesheet" href="./assets/css/layouts/vertical/menu-type/default.css">
     <!-- ======================= THEME COLOR STYLES ===========================-->
     <link rel="stylesheet" href="./assets/css/layouts/vertical/themes/theme-a.css">
+    <!-- ======================= CORRECCIONES PROPIAS (cargar al final) =======-->
+    <link rel="stylesheet" href="./assets/css/custom-overrides.css">
 </head>
 
 <body>
@@ -47,6 +49,12 @@
            <button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>
            <h4>  <i class='icon fa fa-check-circle'></i> Exito!!</h4>
             Has salido con éxito.
+            </div>";
+        } elseif ($_GET['alert'] == 3) {
+            echo "<div class='alert alert-warning alert-dismissable'>
+           <button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>
+           <h4><i class='icon dripicons-location'></i> Local reasignado</h4>
+            Tu local de trabajo fue actualizado. Ingresa nuevamente para continuar.
             </div>";
         }
         ?>
@@ -85,12 +93,10 @@
     <script src="./assets/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="./assets/vendor/js-storage/js.storage.js"></script>
     <script src="./assets/vendor/js-cookie/src/js.cookie.js"></script>
-    <script src="./assets/vendor/pace/pace.js"></script>
-    <script src="./assets/vendor/metismenu/dist/metisMenu.js"></script>
-    <script src="./assets/vendor/switchery-npm/index.js"></script>
-    <script src="./assets/vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js"></script>
-    <!-- ================== GLOBAL APP SCRIPTS ==================-->
-    <script src="./assets/js/global/app.js"></script>
+
+    <div style="position:fixed;bottom:6px;left:8px;font-size:15px;font-weight:bold;color:#777;opacity:.85;z-index:9999;pointer-events:none;font-family:monospace;">
+        v<?php echo htmlspecialchars(trim(@file_get_contents(__DIR__ . '/VERSION')) ?: '?'); ?>
+    </div>
 
 </body>
 

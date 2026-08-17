@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/session_helpers.php';
 
 header('Content-Type: application/json');
 
@@ -10,8 +11,7 @@ if (empty($_SESSION['id_user'])) {
 }
 
 // Solo Admin puede gestionar convenios
-$permisos = $_SESSION['permisos_acceso'] ?? '';
-if (!in_array($permisos, ['Super Admin', 'Administrador'])) {
+if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'Administrador')) {
     echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
     exit;
 }

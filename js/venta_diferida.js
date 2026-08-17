@@ -17,6 +17,18 @@ $(document).ready(function () {
     // Confirmar liquidación
     $('#btn_confirmar_liquidar').on('click', confirmarLiquidar);
 
+    // VD-A: Exportar Excel del listado
+    $('#btn_exportar_vd').on('click', function () {
+        var tabla = document.getElementById('table_vd');
+        if (!tabla) return;
+        var clone = tabla.cloneNode(true);
+        $(clone).find('th:last-child, td:last-child').remove(); // quitar columna Acciones
+        $(clone).find('.badge, .progress').each(function () { $(this).replaceWith($(this).text()); });
+        var wb = new ExcelJS.Workbook();
+        ArgosExport.tableToSheet(wb, clone, 'Ventas Diferidas');
+        ArgosExport.download(wb, 'ventas_diferidas.xlsx');
+    });
+
     $('#modal_nueva_vd').on('hidden.bs.modal', function () {
         $('#card_empleado_vd, #btn_guardar_vd, #resumen_vd').hide();
         $('#vd_cedula, #vd_per_id, #vd_descripcion, #vd_monto_total, #vd_num_cuotas, #vd_fecha_inicio').val('');

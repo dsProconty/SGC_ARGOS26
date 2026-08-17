@@ -1,5 +1,6 @@
 <?php
 require_once "../../config/database.php";
+require_once "../../helpers/session_helpers.php";
 session_start();
 date_default_timezone_set('America/Guayaquil');
 $action = $_GET['action'];
@@ -123,8 +124,56 @@ switch ($action) {
             <?php
                 break;
             case 'cobrada':
+                // Migración automática
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
+
+                // Resumen financiero: cobrado confirmado vs pendiente de confirmación
+                $qResumen = "SELECT
+                    COALESCE(SUM(CASE WHEN c.car_estado = 'cobrada' THEN p.pag_monto ELSE 0 END), 0) AS total_confirmado,
+                    COALESCE(SUM(CASE WHEN c.car_estado = 'pendiente_confirmacion' THEN p.pag_monto ELSE 0 END), 0) AS total_pendiente
+                    FROM cartera c
+                    JOIN gestion g ON g.car_id = c.car_id AND g.pag_id IS NOT NULL
+                    JOIN pago p ON g.pag_id = p.pag_id
+                    WHERE c.car_tipo = '$cartera'
+                    AND c.car_estado IN ('cobrada','pendiente_confirmacion')";
+                $rowRes = mysqli_fetch_assoc(mysqli_query($mysqli, $qResumen));
+                $totalConfirmado = (float)$rowRes['total_confirmado'];
+                $totalPendConf   = (float)$rowRes['total_pendiente'];
+                $totalGlobal     = $totalConfirmado + $totalPendConf;
+                ?>
+                <!-- WIDGET RESUMEN -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card text-center border-left border-secondary" style="border-left:4px solid #6c757d!important;">
+                            <div class="card-body py-2">
+                                <h5 class="text-secondary font-weight-bold mb-0">$<?php echo number_format($totalGlobal,2); ?></h5>
+                                <small class="text-muted">Total cobrado</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center" style="border-left:4px solid #28a745!important;">
+                            <div class="card-body py-2">
+                                <h5 class="text-success font-weight-bold mb-0">$<?php echo number_format($totalConfirmado,2); ?></h5>
+                                <small class="text-muted">Confirmado Financiero</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center" style="border-left:4px solid #ffc107!important;">
+                            <div class="card-body py-2">
+                                <h5 class="text-warning font-weight-bold mb-0">$<?php echo number_format($totalPendConf,2); ?></h5>
+                                <small class="text-muted">Pend. Confirmación</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <?php
                 $query = "SELECT c.*,cli.* FROM cartera c, cliente cli,gestion g
-                where c.cli_id = cli.cli_id and c.car_estado = '$case' and g.car_id = c.car_id and c.car_tipo = '$cartera' group by c.car_id ";
+                where c.cli_id = cli.cli_id and c.car_estado IN ('cobrada','pendiente_confirmacion') and g.car_id = c.car_id and c.car_tipo = '$cartera' group by c.car_id ";
 
                 $result = mysqli_query($mysqli, $query); ?>
 
@@ -140,6 +189,7 @@ switch ($action) {
                             <th>Pago</th>
                             <th>Valor Pendiente</th>
                             <th>Estado</th>
+                            <th>Financiero</th>
                             <th>Fecha Ult. Gestión</th>
                             <th>Acciones</th>
                         </tr>
@@ -154,14 +204,34 @@ switch ($action) {
 
                             $rowUltGes = mysqli_fetch_array($resultUltGes);
 
-                            $queryPagos = "SELECT sum(pag_monto) as total_pago from pago p, gestion g, cartera c 
-                            where p.pag_id = g.pag_id and g.car_id = c.car_id and c.car_id = '$row[car_id]'";
+                            $queryPagos = "SELECT sum(p.pag_monto) as total_pago, p.pag_estado,
+                                p.pag_fecha_confirmacion, p.pag_confirmado_por
+                            FROM pago p
+                            JOIN gestion g ON p.pag_id = g.pag_id
+                            JOIN cartera c ON g.car_id = c.car_id
+                            WHERE c.car_id = '$row[car_id]'
+                            GROUP BY c.car_id, p.pag_estado, p.pag_fecha_confirmacion, p.pag_confirmado_por
+                            ORDER BY p.pag_id DESC LIMIT 1";
 
                             $resPagos = mysqli_query($mysqli, $queryPagos);
 
                             $rowPag = mysqli_fetch_array($resPagos);
 
-                            $totalPago = $rowPag['total_pago'];
+                            $totalPago    = $rowPag['total_pago'];
+                            $pagEstado    = $rowPag['pag_estado'] ?? null;
+                            $fechaConf    = $rowPag['pag_fecha_confirmacion'] ?? null;
+                            $confirmadoPor = $rowPag['pag_confirmado_por'] ?? null;
+
+                            if ($row['car_estado'] === 'pendiente_confirmacion') {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-warning'>⏳ Pend. Confirmación</span>";
+                            } elseif ($pagEstado === 'confirmado' && $fechaConf) {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-success'>✓ Aprobado</span>"
+                                    . "<br><small class='text-muted' style='font-size:10px;'>" . htmlspecialchars($confirmadoPor) . "<br>" . $fechaConf . "</small>";
+                            } elseif ($pagEstado === 'confirmado') {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-success'>✓ Aprobado</span>";
+                            } else {
+                                $badgeFinanciero = "<span class='badge badge-pill badge-secondary'>Directo</span>";
+                            }
 
                             if ($totalPago < $row['cli_valor_pagar']) {
                                 $estado = "<span class='badge badge-pill badge-primary border-radius'>Abono</span>";
@@ -179,6 +249,7 @@ switch ($action) {
                                 <td><?php echo $totalPago; ?></td>
                                 <td><?php echo $row['cli_valor_pagar'] - $totalPago ?></td>
                                 <td><?php echo $estado ?></td>
+                                <td><?php echo $badgeFinanciero ?></td>
                                 <td><?php echo $rowUltGes['ges_fecha']; ?></td>
                                 <td>
                                     <a data-toggle='tooltip' data-placement='top' title='Gestionar' class='btn btn-success btn-md' href='?module=nueva_gestion&id=<?php echo $row['car_id'] ?>'>
@@ -305,6 +376,61 @@ switch ($action) {
 
         <?php
                 break;
+            case 'pendiente_confirmacion':
+                // Migración automática: crear columna si no existe
+                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+                $esFinanciero = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'financiero');
+                $query = "SELECT c.*, cli.*, g.ges_id, g.us_id,
+                                 p.pag_id, p.pag_monto, p.pag_fecha AS pag_fecha_reg, p.pag_observacion,
+                                 p.pag_estado, u.name_user AS gestor_nombre
+                          FROM cartera c
+                          JOIN cliente cli ON c.cli_id = cli.cli_id
+                          JOIN gestion g ON g.car_id = c.car_id AND g.pag_id IS NOT NULL
+                          JOIN pago p ON g.pag_id = p.pag_id
+                          JOIN usuario u ON g.us_id = u.id_user
+                          WHERE c.car_estado = 'pendiente_confirmacion'
+                          AND c.car_tipo = '$cartera'
+                          AND p.pag_estado = 'pendiente'
+                          ORDER BY g.ges_fecha DESC";
+                $result = mysqli_query($mysqli, $query); ?>
+                <table id="table_pendiente_confirmacion" class="table table-striped table-bordered" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>No.</th><th>Ciudad</th><th>Cliente</th><th>Monto a Pagar</th>
+                            <th>Monto Pagado</th><th>Obs. Pago</th><th>Fecha Registro</th>
+                            <th>Gestor</th><th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php $no = 1; while ($row = mysqli_fetch_array($result)) { ?>
+                            <tr>
+                                <td><?php echo $no; ?></td>
+                                <td><?php echo $row['cli_ciudad']; ?></td>
+                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
+                                <td><?php echo $row['cli_valor_pagar']; ?></td>
+                                <td><?php echo $row['pag_monto']; ?></td>
+                                <td><?php echo $row['pag_observacion']; ?></td>
+                                <td><?php echo $row['pag_fecha_reg']; ?></td>
+                                <td><?php echo $row['gestor_nombre']; ?></td>
+                                <td>
+                                    <?php if ($esFinanciero): ?>
+                                    <a class='btn btn-success btn-md' onclick="confirmarPago(<?php echo $row['pag_id']; ?>, <?php echo $row['car_id']; ?>)" title='Confirmar' data-toggle='tooltip'>
+                                        <i style='color:#fff' class='icon dripicons-checkmark'></i>
+                                    </a>
+                                    <a class='btn btn-danger btn-md' onclick="rechazarPago(<?php echo $row['pag_id']; ?>, <?php echo $row['car_id']; ?>)" title='Rechazar' data-toggle='tooltip'>
+                                        <i style='color:#fff' class='icon dripicons-wrong'></i>
+                                    </a>
+                                    <?php endif; ?>
+                                    <a class='btn btn-info btn-md' onclick="ver_observacion(<?php echo $row['ges_id']; ?>)" title='Ver Observación' data-toggle='tooltip'>
+                                        <i style='color:#fff' class='icon dripicons-blog'></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php $no++; } ?>
+                    </tbody>
+                </table>
+<?php
+                break;
             default:
                 # code...
                 break;
@@ -346,22 +472,20 @@ switch ($action) {
         $tipo_gestion = $_POST['tipo_gestion'];
         $tipo_contacto = $_POST['tipo_contacto'];
         $respuesta = $_POST['respuesta'];
-        if(isset($_POST['numero_contacto'])){
-            $numero_contacto = $_POST['numero_contacto'];
-        }
+        $numero_contacto = $_POST['numero_contacto'] ?? '';
+        $email_contacto  = $_POST['email_contacto']  ?? '';
         $observacion_gestion = $_POST['observacion_gestion'];
         $us_id = $_SESSION['id_user'];
         if ($respuesta == 'pago') {
             $monto = $_POST['monto'];
             $observacion = $_POST['observacion'];
-            $estado = 'cobrada';
+            $estado = 'pendiente_confirmacion';
         } else if ($respuesta == 'compromiso') {
             $monto_compromiso = $_POST['monto_compromiso'];
             $fecha_compromiso = $_POST['fecha_compromiso'];
             $estado = 'compromiso';
         } else if($respuesta == 'notificacion'){
             $estado = 'notificacion';
-            $email_contacto = $_POST['email_contacto'];
         }
         $id_pago = '';
         $id_com = '';
@@ -375,7 +499,8 @@ switch ($action) {
             } else {
                 $id_pago = 1;
             }
-            $queryPago = "INSERT into pago(pag_id,pag_monto,pag_fecha,pag_observacion)values('$id_pago','$monto','$fecha_actual','$observacion')";
+            $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+            $queryPago = "INSERT into pago(pag_id,pag_monto,pag_fecha,pag_observacion,pag_estado)values('$id_pago','$monto','$fecha_actual','$observacion','pendiente')";
             $resPago = mysqli_query($mysqli, $queryPago) or die('error pago:' . mysqli_error($mysqli));
         }
 
@@ -396,7 +521,7 @@ switch ($action) {
         if ($estado == 'pendiente') {
             $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_contacto,ges_observacion,us_id,car_id,ges_fecha)
                         values('$tipo_gestion','$tipo_contacto','$respuesta','$numero_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
-        } elseif ($estado == 'cobrada') {
+        } elseif ($estado == 'cobrada' || $estado == 'pendiente_confirmacion') {
             $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_contacto,ges_observacion,us_id,car_id,pag_id,ges_fecha)
                         values('$tipo_gestion','$tipo_contacto','$respuesta','$numero_contacto','$observacion_gestion','$us_id','$car_id','$id_pago','$fecha_actual')";
         } elseif ($estado == 'compromiso') {
@@ -407,10 +532,21 @@ switch ($action) {
                         values('$tipo_gestion','$tipo_contacto','$respuesta','$numero_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
         }
         
-        if($tipo_gestion == 'email'){
-            $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,ges_fecha)
-                        values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
-        } 
+        if($tipo_gestion == 'correo'){
+            if ($estado == 'pendiente') {
+                $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,ges_fecha)
+                            values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
+            } elseif ($estado == 'cobrada' || $estado == 'pendiente_confirmacion') {
+                $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,pag_id,ges_fecha)
+                            values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$id_pago','$fecha_actual')";
+            } elseif ($estado == 'compromiso') {
+                $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,com_id,ges_fecha)
+                            values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$id_com','$fecha_actual')";
+            } else {
+                $queryGestion = "INSERT INTO gestion(ges_tipo_gestion,ges_tipo_contacto,ges_respuesta,ges_email_contacto,ges_observacion,us_id,car_id,ges_fecha)
+                            values('$tipo_gestion','$tipo_contacto','$respuesta','$email_contacto','$observacion_gestion','$us_id','$car_id','$fecha_actual')";
+            }
+        }
 
         $res = mysqli_query($mysqli, $queryGestion) or die('error gestion:' . mysqli_error($mysqli));
 
@@ -580,16 +716,27 @@ switch ($action) {
                     <th>Monto</th>
                     <th>Observación</th>
                     <th>Gestor</th>
+                    <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                while ($row = mysqli_fetch_array($res)) { ?>
+                while ($row = mysqli_fetch_array($res)) {
+                    $pag_estado_val = $row['pag_estado'] ?? 'confirmado';
+                    if ($pag_estado_val === 'pendiente') {
+                        $pag_estado_badge = "<span class='badge badge-warning'>Pendiente</span>";
+                    } elseif ($pag_estado_val === 'rechazado') {
+                        $pag_estado_badge = "<span class='badge badge-danger'>Rechazado</span>";
+                    } else {
+                        $pag_estado_badge = "<span class='badge badge-success'>Confirmado</span>";
+                    }
+                ?>
                     <tr>
                         <td><?php echo $row['pag_fecha']; ?></td>
                         <td><?php echo $row['pag_monto']; ?></td>
                         <td><?php echo $row['pag_observacion']; ?></td>
                         <td><?php echo $row['name_user']; ?></td>
+                        <td><?php echo $pag_estado_badge; ?></td>
                     </tr>
 
                 <?php
@@ -599,6 +746,63 @@ switch ($action) {
         </table>
 <?php
         break;
+    case 'confirmar_pago':
+        header('Content-Type: application/json');
+        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'financiero')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break;
+        }
+        $pag_id = (int)($_POST['pag_id'] ?? 0);
+        $car_id = (int)($_POST['car_id'] ?? 0);
+        if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+        $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
+        $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
+        $fechaConf  = date('Y-m-d H:i:s');
+        $confirmador = mysqli_real_escape_string($mysqli, $_SESSION['name_user'] ?? 'Financiero');
+        $mysqli->query("UPDATE pago SET pag_estado = 'confirmado', pag_fecha_confirmacion = '$fechaConf', pag_confirmado_por = '$confirmador' WHERE pag_id = $pag_id");
+        $mysqli->query("UPDATE cartera SET car_estado = 'cobrada' WHERE car_id = $car_id");
+
+        // EC-E: al confirmar el pago de la cartera, avanzar automáticamente
+        // una cuota de las ventas diferidas activas de los empleados de ese
+        // mismo cliente que ya iniciaron dentro del período pagado, sin
+        // necesidad del click manual "Confirmar Pago de Cuota" en Ventas Diferidas.
+        $cuotasPagadas = 0;
+        $car = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cli_id, car_fecha_fin FROM cartera WHERE car_id = $car_id"));
+        if ($car && !empty($car['car_fecha_fin'])) {
+            $cliId      = (int)$car['cli_id'];
+            $finPeriodo = mysqli_real_escape_string($mysqli, $car['car_fecha_fin']);
+            $rVd = mysqli_query($mysqli, "SELECT vd.vd_id, vd.vd_cuotas_pagadas, vd.vd_num_cuotas
+                                           FROM venta_diferida vd
+                                           JOIN personal p ON vd.per_id = p.per_id
+                                           WHERE p.cli_id = $cliId AND vd.vd_estado = 'activo' AND vd.vd_fecha_inicio <= '$finPeriodo'");
+            while ($vd = mysqli_fetch_assoc($rVd)) {
+                $pagadas = (int)$vd['vd_cuotas_pagadas'] + 1;
+                $total   = (int)$vd['vd_num_cuotas'];
+                $estado  = ($pagadas >= $total) ? 'completado' : 'activo';
+                mysqli_query($mysqli, "UPDATE venta_diferida SET vd_cuotas_pagadas = $pagadas, vd_estado = '$estado' WHERE vd_id = " . (int)$vd['vd_id']);
+                $cuotasPagadas++;
+            }
+        }
+
+        $mensaje = 'Pago confirmado correctamente';
+        if ($cuotasPagadas > 0) {
+            $mensaje .= ". Se registró el avance de $cuotasPagadas cuota(s) de venta diferida.";
+        }
+        echo json_encode(['success' => true, 'mensaje' => $mensaje]);
+        break;
+
+    case 'rechazar_pago':
+        header('Content-Type: application/json');
+        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'financiero')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break;
+        }
+        $pag_id = (int)($_POST['pag_id'] ?? 0);
+        $car_id = (int)($_POST['car_id'] ?? 0);
+        if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+        $mysqli->query("UPDATE pago SET pag_estado = 'rechazado' WHERE pag_id = $pag_id");
+        $mysqli->query("UPDATE cartera SET car_estado = 'pendiente' WHERE car_id = $car_id");
+        echo json_encode(['success' => true, 'mensaje' => 'Pago rechazado. La cartera vuelve a Pendiente.']);
+        break;
+
     default:
         # code...
         break;

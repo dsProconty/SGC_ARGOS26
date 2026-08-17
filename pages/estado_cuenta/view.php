@@ -89,7 +89,7 @@
                 <h5 class="modal-title">Estado de Cuenta</h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
-            <div class="modal-body" id="ec_content"></div>
+            <div class="modal-body" id="ec_content" style="max-height:65vh; overflow-y:auto;"></div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="btn_imprimir_ec" style="color:#fff;">
                     <i class="icon dripicons-file-pdf"></i> Generar PDF

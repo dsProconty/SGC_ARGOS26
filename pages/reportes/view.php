@@ -46,11 +46,15 @@ $tipo = $_GET['tipo'];
                                                 <div class="col-sm-4">
                                                     <label for="">Marca</label>
                                                     <select name="marca" id="marca" class="form-control">
-                                                        <option value="0">Seleccione una marca</option>
-                                                        <option value="PIZZA HUT">PIZZA HUT</option>
-                                                        <option value="FRIDAYS">FRIDAYS</option>
-                                                        <option value="OTROS">OTROS</option>
-                                                        <option value="TODOS">TODOS</option>
+                                                        <option value="TODOS">— Todas las marcas —</option>
+                                                        <?php
+                                                        $resMarcas = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE mar_id != 9999 ORDER BY mar_descripcion ASC");
+                                                        while ($m = mysqli_fetch_assoc($resMarcas)):
+                                                        ?>
+                                                            <option value="<?php echo htmlspecialchars($m['mar_descripcion']); ?>">
+                                                                <?php echo htmlspecialchars($m['mar_descripcion']); ?>
+                                                            </option>
+                                                        <?php endwhile; ?>
                                                     </select>
                                                 </div>
                                             </div>
@@ -148,7 +152,26 @@ $tipo = $_GET['tipo'];
                                 break;
                             case 'dinero por edades de cartera':
                             ?>
-
+                                <div class="row">
+                                    <div class="col-sm-10 offset-sm-1">
+                                        <div class="alert alert-info">
+                                            <span class="icon"><i class="dripicons-information"></i></span>
+                                            <span class="text">Este reporte muestra la deuda agrupada por cliente según la edad de la cartera (30, 60, 90 y más de 90 días).
+                                            Solo incluye carteras con estado <strong>pendiente</strong>, <strong>notificación</strong> o <strong>compromiso</strong>.</span>
+                                        </div>
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info">
+                                                        <i class="icon dripicons-cloud-download" style="color:white"></i> Descargar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
                             <?php
                                 break;
                             case 'cartera recuperada':

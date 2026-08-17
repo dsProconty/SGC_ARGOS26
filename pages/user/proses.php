@@ -1,6 +1,5 @@
-
-
 <?php
+ob_start();
 session_start();
 
 
@@ -21,21 +20,23 @@ else {
 			$name_user   = mysqli_real_escape_string($mysqli, trim($_POST['name_user']));
 			$per_id_form = (int)($_POST['per_id'] ?? 0);
 			$cli_id_val  = !empty($_POST['cli_id']) ? (int)$_POST['cli_id'] : 'NULL';
+			$loc_id_val  = !empty($_POST['loc_id']) ? (int)$_POST['loc_id'] : 'NULL';
 
 			// Derive permisos_acceso from profile name (session compatibility)
 			$pr_res = mysqli_query($mysqli, "SELECT per_nombre FROM perfil WHERE per_id=$per_id_form AND per_activo=1");
 			$pr_row = $pr_res ? mysqli_fetch_assoc($pr_res) : null;
 			$permisos_acceso = $pr_row ? mysqli_real_escape_string($mysqli, $pr_row['per_nombre']) : '';
 
-            $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,permisos_acceso,per_id,cli_id)
-                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val)")
-                                            or die('error: '.mysqli_error($mysqli));    
+            $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,permisos_acceso,per_id,cli_id,loc_id)
+                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val,$loc_id_val)");
 
-          
             if ($query) {
                 header("location: ../../main.php?module=usuarios&alert=1");
+                exit;
+            } else {
+                echo "<script>alert('Error al crear usuario: " . addslashes(mysqli_error($mysqli)) . "'); history.back();</script>";
             }
-		}	
+		}
 	}
 	
 	elseif ($_GET['act']=='update') {
@@ -91,14 +92,16 @@ else {
 				}
 		
 				elseif (!empty($_POST['password']) && empty($_FILES['foto']['name'])) {
-					
+
                     $query = mysqli_query($mysqli, "UPDATE usuario SET username='$username',
                                                                   name_user='$name_user',
                                                                   password='$password',
                                                                   email='$email',
                                                                   telefono='$telefono',
                                                                   permisos_acceso='$permisos_acceso',
-                                                                  per_id=$per_id_form
+                                                                  per_id=$per_id_form,
+                                                                  cli_id=$cli_id_val,
+                                                                  loc_id=$loc_id_val
                                                                   WHERE id_user='$id_user'")
                                                     or die('error : '.mysqli_error($mysqli));
 
@@ -123,7 +126,9 @@ else {
 			                                                                  telefono='$telefono',
 			                                                                  foto='$name_file',
 			                                                                  permisos_acceso='$permisos_acceso',
-			                                                                  per_id=$per_id_form
+			                                                                  per_id=$per_id_form,
+			                                                                  cli_id=$cli_id_val,
+			                                                                  loc_id=$loc_id_val
 			                                                                  WHERE id_user='$id_user'")
 			                                                    or die('error : '.mysqli_error($mysqli));
 
@@ -160,7 +165,9 @@ else {
 			                                                                  telefono='$telefono',
 			                                                                  foto='$name_file',
 			                                                                  permisos_acceso='$permisos_acceso',
-			                                                                  per_id=$per_id_form
+			                                                                  per_id=$per_id_form,
+			                                                                  cli_id=$cli_id_val,
+			                                                                  loc_id=$loc_id_val
 			                                                                  WHERE id_user='$id_user'")
 			                                                    or die('error: '.mysqli_error($mysqli));
 

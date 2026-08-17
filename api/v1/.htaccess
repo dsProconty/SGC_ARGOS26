@@ -1,0 +1,32 @@
+# Front controller de la API v1: todo entra por index.php.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Copiar la cabecera Authorization a una variable de entorno. Con PHP en
+    # CGI/FastCGI (lo habitual en cPanel) Apache no la expone en $_SERVER y
+    # la autenticación fallaría solo en producción. Sin [L]: debe seguir
+    # evaluando la regla de routing de abajo.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Sin RewriteBase a propósito: en producción la app cuelga de un
+    # subdirectorio (/SGC_ARGOS26/) y fijarla aquí rompería el despliegue.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php?_ruta=$1 [QSA,L]
+</IfModule>
+
+# Sin listado de directorio si mod_rewrite no estuviera disponible.
+Options -Indexes
+
+# lib.php es código interno, no un endpoint.
+<Files "lib.php">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>

@@ -143,7 +143,7 @@ $('#form_gestion').submit(function (e) {
     if ($('#tipo_gestion').val() != 0) {
         if ($('#tipo_contacto').val() != 0) {
             if ($('#respuesta').val() != 0) {
-                if ($('#tipo_gestion').val() == 'email' && $('#email_contacto').val() == '') {
+                if ($('#tipo_gestion').val() == 'correo' && $('#email_contacto').val() == '') {
                     alert('El email de contacto es requerido')
                 } else {
                     if ($('#tipo_gestion').val() == 'telefonica' && $('#numero_contacto').val() == '') {

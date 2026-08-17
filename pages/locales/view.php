@@ -1,5 +1,7 @@
 <?php
-if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admin') {
+require_once 'config/database.php';
+require_once 'helpers/session_helpers.php';
+if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     echo "<meta http-equiv='refresh' content='0; url=index.php'>";
     exit;
 }
@@ -402,6 +404,30 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
     <section class="page-content container-fluid">
         <div id="locales-wrap">
 
+            <!-- LC-A: KPI marcas/sucursales -->
+            <?php
+            $totalMarcas = (int)mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) c FROM marca"))['c'];
+            $totalLocales = (int)mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) c FROM local"))['c'];
+            ?>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="card text-center" style="border-left:4px solid var(--arg-blue);">
+                        <div class="card-body py-2">
+                            <h4 class="font-weight-bold mb-0" style="color:var(--arg-blue);"><?= $totalMarcas ?></h4>
+                            <small class="text-muted">Marcas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center" style="border-left:4px solid var(--arg-teal);">
+                        <div class="card-body py-2">
+                            <h4 class="font-weight-bold mb-0" style="color:var(--arg-teal);"><?= $totalLocales ?></h4>
+                            <small class="text-muted">Sucursales</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Header -->
             <div class="loc-header">
                 <div class="loc-header-left">
@@ -566,7 +592,7 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
     // ═══════════════════════════════════════════════
     // CARGA DE MARCAS
     // ═══════════════════════════════════════════════
-    function cargarMarcas() {
+    function cargarMarcas(callback) {
         $.getJSON(AJAX_URL + '?action=list_marcas', function (r) {
             if (!r.success) return;
             marcasData = r.data;
@@ -579,6 +605,8 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
             $('#suc_mar_id').html(opts);
 
             renderMarcas(r.data);
+
+            if (typeof callback === 'function') callback();
         });
     }
 
@@ -729,14 +757,17 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
         var id = $('#marca_id').val();
         var btn = $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
         $.ajax({
-            url: AJAX_URL, type: 'POST',
-            data: { action: id ? 'editar_marca' : 'crear_marca', mar_id: id, mar_descripcion: nombre },
+            url: AJAX_URL + '?action=' + (id ? 'editar_marca' : 'crear_marca'),
+            type: 'POST',
+            data: { mar_id: id, mar_descripcion: nombre },
             dataType: 'json',
             success: function (r) {
                 if (r.success) { $('#modal_marca').modal('hide'); cargarMarcas(); }
                 else alert(r.mensaje);
             },
-            error: function () { alert('Error de conexión'); },
+            error: function (xhr, status, err) {
+                alert('Error al guardar la marca. Por favor intente nuevamente.');
+            },
             complete: function () { btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar'); }
         });
     });
@@ -819,14 +850,13 @@ if (!isset($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admi
             success: function (r) {
                 if (r.success) {
                     $('#modal_sucursal').modal('hide');
-                    cargarMarcas();
-                    // Reabrir la marca correspondiente
-                    setTimeout(function () {
+                    cargarMarcas(function () {
+                        // Reabrir la marca correspondiente una vez que el DOM esté listo
                         expandedId = parseInt(mar_id);
                         $('#marca-row-' + mar_id).addClass('expanded');
                         $('#detail-row-' + mar_id).addClass('open');
                         cargarSucursales(mar_id);
-                    }, 300);
+                    });
                 } else { alert(r.mensaje); }
             },
             error: function () { alert('Error de conexión'); },

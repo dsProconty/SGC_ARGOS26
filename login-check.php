@@ -20,13 +20,14 @@ else {
 		$data  = mysqli_fetch_assoc($query);
 
 		session_start();
-		$_SESSION['id_user']   = $data['id_user'];
-		$_SESSION['username']  = $data['username'];
-		$_SESSION['password']  = $data['password'];
-		$_SESSION['name_user'] = $data['name_user'];
+		$_SESSION['id_user']         = $data['id_user'];
+		$_SESSION['username']        = $data['username'];
+		$_SESSION['password']        = $data['password'];
+		$_SESSION['name_user']       = $data['name_user'];
 		$_SESSION['permisos_acceso'] = $data['permisos_acceso'];
 		$_SESSION['loc_id']          = $data['loc_id'];
 		$_SESSION['cli_id']          = $data['cli_id'];
+		$_SESSION['session_version'] = isset($data['session_version']) ? (int)$data['session_version'] : 0;
 		
 		header("Location: services/load_data.php?action=carga_data");
 	}

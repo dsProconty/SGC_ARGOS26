@@ -5,10 +5,11 @@ $(document).ready(function () {
 function load_usuarios(){
     $.ajax({
         type: "GET",
-        url: "ajax/users/users.php?action=list",
+        url: "ajax/users/users.php?action=list&_=" + Date.now(),
+        cache: false,
         success: function (response) {
             $('#loader_usuarios').html(response);
-            $('#table_usuarios').dataTable();        
+            $('#table_usuarios').dataTable();
         }
     });
 }

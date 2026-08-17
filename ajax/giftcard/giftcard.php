@@ -1,6 +1,18 @@
 <?php
+// Suprimir warnings/notices en producción para no corromper respuestas JSON
+error_reporting(0);
+ob_start();
+
+// Fecha/hora de Ecuador (sin horario de verano) para date() en PHP y para
+// las columnas DATETIME DEFAULT CURRENT_TIMESTAMP (aph_timestamp,
+// lgc_fecha, sol_fecha_solicitud), que sin esto usan el timezone del
+// servidor de MySQL y quedaban una hora adelantadas.
+date_default_timezone_set('America/Guayaquil');
+
 session_start();
 require_once '../../config/database.php';
+require_once '../../services/giftcard_solicitud.php';
+mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
     header('Content-Type: application/json');
@@ -12,10 +24,27 @@ $action  = $_GET['action'] ?? $_POST['action'] ?? '';
 $rol     = $_SESSION['permisos_acceso'] ?? '';
 $id_user = (int)$_SESSION['id_user'];
 
+// Acepta rol legacy O el perfil nuevo asignado (per_id -> perfil.per_nombre)
+$esSuperAdminGC = (strtolower($rol) === 'super admin');
+if (!$esSuperAdminGC) {
+    $qPerfilGC2 = $mysqli->prepare(
+        "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+    );
+    $qPerfilGC2->bind_param('i', $id_user);
+    $qPerfilGC2->execute();
+    $rowPerfilGC2 = $qPerfilGC2->get_result()->fetch_assoc();
+    if ($rowPerfilGC2) {
+        $esSuperAdminGC = strtolower($rowPerfilGC2['per_nombre']) === 'super admin';
+    }
+}
+// "Cliente" de Gift Cards: rol legacy conocido, o cualquier usuario con
+// empresa asignada (cli_id) que no sea administrador.
+$esClienteGC = !$esSuperAdminGC && (in_array($rol, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
+
 // ─────────────────────────────────────────────
 // Helper: envío de email
 // ─────────────────────────────────────────────
-function enviar_email(?string $para, string $asunto, string $cuerpo): void {
+function enviar_email($para, $asunto, $cuerpo) {
     if (!$para) return;
     $headers  = "MIME-Version: 1.0\r\n";
     $headers .= "Content-type: text/html; charset=utf-8\r\n";
@@ -27,7 +56,10 @@ function enviar_email(?string $para, string $asunto, string $cuerpo): void {
 // Helper: obtener email del Super Admin
 // ─────────────────────────────────────────────
 function get_superadmin_email($mysqli): string {
-    $r = mysqli_query($mysqli, "SELECT email FROM usuario WHERE permisos_acceso='Super Admin' AND email IS NOT NULL AND email <> '' LIMIT 1");
+    $r = mysqli_query($mysqli, "SELECT u.email FROM usuario u
+                                 LEFT JOIN perfil p ON u.per_id = p.per_id
+                                 WHERE (u.permisos_acceso = 'Super Admin' OR p.per_nombre = 'Super Admin')
+                                   AND u.email IS NOT NULL AND u.email <> '' LIMIT 1");
     if ($r && $row = mysqli_fetch_assoc($r)) return $row['email'];
     return '';
 }
@@ -41,10 +73,13 @@ switch ($action) {
         header('Content-Type: text/html');
         $query = "SELECT l.lgc_id, l.lgc_cantidad, l.lgc_cupo_codigo, l.lgc_fecha, l.lgc_periodo_facturacion,
                          u.name_user,
+                         COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre,
                          COALESCE(SUM(CASE WHEN c.cgc_estado = 'activo'    THEN 1 ELSE 0 END), 0) AS disponibles,
                          COALESCE(SUM(CASE WHEN c.cgc_estado = 'consumido' THEN 1 ELSE 0 END), 0) AS consumidos
                   FROM lote_gift_card l
                   JOIN usuario u ON l.id_user = u.id_user
+                  LEFT JOIN cliente c_directo ON l.cli_id = c_directo.cli_id
+                  LEFT JOIN cliente c_usuario ON u.cli_id = c_usuario.cli_id
                   LEFT JOIN codigo_gift_card c ON l.lgc_id = c.lgc_id
                   GROUP BY l.lgc_id
                   ORDER BY l.lgc_id DESC";
@@ -53,7 +88,7 @@ switch ($action) {
         <table id="table_lotes" class="table table-striped table-bordered" style="width:100%">
             <thead>
                 <tr>
-                    <th>No.</th><th>Fecha Creación</th><th>Período Facturación</th>
+                    <th>No.</th><th>Fecha Creación</th><th>Cliente</th><th>Período Facturación</th>
                     <th>Cantidad</th><th>Cupo x Código</th><th>Disponibles</th>
                     <th>Consumidos</th><th>Creado por</th><th>Acciones</th>
                 </tr>
@@ -63,6 +98,7 @@ switch ($action) {
                 <tr>
                     <td><?php echo $no; ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['lgc_fecha'])); ?></td>
+                    <td><?php echo htmlspecialchars($row['cliente_nombre']); ?></td>
                     <td><?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?></td>
                     <td><?php echo $row['lgc_cantidad']; ?></td>
                     <td>$<?php echo number_format($row['lgc_cupo_codigo'], 2); ?></td>
@@ -70,9 +106,13 @@ switch ($action) {
                     <td><span class="badge badge-secondary"><?php echo $row['consumidos']; ?></span></td>
                     <td><?php echo htmlspecialchars($row['name_user']); ?></td>
                     <td>
-                        <a class="btn btn-info btn-md" title="Ver Códigos"
+                        <a class="btn btn-info btn-md mr-1" title="Ver Códigos"
                            onclick="ver_codigos(<?php echo $row['lgc_id']; ?>, '<?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?>')">
                             <i style="color:#fff" class="icon dripicons-list"></i>
+                        </a>
+                        <a class="btn btn-outline-secondary btn-md" title="Ver historial de aprobación"
+                           onclick="verHistorialLote(<?php echo $row['lgc_id']; ?>)">
+                            <i class="icon dripicons-clock"></i>
                         </a>
                     </td>
                 </tr>
@@ -88,12 +128,9 @@ switch ($action) {
     case 'list_codigos':
         header('Content-Type: text/html');
         $lgc_id = (int)($_GET['lgc_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
+        $result = mysqli_query($mysqli, "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
                                            cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad, cgc_fecha_uso
-                                    FROM codigo_gift_card WHERE lgc_id = ? ORDER BY cgc_id ASC");
-        $stmt->bind_param('i', $lgc_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
+                                    FROM codigo_gift_card WHERE lgc_id = $lgc_id ORDER BY cgc_id ASC");
         $badges = ['activo' => 'success', 'consumido' => 'secondary', 'vencido' => 'warning', 'anulado' => 'danger'];
         ?>
         <table id="table_codigos" class="table table-striped table-bordered" style="width:100%">
@@ -104,7 +141,7 @@ switch ($action) {
                 </tr>
             </thead>
             <tbody>
-                <?php $no = 1; while ($row = $result->fetch_assoc()) {
+                <?php $no = 1; while ($row = mysqli_fetch_assoc($result)) {
                     $color = $badges[$row['cgc_estado']] ?? 'info'; ?>
                 <tr>
                     <td><?php echo $no; ?></td>
@@ -130,42 +167,65 @@ switch ($action) {
         break;
 
     // ══════════════════════════════════════════════════
-    // CREAR LOTE — Super Admin crea lote directo
+    // CREAR LOTE — GC-B: Super Admin arma la solicitud de un lote directo
+    // desde el módulo Gift Card (en vez de que la origine el cliente final
+    // desde Portal Empresa), asociándola a un cliente existente (elegido
+    // en el selector) o a uno nuevo creado en el momento. NO se aprueba
+    // sola: queda PENDING igual que cualquier otra solicitud, y sube a
+    // "Aprobaciones Pendientes" para pasar por el mismo flujo de revisión
+    // (aprobar_solicitud es quien genera los códigos y la cobranza).
     // ══════════════════════════════════════════════════
     case 'crear_lote':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') {
+        if (!$esSuperAdminGC) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
             break;
         }
-        $cantidad  = (int)($_POST['cantidad'] ?? 0);
-        $cupo      = (float)($_POST['cupo_codigo'] ?? 0);
-        $periodo   = trim($_POST['periodo_facturacion'] ?? '');
-        $caducidad = trim($_POST['fecha_caducidad'] ?? '');
+        $cli_id         = (int)($_POST['cli_id'] ?? 0);
+        $nuevo_cliente  = trim($_POST['nuevo_cliente'] ?? '');
+        $cantidad       = (int)($_POST['cantidad'] ?? 0);
+        $cupo           = (float)($_POST['cupo_codigo'] ?? 0);
+        $periodo        = trim($_POST['periodo_facturacion'] ?? '');
+        $caducidad      = trim($_POST['fecha_caducidad'] ?? '');
 
-        if ($cantidad <= 0 || $cantidad > 1000 || $cupo <= 0 || !$periodo || !$caducidad) {
+        // La elección del cliente es propia de este modal; el resto de reglas
+        // se comparten con la API externa (services/giftcard_solicitud.php)
+        // para que no se desincronicen. Modo NO estricto: la UI conserva
+        // exactamente las validaciones que ya tenía.
+        $datos_solicitud = [
+            'cantidad'            => $cantidad,
+            'cupo_codigo'         => $cupo,
+            'periodo_facturacion' => $periodo,
+            'fecha_caducidad'     => $caducidad,
+        ];
+
+        if ((!$cli_id && $nuevo_cliente === '') || gc_validar_solicitud($datos_solicitud, false)) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos o inválidos']);
             break;
         }
 
-        $stmt = $mysqli->prepare("INSERT INTO lote_gift_card (id_user, lgc_cantidad, lgc_cupo_codigo, lgc_periodo_facturacion) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param('iids', $id_user, $cantidad, $cupo, $periodo);
-        if (!$stmt->execute()) {
-            echo json_encode(['success' => false, 'mensaje' => 'Error al crear lote']);
-            break;
-        }
-        $lgc_id = $mysqli->insert_id;
-        $now    = date('Y-m-d H:i:s');
-        $errors = 0;
+        $mysqli->begin_transaction();
+        try {
+            if (!$cli_id) {
+                $sc = $mysqli->prepare("INSERT INTO cliente (cli_descripcion, cli_tipo_cliente) VALUES (?, 'Gift Card')");
+                $sc->bind_param('s', $nuevo_cliente);
+                if (!$sc->execute()) throw new Exception('Error al crear el cliente');
+                $cli_id = $mysqli->insert_id;
+            } else {
+                $chkCli = $mysqli->prepare("SELECT cli_id FROM cliente WHERE cli_id = ?");
+                $chkCli->bind_param('i', $cli_id);
+                $chkCli->execute();
+                if (!$chkCli->get_result()->fetch_assoc()) throw new Exception('Cliente no encontrado');
+            }
 
-        $ins = $mysqli->prepare("INSERT INTO codigo_gift_card (lgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad) VALUES (?, ?, ?, ?, 'activo', ?, ?)");
-        for ($i = 0; $i < $cantidad; $i++) {
-            $codigo = strtoupper(bin2hex(random_bytes(6)));
-            $ins->bind_param('isddss', $lgc_id, $codigo, $cupo, $cupo, $now, $caducidad);
-            if (!$ins->execute()) $errors++;
+            gc_crear_solicitud($mysqli, $id_user, $cli_id, $datos_solicitud);
+
+            $mysqli->commit();
+            echo json_encode(['success' => true, 'mensaje' => 'Solicitud creada, pendiente de aprobación.']);
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
         }
-        $generados = $cantidad - $errors;
-        echo json_encode(['success' => true, 'mensaje' => "Lote creado con $generados códigos generados."]);
         break;
 
     // ══════════════════════════════════════════════════
@@ -173,8 +233,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'solicitar_lote':
         header('Content-Type: application/json');
-        $roles_cliente = ['cliente_giftcard', 'empresa_cliente'];
-        if (!in_array($rol, $roles_cliente)) {
+        if (!$esClienteGC) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para solicitar lotes']);
             break;
         }
@@ -189,6 +248,10 @@ switch ($action) {
         }
 
         $stmt = $mysqli->prepare("INSERT INTO giftcard_solicitud (id_user, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion, sol_fecha_caducidad, sol_estado) VALUES (?, ?, ?, ?, ?, 'PENDING')");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'mensaje' => 'Funcionalidad no disponible. Contacte al administrador para activar el módulo de solicitudes.']);
+            break;
+        }
         $stmt->bind_param('iidss', $id_user, $cantidad, $cupo, $periodo, $caducidad);
         if (!$stmt->execute()) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al registrar solicitud']);
@@ -196,10 +259,21 @@ switch ($action) {
         }
         $sol_id = $mysqli->insert_id;
 
-        $ru = $mysqli->prepare("SELECT name_user, email FROM usuario WHERE id_user = ?");
-        $ru->bind_param('i', $id_user);
-        $ru->execute();
-        $solicitante = $ru->get_result()->fetch_assoc();
+        // Obtener datos del solicitante (bind_result, no requiere mysqlnd)
+        $solicitante = ['name_user' => '', 'email' => ''];
+        $ru = $mysqli->prepare("SELECT name_user FROM usuario WHERE id_user = ?");
+        if ($ru) {
+            $ru->bind_param('i', $id_user);
+            $ru->execute();
+            $name_user_val = '';
+            $ru->bind_result($name_user_val);
+            $ru->fetch();
+            $ru->close();
+            $solicitante['name_user'] = $name_user_val;
+        }
+        // Email: query directa con supresión de error si columna no existe
+        $re = @$mysqli->query("SELECT email FROM usuario WHERE id_user = " . (int)$id_user . " LIMIT 1");
+        if ($re && $row_re = mysqli_fetch_assoc($re)) $solicitante['email'] = $row_re['email'] ?? '';
 
         $admin_email  = get_superadmin_email($mysqli);
         $asunto_admin = "Nueva solicitud de Gift Cards #$sol_id";
@@ -228,59 +302,55 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'list_solicitudes':
         header('Content-Type: text/html');
-        if ($rol !== 'Super Admin') {
+        if (!$esSuperAdminGC) {
             echo '<div class="alert alert-danger">Sin permisos</div>';
             break;
         }
+        // Solo PENDING: esta tabla es la cola de trabajo por revisar. El
+        // historial de las ya aprobadas/rechazadas se ve desde "Lotes de
+        // Gift Cards" (aprobadas) vía el ícono de reloj en Acciones; las
+        // rechazadas no generan lote y no tienen otra vista por ahora.
         $query  = "SELECT s.sol_id, s.sol_cantidad, s.sol_cupo_codigo, s.sol_periodo_facturacion,
-                          s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
-                          u.name_user, u.email
+                          s.sol_fecha_caducidad, s.sol_fecha_solicitud,
+                          u.name_user,
+                          COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre
                    FROM giftcard_solicitud s
                    JOIN usuario u ON s.id_user = u.id_user
-                   ORDER BY FIELD(s.sol_estado,'PENDING','APPROVED','REJECTED'), s.sol_fecha_solicitud DESC";
+                   LEFT JOIN cliente c_directo ON s.cli_id = c_directo.cli_id
+                   LEFT JOIN cliente c_usuario ON u.cli_id = c_usuario.cli_id
+                   WHERE s.sol_estado = 'PENDING'
+                   ORDER BY s.sol_fecha_solicitud ASC";
         $result = mysqli_query($mysqli, $query);
-        $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
-        $labels = ['PENDING' => 'Pendiente', 'APPROVED' => 'Aprobado', 'REJECTED' => 'Rechazado'];
         ?>
         <table id="table_solicitudes" class="table table-striped table-bordered" style="width:100%">
             <thead>
                 <tr>
-                    <th>#</th><th>Solicitante</th><th>Cantidad</th><th>Cupo x Cód.</th>
-                    <th>Período</th><th>Caducidad</th><th>Fecha Solicitud</th><th>Estado</th><th>Acciones</th>
+                    <th>#</th><th>Solicitante</th><th>Cliente</th><th>Cantidad</th><th>Cupo x Cód.</th>
+                    <th>Período</th><th>Caducidad</th><th>Fecha Solicitud</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
-            <?php while ($row = mysqli_fetch_assoc($result)) {
-                $b = $badges[$row['sol_estado']] ?? 'secondary';
-                $l = $labels[$row['sol_estado']] ?? $row['sol_estado']; ?>
+            <?php while ($row = mysqli_fetch_assoc($result)) { ?>
                 <tr>
                     <td><?php echo $row['sol_id']; ?></td>
                     <td><?php echo htmlspecialchars($row['name_user']); ?></td>
+                    <td><?php echo htmlspecialchars($row['cliente_nombre']); ?></td>
                     <td><?php echo $row['sol_cantidad']; ?></td>
                     <td>$<?php echo number_format($row['sol_cupo_codigo'], 2); ?></td>
                     <td><?php echo date('d/m/Y', strtotime($row['sol_periodo_facturacion'])); ?></td>
                     <td><?php echo date('d/m/Y', strtotime($row['sol_fecha_caducidad'])); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['sol_fecha_solicitud'])); ?></td>
-                    <td><span class="badge badge-<?php echo $b; ?>"><?php echo $l; ?></span></td>
                     <td>
-                        <?php if ($row['sol_estado'] === 'PENDING'): ?>
-                        <button class="btn btn-sm btn-success mr-1" style="color:#fff;"
+                        <button class="btn btn-sm btn-success mr-1" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'APPROVE')"
                             title="Aprobar">
-                            <i class="icon dripicons-checkmark"></i>
+                            <i class="icon dripicons-checkmark" style="color:#fff !important;"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" style="color:#fff;"
+                        <button class="btn btn-sm btn-danger" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'REJECT')"
                             title="Rechazar">
-                            <i class="icon dripicons-cross"></i>
+                            <i class="icon dripicons-cross" style="color:#fff !important;"></i>
                         </button>
-                        <?php else: ?>
-                        <button class="btn btn-sm btn-outline-secondary"
-                            onclick="verHistorial(<?php echo $row['sol_id']; ?>)"
-                            title="Ver historial">
-                            <i class="icon dripicons-clock"></i>
-                        </button>
-                        <?php endif; ?>
                     </td>
                 </tr>
             <?php } ?>
@@ -294,15 +364,13 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'mis_solicitudes':
         header('Content-Type: text/html');
-        $stmt = $mysqli->prepare("SELECT sol_id, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion,
+        $result = mysqli_query($mysqli, "SELECT sol_id, sol_cantidad, sol_cupo_codigo, sol_periodo_facturacion,
                                          sol_fecha_caducidad, sol_estado, sol_fecha_solicitud
-                                  FROM giftcard_solicitud WHERE id_user = ? ORDER BY sol_fecha_solicitud DESC");
-        $stmt->bind_param('i', $id_user);
-        $stmt->execute();
-        $result = $stmt->get_result();
+                                  FROM giftcard_solicitud WHERE id_user = $id_user ORDER BY sol_fecha_solicitud DESC");
         $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
         $labels = ['PENDING' => 'Pendiente', 'APPROVED' => 'Aprobado', 'REJECTED' => 'Rechazado'];
-        $rows   = $result->fetch_all(MYSQLI_ASSOC);
+        $rows   = [];
+        if ($result) { while ($r = mysqli_fetch_assoc($result)) $rows[] = $r; }
         if (empty($rows)): ?>
             <div class="text-center py-5 text-muted">
                 <i class="icon dripicons-inbox" style="font-size:2.5rem; display:block; margin-bottom:10px; opacity:.4;"></i>
@@ -346,16 +414,58 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'get_solicitud':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT s.*, u.name_user, u.email
-                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
-                                    WHERE s.sol_id = ?");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
+        $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
+                                    u.name_user, COALESCE(s.cli_id, u.cli_id) AS cli_id, c.cli_descripcion
+                                    FROM giftcard_solicitud s
+                                    JOIN usuario u ON s.id_user = u.id_user
+                                    LEFT JOIN cliente c ON c.cli_id = COALESCE(s.cli_id, u.cli_id)
+                                    WHERE s.sol_id = $sol_id");
+        $row = $result ? mysqli_fetch_assoc($result) : null;
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
         echo json_encode(['success' => true, 'data' => $row]);
+        break;
+
+    // ══════════════════════════════════════════════════
+    // GC-A: CREAR CLIENTE Y VINCULARLO AL SOLICITANTE
+    // Permite, sin salir del modal de revisión de la solicitud, crear
+    // el registro de cliente y vincularlo al usuario que la solicitó
+    // cuando ese usuario aún no tiene cli_id asignado (usuario.cli_id
+    // NULL). Sin este vínculo, al aprobar la solicitud no se registra
+    // la cobranza del lote en Gestiones (ver aprobar_solicitud, paso 5).
+    // ══════════════════════════════════════════════════
+    case 'crear_cliente_solicitante':
+        header('Content-Type: application/json');
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+
+        $sol_id = (int)($_POST['sol_id'] ?? 0);
+        $desc   = trim($_POST['cli_descripcion'] ?? '');
+        if (!$sol_id || $desc === '') { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+
+        $res_sol3 = mysqli_query($mysqli, "SELECT s.id_user, COALESCE(s.cli_id, u.cli_id) AS cli_id FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = $sol_id");
+        $sol3 = $res_sol3 ? mysqli_fetch_assoc($res_sol3) : null;
+        if (!$sol3) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada']); break; }
+        if (!empty($sol3['cli_id'])) { echo json_encode(['success' => false, 'mensaje' => 'El solicitante ya tiene un cliente vinculado']); break; }
+
+        $mysqli->begin_transaction();
+        try {
+            $sc = $mysqli->prepare("INSERT INTO cliente (cli_descripcion, cli_tipo_cliente) VALUES (?, 'Gift Card')");
+            $sc->bind_param('s', $desc);
+            if (!$sc->execute()) throw new Exception('Error al crear el cliente');
+            $nuevo_cli_id = $mysqli->insert_id;
+
+            $su = $mysqli->prepare("UPDATE usuario SET cli_id = ? WHERE id_user = ?");
+            $su->bind_param('ii', $nuevo_cli_id, $sol3['id_user']);
+            if (!$su->execute()) throw new Exception('Error al vincular el cliente al usuario');
+
+            $mysqli->commit();
+            echo json_encode(['success' => true, 'mensaje' => 'Cliente creado y vinculado', 'cli_id' => $nuevo_cli_id, 'cli_descripcion' => $desc]);
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
+        }
         break;
 
     // ══════════════════════════════════════════════════
@@ -363,23 +473,26 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'aprobar_solicitud':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
 
-        $stmt = $mysqli->prepare("SELECT s.*, u.name_user, u.email FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = ? AND s.sol_estado = 'PENDING'");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $sol = $stmt->get_result()->fetch_assoc();
+        $res_sol = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad,
+                                    u.name_user, COALESCE(u.email,'') as email, COALESCE(s.cli_id, u.cli_id) AS cli_id
+                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
+        $sol = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
 
         if (!$sol) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada o ya procesada']); break; }
 
         $mysqli->begin_transaction();
         try {
-            // 1. Crear lote
-            $s1 = $mysqli->prepare("INSERT INTO lote_gift_card (id_user, lgc_cantidad, lgc_cupo_codigo, lgc_periodo_facturacion) VALUES (?, ?, ?, ?)");
-            $s1->bind_param('iids', $sol['id_user'], $sol['sol_cantidad'], $sol['sol_cupo_codigo'], $sol['sol_periodo_facturacion']);
+            // 1. Crear lote (cli_id queda registrado en el lote, igual que en GC-B,
+            //    para no depender solo de usuario.cli_id en consultas posteriores)
+            $s1 = $mysqli->prepare("INSERT INTO lote_gift_card (id_user, lgc_cantidad, lgc_cupo_codigo, lgc_periodo_facturacion, cli_id) VALUES (?, ?, ?, ?, ?)");
+            $s1->bind_param('iidsi', $sol['id_user'], $sol['sol_cantidad'], $sol['sol_cupo_codigo'], $sol['sol_periodo_facturacion'], $sol['cli_id']);
             if (!$s1->execute()) throw new Exception('Error al crear lote');
             $lgc_id = $mysqli->insert_id;
 
@@ -401,6 +514,19 @@ switch ($action) {
             $s4 = $mysqli->prepare("INSERT INTO giftcard_approval_history (sol_id, admin_id, aph_accion, aph_notas) VALUES (?, ?, 'APPROVE', ?)");
             $s4->bind_param('iis', $sol_id, $id_user, $notas);
             if (!$s4->execute()) throw new Exception('Error al registrar historial');
+
+            // 5. CO-01: registrar cobranza del lote en Gestiones (car_tipo='GC'),
+            // independiente de las carteras 30/60/90. Requiere que el cliente
+            // que solicitó el lote tenga cli_id asignado (usuario.cli_id).
+            if (!empty($sol['cli_id'])) {
+                $valorLote = $sol['sol_cantidad'] * $sol['sol_cupo_codigo'];
+                $s5 = $mysqli->prepare(
+                    "INSERT INTO cartera (car_fecha_inicio, car_fecha_fin, car_fecha_ingreso, car_estado, car_tipo, cli_valor_pagar, cli_id, lgc_id)
+                     VALUES (?, ?, CURDATE(), 'sin_gestion', 'GC', ?, ?, ?)"
+                );
+                $s5->bind_param('ssdii', $sol['sol_periodo_facturacion'], $sol['sol_periodo_facturacion'], $valorLote, $sol['cli_id'], $lgc_id);
+                if (!$s5->execute()) throw new Exception('Error al registrar cobranza del lote');
+            }
 
             $mysqli->commit();
 
@@ -425,15 +551,17 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'rechazar_solicitud':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
 
-        $stmt = $mysqli->prepare("SELECT s.*, u.name_user, u.email FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user WHERE s.sol_id = ? AND s.sol_estado = 'PENDING'");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $sol = $stmt->get_result()->fetch_assoc();
+        $res_sol2 = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
+                                    s.sol_periodo_facturacion, s.sol_fecha_caducidad,
+                                    u.name_user, COALESCE(u.email,'') as email
+                                    FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                    WHERE s.sol_id = $sol_id AND s.sol_estado = 'PENDING'");
+        $sol = $res_sol2 ? mysqli_fetch_assoc($res_sol2) : null;
 
         if (!$sol) { echo json_encode(['success' => false, 'mensaje' => 'Solicitud no encontrada o ya procesada']); break; }
 
@@ -470,49 +598,61 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'ver_historial':
         header('Content-Type: application/json');
-        if ($rol !== 'Super Admin') { echo json_encode(['success' => false]); break; }
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
-        $stmt   = $mysqli->prepare("SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
+        $res_h  = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                     FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
-                                    WHERE h.sol_id = ? ORDER BY h.aph_timestamp DESC");
-        $stmt->bind_param('i', $sol_id);
-        $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                                    WHERE h.sol_id = $sol_id ORDER BY h.aph_timestamp DESC");
+        $rows = [];
+        if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
     // ══════════════════════════════════════════════════
-    // VALIDAR CODIGO — POS (requiere solicitud APPROVED)
+    // VER HISTORIAL DE UN LOTE — ícono de reloj en "Lotes de Gift Cards".
+    // Un lote no guarda su propio historial: se resuelve la solicitud que
+    // lo originó (giftcard_solicitud.sol_lgc_id) y se reutiliza su
+    // historial de aprobación. Los lotes creados antes de este cambio (sin
+    // solicitud asociada) devuelven data vacía.
+    // ══════════════════════════════════════════════════
+    case 'ver_historial_lote':
+        header('Content-Type: application/json');
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
+        $lgc_id  = (int)($_GET['lgc_id'] ?? 0);
+        $res_sol = mysqli_query($mysqli, "SELECT sol_id FROM giftcard_solicitud WHERE sol_lgc_id = $lgc_id LIMIT 1");
+        $solRow  = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
+        if (!$solRow) { echo json_encode(['success' => true, 'data' => []]); break; }
+        $res_h = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
+                                   FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
+                                   WHERE h.sol_id = " . (int)$solRow['sol_id'] . " ORDER BY h.aph_timestamp DESC");
+        $rows = [];
+        if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
+        echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
+    // ══════════════════════════════════════════════════
+    // VALIDAR CODIGO — POS. cgc_estado='activo' ya es la fuente de verdad
+    // de que un código es utilizable: solo se inserta así al aprobar una
+    // solicitud o al crear un lote directo (GC-B), en ambos casos por un
+    // Super Admin. No se vuelve a exigir una giftcard_solicitud APPROVED
+    // aquí porque los lotes creados directo (GC-B) no tienen solicitud.
     // ══════════════════════════════════════════════════
     case 'validar_codigo':
         header('Content-Type: application/json');
         $codigo = strtoupper(trim($_GET['codigo'] ?? ''));
         if ($codigo === '') { echo json_encode(['success' => false, 'mensaje' => 'Ingrese un código']); break; }
 
-        // Solo permite usar códigos cuya solicitud fue APPROVED
         $stmt = $mysqli->prepare(
-            "SELECT c.cgc_id, c.cgc_codigo, c.cgc_cupo_disponible, c.cgc_estado, c.cgc_fecha_caducidad
-             FROM codigo_gift_card c
-             JOIN lote_gift_card l ON c.lgc_id = l.lgc_id
-             JOIN giftcard_solicitud s ON l.lgc_id = s.sol_lgc_id
-             WHERE c.cgc_codigo = ? AND s.sol_estado = 'APPROVED'
-             LIMIT 1"
+            "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible, cgc_estado, cgc_fecha_caducidad
+             FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1"
         );
         $stmt->bind_param('s', $codigo);
         $stmt->execute();
         $gc = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
         if (!$gc) {
-            // Verificar si el código existe pero la solicitud no está aprobada
-            $chk = $mysqli->prepare("SELECT cgc_estado FROM codigo_gift_card WHERE cgc_codigo = ? LIMIT 1");
-            $chk->bind_param('s', $codigo);
-            $chk->execute();
-            $existe = $chk->get_result()->fetch_assoc();
-            if ($existe) {
-                echo json_encode(['success' => false, 'mensaje' => 'Código no disponible — solicitud pendiente de aprobación']);
-            } else {
-                echo json_encode(['success' => false, 'mensaje' => 'Código no encontrado']);
-            }
+            echo json_encode(['success' => false, 'mensaje' => 'Código no encontrado']);
             break;
         }
 
@@ -533,6 +673,7 @@ switch ($action) {
             'success'         => true,
             'cgc_id'          => $gc['cgc_id'],
             'cgc_codigo'      => $gc['cgc_codigo'],
+            'saldo_original'  => (float)$gc['cgc_cupo_inicial'],
             'saldo'           => (float)$gc['cgc_cupo_disponible'],
             'fecha_caducidad' => $gc['cgc_fecha_caducidad'] ? date('d/m/Y', strtotime($gc['cgc_fecha_caducidad'])) : 'Sin caducidad'
         ]);

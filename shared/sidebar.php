@@ -50,7 +50,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
         <nav class="main-menu">
             <ul class="nav metismenu">
 
-                <?php if ($has('dashboard') || $has('gestiones') || $has('reportes') || $has('pos') || $has('convenios') || $has('giftcard') || $has('venta_diferida') || $has('estado_cuenta') || $has('portal_empresa')): ?>
+                <?php if ($has('dashboard') || $has('gestiones') || $has('reportes') || $has('pos') || $has('giftcard') || $has('venta_diferida') || $has('estado_cuenta') || $has('portal_empresa')): ?>
                 <li class="sidebar-header"><span>NAVEGACIÓN</span></li>
                 <?php endif; ?>
 
@@ -72,6 +72,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=gestiones&cartera=60"><span>Cartera 60</span></a></li>
                         <li><a href="?module=gestiones&cartera=90"><span>Cartera 90</span></a></li>
                         <li><a href="?module=gestiones&cartera=91"><span>Cartera +90</span></a></li>
+                        <li><a href="?module=gestiones&cartera=GC"><span>Gift Card</span></a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
@@ -89,9 +90,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=reportes&tipo=dinero por edades de cartera"><span>Dinero por edades de cartera</span></a></li>
                         <li><a href="?module=reportes&tipo=cartera recuperada"><span>Cartera recuperada</span></a></li>
                         <li><a href="?module=reportes&tipo=cliente consumos"><span>Cliente + Consumos</span></a></li>
-                        <li><a href="?module=reportes&tipo=cliente - consumos"><span>Cliente - Consumos</span></a></li>
                         <li><a href="?module=reportes&tipo=cobranza por gestor"><span>Detalle de cobranza por gestores</span></a></li>
-                        <li><a href="?module=reportes&tipo=consumos del mes"><span>Consumos del mes</span></a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
@@ -108,15 +107,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 </li>
                 <?php endif; ?>
 
-                <?php if ($has('convenios')): ?>
-                <li class="nav-dropdown <?php if ($cur === 'convenios') echo 'active'; ?>">
-                    <a href="?module=convenios">
-                        <i class="icon dripicons-document"></i><span>Convenios</span>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if ($has('giftcard')): ?>
+<?php if ($has('giftcard')): ?>
                 <li class="nav-dropdown <?php if ($cur === 'giftcard') echo 'active'; ?>">
                     <a href="?module=giftcard">
                         <i class="icon dripicons-card"></i><span>Gift Cards</span>
@@ -140,7 +131,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 </li>
                 <?php endif; ?>
 
-                <?php if ($has('portal_empresa')): ?>
+                <?php if ($has('portal_empresa') && !empty($_SESSION['cli_id'])): ?>
                 <li class="nav-dropdown <?php if ($cur === 'portal_empresa') echo 'active'; ?>">
                     <a href="?module=portal_empresa">
                         <i class="icon dripicons-briefcase"></i><span>Portal Empresa / Nómina</span>

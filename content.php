@@ -37,7 +37,11 @@ if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
         }
 
         if (!in_array($modulo_check, $allowed)) {
-            echo "<meta http-equiv='refresh' content='0; url=?module=dashboard'>";
+            // Redirigir al primer módulo que sí tenga habilitado, no siempre a
+            // dashboard: si su perfil tampoco incluye dashboard, redirigir ahí
+            // ciegamente crea un loop infinito (pantalla en blanco/spinner sin fin).
+            $destino = in_array('dashboard', $allowed) ? 'dashboard' : ($allowed[0] ?? 'contrasena');
+            echo "<meta http-equiv='refresh' content='0; url=?module=$destino'>";
             exit;
         }
     }
@@ -65,8 +69,6 @@ if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
         include "pages/pos/view.php";
     } elseif ($module === 'pos_historial') {
         include "pages/pos/historial.php";
-    } elseif ($module === 'convenios') {
-        include "pages/convenio/view.php";
     } elseif ($module === 'giftcard') {
         include "pages/giftcard/view.php";
     } elseif ($module === 'venta_diferida') {

@@ -13,6 +13,11 @@
                     </nav>
                 </div>
                 <div class="ml-auto d-flex align-items-center">
+                    <?php if (!empty($_SESSION['name_user'])): ?>
+                    <span class="badge badge-secondary p-2 mr-2" style="font-size:0.9rem;">
+                        <i class="icon dripicons-user"></i> <?php echo htmlspecialchars($_SESSION['name_user']); ?>
+                    </span>
+                    <?php endif; ?>
                     <?php if (!empty($_SESSION['loc_id'])): ?>
                     <span class="badge badge-info p-2 mr-3" style="font-size:0.9rem;">
                         <i class="icon dripicons-location"></i>
@@ -75,11 +80,15 @@
                             </div>
                             <hr class="mb-3">
                             <div class="row text-center">
-                                <div class="col-6">
+                                <div class="col-4">
+                                    <p class="mb-1 text-muted"><small>Saldo Original</small></p>
+                                    <h5 class="text-secondary font-weight-bold" id="gc_saldo_original_display">$0.00</h5>
+                                </div>
+                                <div class="col-4">
                                     <p class="mb-1 text-muted"><small>Saldo Disponible</small></p>
                                     <h4 class="text-success font-weight-bold" id="gc_saldo_display">$0.00</h4>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-4">
                                     <p class="mb-1 text-muted"><small>Vence</small></p>
                                     <h5 class="text-info" id="gc_vence_display"></h5>
                                 </div>
@@ -142,6 +151,46 @@
                     </h5>
                     <div class="card-body">
 
+                        <?php
+                        // Selector de local: solo para Super Admin (acepta perfil legacy o el
+                        // nuevo asignado vía Perfiles y Permisos). Un cajero real siempre usa
+                        // su propio local, nunca ve este selector.
+                        require_once 'config/database.php';
+                        $esSuperAdminPOS = strtolower($_SESSION['permisos_acceso'] ?? '') === 'super admin';
+                        if (!$esSuperAdminPOS && !empty($_SESSION['id_user'])) {
+                            $qPerfilPOS = $mysqli->prepare(
+                                "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
+                            );
+                            $qPerfilPOS->bind_param('i', $_SESSION['id_user']);
+                            $qPerfilPOS->execute();
+                            $rowPerfilPOS = $qPerfilPOS->get_result()->fetch_assoc();
+                            if ($rowPerfilPOS) {
+                                $esSuperAdminPOS = strtolower($rowPerfilPOS['per_nombre']) === 'super admin';
+                            }
+                        }
+                        ?>
+                        <?php if ($esSuperAdminPOS): ?>
+                        <div class="form-group">
+                            <label for="local_selector">
+                                Local comercial <span class="text-danger">*</span>
+                                <small class="text-muted">(modo pruebas: simula el cajero de este local)</small>
+                            </label>
+                            <select id="local_selector" class="form-control form-control-lg">
+                                <option value="">Seleccione un local...</option>
+                                <?php
+                                $rLocales = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion
+                                                                    FROM local l JOIN marca m ON l.mar_id = m.mar_id
+                                                                    WHERE l.loc_activo = 1
+                                                                    ORDER BY m.mar_descripcion ASC, l.loc_direccion ASC");
+                                while ($rowLocSel = mysqli_fetch_assoc($rLocales)) {
+                                    $labelSel = htmlspecialchars($rowLocSel['mar_descripcion'] . ' — ' . $rowLocSel['loc_direccion']);
+                                    echo '<option value="' . (int)$rowLocSel['loc_id'] . '">' . $labelSel . '</option>';
+                                }
+                                ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+
                         <!-- Descripción -->
                         <div class="form-group">
                             <label for="con_descripcion">
@@ -183,8 +232,8 @@
                         <!-- Aviso pago mixto -->
                         <div id="div_aviso_mixto" style="display:none;">
                             <div class="alert alert-warning">
-                                <i class="icon dripicons-warning"></i>
-                                El monto supera el cupo. Complete el diferencial en "Pago externo".
+                                <span class="icon"><i class="dripicons-warning"></i></span>
+                                <span class="text">El monto supera el cupo. Complete el diferencial en "Pago externo".</span>
                             </div>
                         </div>
 
@@ -238,6 +287,65 @@
     </section>
 </div>
 
+<!-- ===== MODAL CONFIRMACIÓN DE VENTA (PV-01) ===== -->
+<div class="modal fade" id="modal_confirmar_venta" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="icon dripicons-checkmark"></i> Confirmar Venta</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Revise los datos antes de procesar. Esta acción no se puede deshacer.</p>
+                <table class="table table-sm table-borderless mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted" style="width:40%;">Beneficiario</td>
+                            <td><strong id="conf_nombre"></strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Cédula / Código</td>
+                            <td id="conf_cedula"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Empresa</td>
+                            <td id="conf_empresa"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Local</td>
+                            <td id="conf_local"></td>
+                        </tr>
+                        <tr><td colspan="2"><hr class="my-2"></td></tr>
+                        <tr>
+                            <td class="text-muted">Descripción</td>
+                            <td id="conf_descripcion"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Cargo convenio</td>
+                            <td class="text-success font-weight-bold" id="conf_convenio"></td>
+                        </tr>
+                        <tr id="conf_fila_externo" style="display:none;">
+                            <td class="text-muted">Pago externo</td>
+                            <td class="text-warning" id="conf_externo"></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total</td>
+                            <td class="font-weight-bold" id="conf_total"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="icon dripicons-cross"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-success" id="btn_procesar_venta">
+                    <i class="icon dripicons-checkmark"></i> Sí, procesar venta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ===== MODAL VOUCHER ===== -->
 <div class="modal fade" id="modal_voucher" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-sm" role="document">
@@ -289,9 +397,20 @@ $(document).ready(function () {
             dataType: 'json',
             success: function (resp) {
                 if (!resp.success) {
-                    // Notificación según tipo de error de GC
-                    var tipo_alerta = (resp.tipo === 'giftcard_vencida') ? 'warning' : 'danger';
-                    mostrarAlerta('alerta_busqueda', tipo_alerta, resp.mensaje);
+                    if (resp.tipo === 'giftcard_vencida') {
+                        // PV-B: mensaje grande e inconfundible de tarjeta caducada,
+                        // con cupo/saldo/caducidad visibles igual que una tarjeta válida.
+                        $('#alerta_busqueda').html(
+                            '<div class="alert alert-warning text-center mb-0">' +
+                            '<h4 class="mb-2"><i class="icon dripicons-warning"></i> CADUCADA</h4>' +
+                            '<div>Saldo original: <strong>$' + parseFloat(resp.saldo_original || 0).toFixed(2) + '</strong></div>' +
+                            '<div>Saldo disponible: <strong>$' + parseFloat(resp.saldo || 0).toFixed(2) + '</strong></div>' +
+                            '<div>Venció el: <strong>' + resp.fecha_caducidad + '</strong></div>' +
+                            '</div>'
+                        ).show();
+                    } else {
+                        mostrarAlerta('alerta_busqueda', 'danger', resp.mensaje);
+                    }
                     ocultarPaneles();
                     return;
                 }
@@ -355,6 +474,7 @@ $(document).ready(function () {
         gc_saldo   = parseFloat(data.saldo) || 0;
 
         $('#gc_codigo_display').text(data.cgc_codigo);
+        $('#gc_saldo_original_display').text('$' + (parseFloat(data.saldo_original) || 0).toFixed(2));
         $('#gc_saldo_display').text('$' + gc_saldo.toFixed(2));
         $('#gc_vence_display').text(data.fecha_caducidad);
         $('#gc_cgc_id_hidden').val(data.cgc_id);
@@ -438,8 +558,11 @@ $(document).ready(function () {
     }
 
     // -------------------------------------------------------
-    // Confirmar venta
+    // PV-01: Mostrar modal de confirmación antes de procesar
     // -------------------------------------------------------
+    var _postDataPendiente = null;
+    var _principalPendiente = 0;
+
     $('#btn_confirmar').on('click', function () {
         var descripcion = $('#con_descripcion').val().trim();
         var monto       = parseFloat($('#monto_convenio').val()) || 0;
@@ -450,25 +573,80 @@ $(document).ready(function () {
         if (!descripcion) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese una descripción del consumo'); $('#con_descripcion').focus(); return; }
         if (principal <= 0) { mostrarAlerta('alerta_venta', 'warning', 'Ingrese un monto válido'); return; }
 
-        $('#btn_confirmar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
-        ocultarAlerta('alerta_venta');
+        var $localSelector = $('#local_selector');
+        if ($localSelector.length && !$localSelector.val()) {
+            mostrarAlerta('alerta_venta', 'warning', 'Seleccione el local comercial');
+            $localSelector.focus();
+            return;
+        }
 
-        var postData = { con_descripcion: descripcion, monto_externo: externo.toFixed(2) };
+        // Poblar modal de confirmación
+        if (modo === 'giftcard') {
+            $('#conf_nombre').text('Gift Card');
+            $('#conf_cedula').text($('#gc_codigo_display').text());
+            $('#conf_empresa').text('—');
+        } else {
+            $('#conf_nombre').text($('#emp_nombre').text());
+            $('#conf_cedula').text($('#emp_cedula').text());
+            $('#conf_empresa').text($('#emp_empresa').text());
+        }
+
+        <?php
+        $loc_id_ses = (int)($_SESSION['loc_id'] ?? 0);
+        $loc_label  = 'N/A';
+        if ($loc_id_ses) {
+            require_once 'config/database.php';
+            $rL = mysqli_query($mysqli, "SELECT l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id_ses LIMIT 1");
+            if ($rL && $rowL = mysqli_fetch_assoc($rL)) {
+                $loc_label = htmlspecialchars($rowL['mar_descripcion'] . ' – ' . $rowL['loc_direccion']);
+            }
+        }
+        ?>
+        if ($localSelector.length) {
+            $('#conf_local').text($localSelector.find('option:selected').text());
+        } else {
+            $('#conf_local').text('<?= addslashes($loc_label) ?>');
+        }
+        $('#conf_descripcion').text(descripcion);
+        $('#conf_convenio').text('$' + principal.toFixed(2));
+        if (externo > 0) {
+            $('#conf_externo').text('$' + externo.toFixed(2));
+            $('#conf_fila_externo').show();
+        } else {
+            $('#conf_fila_externo').hide();
+        }
+        $('#conf_total').text('$' + (principal + externo).toFixed(2));
+
+        // Guardar datos para procesar tras confirmación
+        _principalPendiente = principal;
+        _postDataPendiente  = { con_descripcion: descripcion, monto_externo: externo.toFixed(2) };
+        if ($localSelector.length) {
+            _postDataPendiente.loc_id = $localSelector.val();
+        }
 
         if (modo === 'giftcard') {
-            postData.action         = 'registrar_giftcard';
-            postData.cgc_id         = gc_cgc_id;
-            postData.monto_giftcard = principal.toFixed(2);
+            _postDataPendiente.action         = 'registrar_giftcard';
+            _postDataPendiente.cgc_id         = gc_cgc_id;
+            _postDataPendiente.monto_giftcard = principal.toFixed(2);
         } else {
-            postData.action         = 'registrar';
-            postData.per_id         = per_id_actual;
-            postData.monto_convenio = principal.toFixed(2);
+            _postDataPendiente.action         = 'registrar';
+            _postDataPendiente.per_id         = per_id_actual;
+            _postDataPendiente.monto_convenio = principal.toFixed(2);
         }
+
+        $('#modal_confirmar_venta').modal('show');
+    });
+
+    // Botón "Sí, procesar venta" dentro del modal de confirmación
+    $('#btn_procesar_venta').on('click', function () {
+        $('#modal_confirmar_venta').modal('hide');
+        $('#btn_confirmar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
+        ocultarAlerta('alerta_venta');
 
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'POST',
-            data: postData,
+            data: _postDataPendiente,
             dataType: 'json',
             success: function (resp) {
                 if (resp.success) {

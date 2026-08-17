@@ -1,10 +1,11 @@
 <?php
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/session_helpers.php';
 
 header('Content-Type: application/json');
 
-if (empty($_SESSION['id_user']) || $_SESSION['permisos_acceso'] !== 'Super Admin') {
+if (empty($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
     exit;
 }

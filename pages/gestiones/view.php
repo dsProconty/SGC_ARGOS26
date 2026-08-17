@@ -14,6 +14,9 @@ switch ($cartera) {
     case '91':
         $title = 'CARTERA +90 DÍAS';
         break;
+    case 'GC':
+        $title = 'COBRANZA GIFT CARD';
+        break;
     default:
         # code...
         break;
@@ -51,6 +54,11 @@ switch ($cartera) {
                 </li>
                 <li class="nav-item" role="presentation">
                     <a href="#tab-4" class="nav-link" data-toggle="tab" aria-expanded="true" onclick="load_gestion('compromiso')">Compromiso de Pago</a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a href="#tab-6" class="nav-link" data-toggle="tab" aria-expanded="true" onclick="load_gestion('pendiente_confirmacion')">
+                        <span class="text-warning"><i class="icon dripicons-clock"></i> Pend. Confirmación</span>
+                    </a>
                 </li>
             </ul>
         </div>
@@ -103,6 +111,15 @@ switch ($cartera) {
                             <h5 class="card-header">Notificación</h5>
                             <div class="table-responsive">
                                 <div class="card-body" id="loader_notificacion">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fadeIn" id="tab-6">
+                        <div class="card">
+                            <h5 class="card-header">Pagos Pendientes de Confirmación</h5>
+                            <div class="table-responsive">
+                                <div class="card-body" id="loader_pendiente_confirmacion">
                                 </div>
                             </div>
                         </div>

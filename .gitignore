@@ -1,1 +1,6 @@
 /config/
+/.env
+
+# Copia de trabajo de las pruebas de la API: contiene un token real.
+# Versionamos solo la plantilla lotes.http.example.
+/api/v1/lotes.http

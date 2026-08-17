@@ -1,5 +1,5 @@
 <?php
-require_once "../../config/database.php";
+require_once __DIR__ . "/../../config/database.php";
 
 $tipo = $_GET['tipo'];
 header("Content-Type: application/xls");
@@ -13,13 +13,13 @@ switch ($tipo) {
 ?>
         <table style="width: 20%;" border="1" class="table table-bordered">
             <tr>
-                <td colspan=3 style="background-color:LIGHTSTEELBLUE"> DETALLE VENTAS</td>
+                <td colspan=3 style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"> DETALLE VENTAS</td>
             </tr>
             <tr>
-                <td colspan="3" style="background-color:LIGHTSTEELBLUE">DESDE: <?php echo $fechaini; ?> HASTA: <?php echo $fechafin; ?></td>
+                <td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DESDE: <?php echo $fechaini; ?> HASTA: <?php echo $fechafin; ?></td>
             </tr>
             <tr>
-                <td>Empresa</td>
+                <td>Local</td>
                 <td>Valor</td>
                 <td>Propina</td>
             </tr>
@@ -30,13 +30,22 @@ switch ($tipo) {
             $iva = 0.00;
 
             if($marca == 'TODOS'){
-                $query = "SELECT loc_direccion, con_valor_total,con_iva,mar_descripcion from consumo c,local l,marca m 
-                where c.loc_id = l.loc_id and c.con_fecha >= '$fechaini' and c.con_fecha<='$fechafin'
-                and l.mar_id = m.mar_id group by l.loc_id";
+                $query = "SELECT l.loc_direccion, SUM(c.con_valor_total) as con_valor_total, SUM(c.con_iva) as con_iva, m.mar_descripcion
+                FROM consumo c
+                JOIN local l ON c.loc_id = l.loc_id
+                JOIN marca m ON l.mar_id = m.mar_id
+                WHERE c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
+                GROUP BY l.loc_id, m.mar_id
+                ORDER BY m.mar_descripcion, l.loc_direccion";
             }else{
-                $query = "SELECT loc_direccion, con_valor_total,con_iva,mar_descripcion from consumo c,local l,marca m 
-                where c.loc_id = l.loc_id and c.con_fecha >= '$fechaini' and c.con_fecha<='$fechafin'
-                and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' group by l.loc_id";
+                $query = "SELECT l.loc_direccion, SUM(c.con_valor_total) as con_valor_total, SUM(c.con_iva) as con_iva, m.mar_descripcion
+                FROM consumo c
+                JOIN local l ON c.loc_id = l.loc_id
+                JOIN marca m ON l.mar_id = m.mar_id
+                WHERE c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
+                AND m.mar_descripcion = '$marca'
+                GROUP BY l.loc_id
+                ORDER BY l.loc_direccion";
             }
 
             
@@ -84,16 +93,16 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA</td>
-                <td style="background-color:LIGHTSTEELBLUE">DESDE</td>
-                <td style="background-color:LIGHTSTEELBLUE">HASTA</td>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL A PAGAR</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR COBRADO</td>
-                <td style="background-color:LIGHTSTEELBLUE">SALDO</td>
-                <td style="background-color:LIGHTSTEELBLUE">NUMERO COMPROBANTE O CHEQUE</td>
-                <td style="background-color:LIGHTSTEELBLUE">ENTREGADO A</td>
-                <td style="background-color:LIGHTSTEELBLUE">OBSERVACION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DESDE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">HASTA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL A PAGAR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR COBRADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">SALDO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">NUMERO COMPROBANTE O CHEQUE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">ENTREGADO A</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">OBSERVACION</td>
             </tr>
             <?php
 
@@ -101,7 +110,7 @@ switch ($tipo) {
                             c.cli_valor_pagar,g.ges_observacion,u.name_user,sum(p.pag_monto) as pag_monto
             from pago p,gestion g,cartera c,cliente cli,usuario u
             where p.pag_id = g.pag_id and g.us_id = u.id_user
-            and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+            and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
             group by c.car_id order by g.ges_id asc";
 
             $result = mysqli_query($mysqli, $query);
@@ -135,16 +144,16 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr colspan="3"><?php echo utf8_decode('TOTALIZACIÓN COBRANZA') ?></tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
             </tr>
             <?php
 
             $query = "SELECT c.car_id,cli.cli_descripcion,sum(p.pag_monto) as pag_monto,c.car_tipo
             from pago p,gestion g,cartera c,cliente cli
             where p.pag_id = g.pag_id
-            and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+            and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
             group by c.car_id order by g.ges_id asc";
 
             $result = mysqli_query($mysqli, $query);
@@ -171,16 +180,16 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr colspan="3"><?php echo utf8_decode('DETALLE COBRANZA') ?></tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">PERIODO</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">PERIODO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
             </tr>
             <?php
 
             $query = "SELECT c.car_id,cli.cli_descripcion,sum(p.pag_monto) as pag_monto,c.car_fecha_inicio,c.car_fecha_fin
             from pago p,gestion g,cartera c,cliente cli
             where p.pag_id = g.pag_id
-            and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+            and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
             group by c.car_id order by g.ges_id asc";
 
             $result = mysqli_query($mysqli, $query);
@@ -199,7 +208,7 @@ switch ($tipo) {
             }
             ?>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
                 <td></td>
                 <td><?php echo $total; ?></td>
             </tr>
@@ -208,7 +217,67 @@ switch ($tipo) {
         break;
     case 'dinero por edades de cartera':
     ?>
+        <table border="1" class="table table-bordered">
+            <tr>
+                <td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
+                    <?php echo utf8_decode('DINERO POR EDADES DE CARTERA') ?>
+                </td>
+            </tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA 30 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA 60 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA 90 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA +90 DÍAS</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+            </tr>
+            <?php
+            $query = "SELECT cli.cli_descripcion,
+                        SUM(CASE WHEN c.car_tipo = '30' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_30,
+                        SUM(CASE WHEN c.car_tipo = '60' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_60,
+                        SUM(CASE WHEN c.car_tipo = '90' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_90,
+                        SUM(CASE WHEN c.car_tipo = '91' THEN COALESCE(c.cli_valor_pagar, 0) ELSE 0 END) AS cartera_91,
+                        SUM(COALESCE(c.cli_valor_pagar, 0)) AS total
+                      FROM cartera c
+                      JOIN cliente cli ON c.cli_id = cli.cli_id
+                      WHERE c.car_estado IN ('pendiente', 'notificacion', 'compromiso')
+                      GROUP BY cli.cli_id, cli.cli_descripcion
+                      ORDER BY cli.cli_descripcion ASC";
 
+            $result = mysqli_query($mysqli, $query);
+            $total_30 = $total_60 = $total_90 = $total_91 = $grand_total = 0;
+            $hay_datos = false;
+
+            while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
+                $total_30     += $row['cartera_30'];
+                $total_60     += $row['cartera_60'];
+                $total_90     += $row['cartera_90'];
+                $total_91     += $row['cartera_91'];
+                $grand_total  += $row['total'];
+            ?>
+                <tr>
+                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo number_format($row['cartera_30'], 2) ?></td>
+                    <td><?php echo number_format($row['cartera_60'], 2) ?></td>
+                    <td><?php echo number_format($row['cartera_90'], 2) ?></td>
+                    <td><?php echo number_format($row['cartera_91'], 2) ?></td>
+                    <td><?php echo number_format($row['total'], 2) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$hay_datos): ?>
+                <tr><td colspan="6">Sin datos de cartera activa.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><strong>TOTALES</strong></td>
+                    <td><strong><?php echo number_format($total_30, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($total_60, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($total_90, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($total_91, 2) ?></strong></td>
+                    <td><strong><?php echo number_format($grand_total, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
     <?php
         break;
     case 'cartera recuperada':
@@ -220,11 +289,11 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA</td>
-                <td style="background-color:LIGHTSTEELBLUE">TIPO</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR CARTERA</td>
-                <td style="background-color:LIGHTSTEELBLUE">RECUPERADO</td>
-                <td style="background-color:LIGHTSTEELBLUE">DEUDA ACTUAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TIPO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR CARTERA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">RECUPERADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DEUDA ACTUAL</td>
             </tr>
             <?php
 
@@ -262,10 +331,10 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">CONSUMO TOTAL</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA ULT. CONSUMO</td>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA ULTIMO CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CONSUMO TOTAL</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA ULT. CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA ULTIMO CONSUMO</td>
             </tr>
             <?php
 
@@ -305,9 +374,9 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA ULT. CONSUMO</td>
-                <td style="background-color:LIGHTSTEELBLUE">MARCA ULTIMO CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA ULT. CONSUMO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MARCA ULTIMO CONSUMO</td>
             </tr>
             <?php
 
@@ -346,15 +415,15 @@ switch ($tipo) {
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">GESTOR</td>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">CARTERA</td>
-                <td style="background-color:LIGHTSTEELBLUE">TOTAL DEUDA</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR COBRADO</td>
-                <td style="background-color:LIGHTSTEELBLUE">SALDO</td>
-                <td style="background-color:LIGHTSTEELBLUE">OBSERVACION COBRANZA</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA PAGO</td>
-                <td style="background-color:LIGHTSTEELBLUE">OBSERVACION GESTION</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">GESTOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL DEUDA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR COBRADO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">SALDO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">OBSERVACION COBRANZA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA PAGO</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">OBSERVACION GESTION</td>
             </tr>
             <?php
 
@@ -362,7 +431,7 @@ switch ($tipo) {
                     c.cli_valor_pagar,g.ges_observacion,u.name_user,p.pag_monto,p.pag_observacion,p.pag_fecha
                     from pago p,gestion g,cartera c,cliente cli,usuario u
                     where p.pag_id = g.pag_id and g.us_id = u.id_user
-                    and g.car_id = c.car_id and c.cli_id = cli.cli_id and p.pag_fecha >= '$fechaini' and p.pag_fecha <= '$fechafin'
+                    and g.car_id = c.car_id and c.cli_id = cli.cli_id and DATE(p.pag_fecha) >= '$fechaini' and DATE(p.pag_fecha) <= '$fechafin'
                     group by c.car_id order by name_user";
 
             $result = mysqli_query($mysqli, $query);
@@ -396,21 +465,21 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td colspan="5" style="background-color:LIGHTSTEELBLUE">
+                <td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
                     <?php echo utf8_decode('CONSUMOS DEL MES ' . $marca) ?>
                 </td>
             </tr>
             <tr>
-                <td colspan="5" style="background-color:LIGHTSTEELBLUE">
+                <td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
                     Fecha Inicio : <?php echo $inicioMes?> Fecha Fin: <?php echo $finMes ?>
                 </td>
             </tr>
             <tr>
-                <td style="background-color:LIGHTSTEELBLUE">EMPRESA</td>
-                <td style="background-color:LIGHTSTEELBLUE">CLIENTE</td>
-                <td style="background-color:LIGHTSTEELBLUE">FECHA</td>
-                <td style="background-color:LIGHTSTEELBLUE">VALOR</td>
-                <td style="background-color:LIGHTSTEELBLUE">PROPINA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">PROPINA</td>
             </tr>
             <?php
 
@@ -432,19 +501,29 @@ switch ($tipo) {
             $result = mysqli_query($mysqli, $query);
 
             $total = 0.00;
+            $hay_datos = false;
 
             while ($row = mysqli_fetch_array($result)) {
+                $hay_datos = true;
             ?>
                 <tr>
                     <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
                     <td><?php echo utf8_decode($row['per_nombre']) ?></td>
                     <td><?php echo utf8_decode($row['con_fecha'] . ' / ' . $row['con_hora']) ?></td>
-                    <td><?php echo $row['con_valor_total'] ?></td>
+                    <td><?php echo $row['con_valor_total']; $total += $row['con_valor_total']; ?></td>
                     <td></td>
                 </tr>
             <?php
             }
-            ?>
+            if (!$hay_datos): ?>
+                <tr><td colspan="5">No hay consumos registrados para el mes en curso con la marca seleccionada.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><strong>TOTAL</strong></td>
+                    <td><strong><?php echo number_format($total, 2); ?></strong></td>
+                    <td></td>
+                </tr>
+            <?php endif; ?>
         </table>
 <?php
         break;
