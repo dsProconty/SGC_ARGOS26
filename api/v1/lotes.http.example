@@ -1,0 +1,105 @@
+### API externa de Gift Cards — pruebas manuales
+### Requiere la extensión "REST Client" (humao.rest-client).
+### Pulsa "Send Request" encima de cada bloque.
+###
+### Genera un token con:
+###   docker compose exec web php tools/crear_credencial_api.php --cli_id=1
+
+@base = http://localhost:8080/api/v1
+@token = PEGA_AQUI_TU_TOKEN
+
+### ─── ¿Mi credencial es válida? ───────────────────────────────────────────
+GET {{base}}/ping
+Authorization: Bearer {{token}}
+
+### ─── Crear una solicitud (queda PENDING) ─────────────────────────────────
+# @name crear
+POST {{base}}/lotes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "cantidad": 25,
+  "cupo_codigo": 30.00,
+  "periodo_facturacion": "2026-09-01",
+  "fecha_caducidad": "2026-12-31"
+}
+
+### ─── Consultar el estado de la solicitud recién creada ───────────────────
+GET {{base}}/lotes/{{crear.response.body.sol_id}}
+Authorization: Bearer {{token}}
+
+### ─── Descargar los códigos (solo funciona si ya fue APROBADA) ────────────
+GET {{base}}/lotes/{{crear.response.body.sol_id}}/codigos?pagina=1&por_pagina=100
+Authorization: Bearer {{token}}
+
+
+###############################################################################
+# LÍMITE DE PETICIONES
+#   General          : 60 por minuto y credencial
+#   GET .../codigos  : 10 por minuto (entrega códigos con saldo)
+# Mira las cabeceras X-RateLimit-Remaining y Retry-After en la respuesta.
+# Para provocar un 429 hay que repetir en bucle; desde la terminal:
+#   for i in $(seq 1 70); do curl -s -o /dev/null -w "%{http_code}\n" \
+#     -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/ping; done | sort | uniq -c
+###############################################################################
+
+### Ver cuántas peticiones quedan en la ventana actual
+GET {{base}}/ping
+Authorization: Bearer {{token}}
+
+
+###############################################################################
+# CASOS DE ERROR — todos deben fallar. Si alguno responde 2xx, hay un bug.
+###############################################################################
+
+### Sin token → 401
+GET {{base}}/ping
+
+### Token inválido → 401
+GET {{base}}/ping
+Authorization: Bearer ak_inventado.secretofalso
+
+### Cantidad fuera de rango → 400
+POST {{base}}/lotes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "cantidad": 1001, "cupo_codigo": 10, "periodo_facturacion": "2026-09-01", "fecha_caducidad": "2026-12-31" }
+
+### Cupo negativo → 400
+POST {{base}}/lotes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "cantidad": 10, "cupo_codigo": -5, "periodo_facturacion": "2026-09-01", "fecha_caducidad": "2026-12-31" }
+
+### Fecha con formato inválido → 400
+POST {{base}}/lotes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "cantidad": 10, "cupo_codigo": 10, "periodo_facturacion": "31-31-2026", "fecha_caducidad": "2026-12-31" }
+
+### Caducidad anterior al período → 400
+POST {{base}}/lotes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "cantidad": 10, "cupo_codigo": 10, "periodo_facturacion": "2026-09-01", "fecha_caducidad": "2026-08-01" }
+
+### JSON malformado → 400
+POST {{base}}/lotes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ esto no es json
+
+### Método no permitido → 405
+DELETE {{base}}/lotes/1
+Authorization: Bearer {{token}}
+
+### Solicitud de OTRO cliente → 404 (nunca 403: un 403 confirmaría que existe)
+# Cambia el 9 por un sol_id que pertenezca a otro cli_id.
+GET {{base}}/lotes/9
+Authorization: Bearer {{token}}

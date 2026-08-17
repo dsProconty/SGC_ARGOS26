@@ -1,0 +1,78 @@
+# Entorno de desarrollo local para SGC ARGOS.
+#
+#   docker compose up -d          levanta todo (la primera vez importa el dump)
+#   docker compose down           apaga (conserva la BD)
+#   docker compose down -v        apaga y BORRA la BD (re-importa al subir)
+#
+#   App          -> http://localhost:8080
+#   phpMyAdmin   -> http://localhost:8081
+#   MySQL        -> localhost:3307 (desde el host, ej. DBeaver/Workbench)
+#
+# Usar SIEMPRE http://localhost:8080 y no 127.0.0.1: services/load_data.php
+# comprueba SERVER_NAME contra ['localhost','127.0.0.1'] para saltarse el
+# webservice SOAP externo, que no es alcanzable en desarrollo.
+
+services:
+  web:
+    build:
+      context: ./docker/php
+      args:
+        # Cambiar aquí para reproducir la versión exacta de PHP de cPanel
+        # (ej. 7.4, 8.1). Tras cambiarlo: docker compose build web
+        PHP_VERSION: "8.2"
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/zz-dev.ini:ro
+    environment:
+      # config/database.php lee estas variables vía getenv()
+      DB_HOST: db
+      DB_USER: sgc
+      DB_PASS: sgc
+      DB_NAME: sgc_argos
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    # NO fijar --sql-mode aquí: el modo por defecto de MySQL 8.4 es estricto
+    # (STRICT_TRANS_TABLES, NO_ZERO_DATE...) y queremos reproducirlo, para que
+    # una fecha inválida falle igual en local que en producción. El dump ya
+    # activa NO_AUTO_VALUE_ON_ZERO por sesión, no hace falta a nivel servidor.
+    command: --default-time-zone="-05:00"
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sgc_argos
+      MYSQL_USER: sgc
+      MYSQL_PASSWORD: sgc
+    volumes:
+      - db_data:/var/lib/mysql
+      # Los .sql de esta carpeta se ejecutan SOLO la primera vez que se crea
+      # el volumen, ya dentro de la BD sgc_argos (el dump no trae CREATE DATABASE).
+      - "./sgipro_SGC_ARGOS_DEMO (1).sql:/docker-entrypoint-initdb.d/01-dump.sql:ro"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: sgc
+      PMA_PASSWORD: sgc
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
