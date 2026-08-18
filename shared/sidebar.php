@@ -77,12 +77,25 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 </li>
                 <?php endif; ?>
 
+                <?php
+                $tiposReportesNuevos = [
+                    'transacciones por local', 'total ventas', 'registro cobranza', 'ventas locales',
+                    'cobranza pendiente por empresa', 'cobranza pendiente por mes', 'pendiente empresas',
+                    'ranking de locales', 'detalle de tarjetas', 'detalle de tarjetas por cliente',
+                    'giftpoint', 'giftpoint transacciones', 'reporte gifcards', 'registro pagos gift',
+                    'comision mensual empresas', 'detalle cobranza ventas', 'ventas por locales liquidacion',
+                    'reporte recargas',
+                ];
+                $tipoActual = $_GET['tipo'] ?? '';
+                $enReportesNuevos = $cur === 'reportes' && in_array($tipoActual, $tiposReportesNuevos);
+                $enReportesViejos = $cur === 'reportes' && !$enReportesNuevos;
+                ?>
                 <?php if ($has('reportes')): ?>
-                <li class="nav-dropdown <?php if ($cur === 'reportes') echo 'active open'; ?>">
+                <li class="nav-dropdown <?php if ($enReportesViejos) echo 'active open'; ?>">
                     <a class="has-arrow" href="#" aria-expanded="false">
                         <i class="icon dripicons-to-do"></i><span>Reportes</span>
                     </a>
-                    <ul class="collapse nav-sub <?php if ($cur === 'reportes') echo 'show'; ?>" aria-expanded="false">
+                    <ul class="collapse nav-sub <?php if ($enReportesViejos) echo 'show'; ?>" aria-expanded="false">
                         <li><a href="?module=reportes&tipo=ventas por locales"><span>Ventas por locales</span></a></li>
                         <li><a href="?module=reportes&tipo=cobranzas anteriores"><span>Reporte Cobranzas Anteriores</span></a></li>
                         <li><a href="?module=reportes&tipo=total cobranza"><span>Total Cobranza</span></a></li>
@@ -93,6 +106,13 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=reportes&tipo=cliente - consumos"><span>Cliente - Consumos</span></a></li>
                         <li><a href="?module=reportes&tipo=cobranza por gestor"><span>Detalle de cobranza por gestores</span></a></li>
                         <li><a href="?module=reportes&tipo=consumos del mes"><span>Consumos del mes</span></a></li>
+                    </ul>
+                </li>
+                <li class="nav-dropdown <?php if ($enReportesNuevos) echo 'active open'; ?>">
+                    <a class="has-arrow" href="#" aria-expanded="false">
+                        <i class="icon dripicons-clipboard"></i><span>Reportes Nuevos</span>
+                    </a>
+                    <ul class="collapse nav-sub <?php if ($enReportesNuevos) echo 'show'; ?>" aria-expanded="false">
                         <li><a href="?module=reportes&tipo=transacciones por local"><span>Transacciones por Local</span></a></li>
                         <li><a href="?module=reportes&tipo=total ventas"><span>Total Ventas</span></a></li>
                         <li><a href="?module=reportes&tipo=registro cobranza"><span>Registro Cobranza</span></a></li>
