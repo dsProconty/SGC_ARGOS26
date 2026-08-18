@@ -441,11 +441,16 @@ switch ($action) {
         $fecha   = date('Y-m-d');
 
         $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total,
-                         c.con_monto_convenio, c.con_monto_externo, c.con_voucher_impreso,
-                         p.per_nombre, p.per_documento, cl.cli_descripcion
+                         c.con_monto_convenio, c.con_monto_externo, c.con_monto_giftcard,
+                         c.con_giftcard_codigo, c.con_voucher_impreso,
+                         p.per_nombre, p.per_documento,
+                         COALESCE(cl.cli_descripcion, clgc.cli_descripcion) AS cli_descripcion
                   FROM consumo c
-                  JOIN personal p  ON c.per_id = p.per_id
-                  JOIN cliente  cl ON p.cli_id = cl.cli_id
+                  LEFT JOIN personal p  ON c.per_id = p.per_id
+                  LEFT JOIN cliente  cl ON p.cli_id = cl.cli_id
+                  LEFT JOIN codigo_gift_card cgc ON c.con_giftcard_codigo = cgc.cgc_codigo
+                  LEFT JOIN lote_gift_card   lgc ON cgc.lgc_id = lgc.lgc_id
+                  LEFT JOIN cliente clgc ON lgc.cli_id = clgc.cli_id
                   WHERE c.id_user = $id_user AND c.con_fecha = '$fecha'
                   ORDER BY c.con_id DESC";
 
@@ -488,12 +493,21 @@ switch ($action) {
             $where .= " AND c.id_user = $id_user";
         }
 
+        // LEFT JOIN: una venta de Gift Card (registrar_giftcard) no tiene per_id
+        // (no hay empleado de por medio), pero toda Gift Card sí pertenece a un
+        // convenio (el que la compró) — se resuelve por el lote que la generó
+        // para que la empresa dueña del convenio siga apareciendo en el historial.
         $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total, c.con_estado,
-                         c.con_monto_convenio, c.con_monto_externo, c.con_voucher_impreso,
-                         p.per_nombre, p.per_documento, cl.cli_descripcion
+                         c.con_monto_convenio, c.con_monto_externo, c.con_monto_giftcard,
+                         c.con_giftcard_codigo, c.con_voucher_impreso,
+                         p.per_nombre, p.per_documento,
+                         COALESCE(cl.cli_descripcion, clgc.cli_descripcion) AS cli_descripcion
                   FROM consumo c
-                  JOIN personal p  ON c.per_id = p.per_id
-                  JOIN cliente  cl ON p.cli_id = cl.cli_id
+                  LEFT JOIN personal p  ON c.per_id = p.per_id
+                  LEFT JOIN cliente  cl ON p.cli_id = cl.cli_id
+                  LEFT JOIN codigo_gift_card cgc ON c.con_giftcard_codigo = cgc.cgc_codigo
+                  LEFT JOIN lote_gift_card   lgc ON cgc.lgc_id = lgc.lgc_id
+                  LEFT JOIN cliente clgc ON lgc.cli_id = clgc.cli_id
                   WHERE $where
                   ORDER BY c.con_fecha DESC, c.con_id DESC";
 

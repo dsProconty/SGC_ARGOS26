@@ -563,17 +563,23 @@ switch ($tipo) {
                 $where[] = "l.loc_provincia = '" . mysqli_real_escape_string($mysqli, $provincia) . "'";
             }
             if ($local > 0) $where[] = "l.loc_id = $local";
-            if ($cliente > 0) $where[] = "cli.cli_id = $cliente";
+            if ($cliente > 0) $where[] = "COALESCE(cli.cli_id, clgc.cli_id) = $cliente";
             if ($fechaini !== '') $where[] = "con.con_fecha >= '$fechaini'";
             if ($fechafin !== '') $where[] = "con.con_fecha <= '$fechafin'";
             $whereSql = implode(' AND ', $where);
 
+            // LEFT JOIN: una venta de Gift Card sin empleado no tiene per_id, pero
+            // sigue perteneciendo al convenio que compró esa Gift Card (vía el lote).
             $query = "SELECT con.con_fecha, con.con_hora, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label,
-                             cli.cli_descripcion, con.con_numero_tarjeta, per.per_documento, per.per_nombre,
-                             con.con_autorizacion, con.con_valor_total
+                             COALESCE(cli.cli_descripcion, clgc.cli_descripcion) AS cli_descripcion,
+                             con.con_numero_tarjeta, per.per_documento, per.per_nombre,
+                             con.con_autorizacion, con.con_valor_total, con.con_giftcard_codigo
                       FROM consumo con
-                      JOIN personal per ON con.per_id = per.per_id
-                      JOIN cliente cli ON per.cli_id = cli.cli_id
+                      LEFT JOIN personal per ON con.per_id = per.per_id
+                      LEFT JOIN cliente cli ON per.cli_id = cli.cli_id
+                      LEFT JOIN codigo_gift_card cgc ON con.con_giftcard_codigo = cgc.cgc_codigo
+                      LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
+                      LEFT JOIN cliente clgc ON lgc.cli_id = clgc.cli_id
                       JOIN local l ON con.loc_id = l.loc_id
                       WHERE $whereSql
                       ORDER BY con.con_fecha DESC, con.con_hora DESC";
@@ -586,10 +592,10 @@ switch ($tipo) {
                     <td><?php echo $row['con_fecha'] ?></td>
                     <td><?php echo $row['con_hora'] ?></td>
                     <td><?php echo utf8_decode($row['loc_label']) ?></td>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo $row['cli_descripcion'] !== null ? utf8_decode($row['cli_descripcion']) : '' ?></td>
                     <td><?php echo $row['con_numero_tarjeta'] ?></td>
-                    <td><?php echo $row['per_documento'] ?></td>
-                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo $row['per_documento'] ?? '' ?></td>
+                    <td><?php echo $row['per_nombre'] !== null ? utf8_decode($row['per_nombre']) : ($row['con_giftcard_codigo'] !== null ? 'Gift Card ' . $row['con_giftcard_codigo'] : '') ?></td>
                     <td><?php echo $row['con_autorizacion'] ?></td>
                     <td><?php echo $row['con_valor_total'] ?></td>
                 </tr>
@@ -1128,7 +1134,7 @@ switch ($tipo) {
             $query = "SELECT con.con_fecha, con.con_hora, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label,
                              per.per_documento, per.per_nombre, con.con_autorizacion, con.con_monto_giftcard
                       FROM consumo con
-                      JOIN personal per ON con.per_id = per.per_id
+                      LEFT JOIN personal per ON con.per_id = per.per_id
                       LEFT JOIN local l ON con.loc_id = l.loc_id
                       WHERE con.con_giftcard_codigo = '$codigo'
                       ORDER BY con.con_fecha DESC, con.con_hora DESC";
@@ -1141,8 +1147,8 @@ switch ($tipo) {
                     <td><?php echo $row['con_fecha'] ?></td>
                     <td><?php echo $row['con_hora'] ?></td>
                     <td><?php echo utf8_decode($row['loc_label']) ?></td>
-                    <td><?php echo $row['per_documento'] ?></td>
-                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo $row['per_documento'] ?? '' ?></td>
+                    <td><?php echo $row['per_nombre'] !== null ? utf8_decode($row['per_nombre']) : '<em>Venta directa de Gift Card (sin empleado)</em>' ?></td>
                     <td><?php echo $row['con_autorizacion'] ?></td>
                     <td><?php echo number_format($row['con_monto_giftcard'], 2) ?></td>
                 </tr>
@@ -1290,12 +1296,17 @@ switch ($tipo) {
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">COMISION</td>
             </tr>
             <?php
+            // Una venta de Gift Card sin empleado (per_id NULL) igual pertenece al
+            // convenio que compró esa Gift Card — se resuelve por el lote para que
+            // su venta/comisión no desaparezca del total de esa empresa.
             $query = "SELECT cli.cli_descripcion, cli.cli_comision,
                              SUM(con.con_valor_total - con.con_iva) AS venta_neta, SUM(con.con_iva) AS iva
                       FROM consumo con
-                      JOIN personal per ON con.per_id = per.per_id
-                      JOIN cliente cli ON per.cli_id = cli.cli_id
                       JOIN local l ON con.loc_id = l.loc_id
+                      LEFT JOIN personal per ON con.per_id = per.per_id
+                      LEFT JOIN codigo_gift_card cgc ON con.con_giftcard_codigo = cgc.cgc_codigo
+                      LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
+                      JOIN cliente cli ON cli.cli_id = COALESCE(per.cli_id, lgc.cli_id)
                       WHERE l.mar_id = $marca
                         AND YEAR(con.con_fecha) = $anio
                         AND MONTH(con.con_fecha) = $mes
@@ -1398,11 +1409,16 @@ switch ($tipo) {
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
             </tr>
             <?php
+            // Igual que en el bloque anterior: una venta de Gift Card sin empleado
+            // se atribuye a la empresa dueña del convenio vía el lote que generó
+            // esa Gift Card, no solo a través del empleado que la usó.
             $queryGift = "SELECT cli.cli_descripcion, SUM(con.con_monto_giftcard) AS valor_gift
                           FROM consumo con
-                          JOIN personal per ON con.per_id = per.per_id
-                          JOIN cliente cli ON per.cli_id = cli.cli_id
                           JOIN local l ON con.loc_id = l.loc_id
+                          LEFT JOIN personal per ON con.per_id = per.per_id
+                          LEFT JOIN codigo_gift_card cgc ON con.con_giftcard_codigo = cgc.cgc_codigo
+                          LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
+                          JOIN cliente cli ON cli.cli_id = COALESCE(per.cli_id, lgc.cli_id)
                           WHERE l.mar_id = $marca
                             AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
                             AND con.con_monto_giftcard > 0

@@ -64,7 +64,7 @@ $hoy         = date('Y-m-d');
 
         <!-- RESUMEN -->
         <div class="row" id="div_resumen" style="display:none;">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card widget-inline">
                     <div class="card-body text-center">
                         <h2 class="text-primary font-weight-bold" id="res_total_ventas">0</h2>
@@ -72,7 +72,7 @@ $hoy         = date('Y-m-d');
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card widget-inline">
                     <div class="card-body text-center">
                         <h2 class="text-success font-weight-bold" id="res_monto_convenio">$0.00</h2>
@@ -80,7 +80,15 @@ $hoy         = date('Y-m-d');
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="card widget-inline">
+                    <div class="card-body text-center">
+                        <h2 class="text-info font-weight-bold" id="res_monto_giftcard">$0.00</h2>
+                        <p class="text-muted mb-0">Gift Card</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="card widget-inline">
                     <div class="card-body text-center">
                         <h2 class="text-warning font-weight-bold" id="res_monto_externo">$0.00</h2>
@@ -122,6 +130,7 @@ $hoy         = date('Y-m-d');
                                 <th>Empleado</th>
                                 <th>Empresa</th>
                                 <th>Convenio</th>
+                                <th>Gift Card</th>
                                 <th>Externo</th>
                                 <th>Total</th>
                                 <th>Voucher</th>
@@ -285,13 +294,18 @@ $(document).ready(function () {
             var rowClass = anulada ? ' class="table-secondary"' : '';
             var estadoTxt = anulada ? ' <span class="badge badge-danger">ANULADA</span>' : '';
 
+            var empleadoCell = v.per_nombre
+                ? '<strong>' + htmlEsc(v.per_nombre) + '</strong><br><small class="text-muted">' + htmlEsc(v.per_documento) + '</small>'
+                : '<span class="badge badge-info">Gift Card</span><br><small class="text-muted">' + htmlEsc(v.con_giftcard_codigo) + '</small>';
+
             html += '<tr' + rowClass + '>'
                 + '<td>#' + v.con_id + estadoTxt + '</td>'
                 + '<td>' + v.con_fecha + '</td>'
                 + '<td>' + v.con_hora + '</td>'
-                + '<td><strong>' + htmlEsc(v.per_nombre) + '</strong><br><small class="text-muted">' + v.per_documento + '</small></td>'
+                + '<td>' + empleadoCell + '</td>'
                 + '<td>' + htmlEsc(v.cli_descripcion) + '</td>'
-                + '<td class="text-success">$' + parseFloat(v.con_monto_convenio).toFixed(2) + '</td>'
+                + '<td class="text-success">' + (parseFloat(v.con_monto_convenio) > 0 ? '$' + parseFloat(v.con_monto_convenio).toFixed(2) : '—') + '</td>'
+                + '<td class="text-info">' + (parseFloat(v.con_monto_giftcard) > 0 ? '$' + parseFloat(v.con_monto_giftcard).toFixed(2) : '—') + '</td>'
                 + '<td class="text-warning">' + (parseFloat(v.con_monto_externo) > 0 ? '$' + parseFloat(v.con_monto_externo).toFixed(2) : '—') + '</td>'
                 + '<td><strong>$' + parseFloat(v.con_valor_total).toFixed(2) + '</strong></td>'
                 + '<td>' + impreso + '</td>'
@@ -308,13 +322,16 @@ $(document).ready(function () {
         var vigentes = data.filter(function (v) { return v.con_estado !== 'anulado'; });
         var totalVentas   = vigentes.length;
         var totalConvenio = 0;
+        var totalGiftcard = 0;
         var totalExterno  = 0;
         vigentes.forEach(function (v) {
             totalConvenio += parseFloat(v.con_monto_convenio) || 0;
+            totalGiftcard += parseFloat(v.con_monto_giftcard) || 0;
             totalExterno  += parseFloat(v.con_monto_externo)  || 0;
         });
         $('#res_total_ventas').text(totalVentas);
         $('#res_monto_convenio').text('$' + totalConvenio.toFixed(2));
+        $('#res_monto_giftcard').text('$' + totalGiftcard.toFixed(2));
         $('#res_monto_externo').text('$' + totalExterno.toFixed(2));
         $('#div_resumen').show();
     }
@@ -455,10 +472,11 @@ $(document).ready(function () {
                 'N° Comprobante': '#' + v.con_id,
                 'Fecha':          v.con_fecha,
                 'Hora':           v.con_hora,
-                'Empleado':       v.per_nombre,
-                'Cédula':         v.per_documento,
+                'Empleado':       v.per_nombre || ('Gift Card ' + (v.con_giftcard_codigo || '')),
+                'Cédula':         v.per_documento || '',
                 'Empresa':        v.cli_descripcion,
                 'Convenio ($)':   parseFloat(v.con_monto_convenio).toFixed(2),
+                'Gift Card ($)':  parseFloat(v.con_monto_giftcard).toFixed(2),
                 'Externo ($)':    parseFloat(v.con_monto_externo).toFixed(2),
                 'Total ($)':      parseFloat(v.con_valor_total).toFixed(2),
                 'Voucher':        v.con_voucher_impreso == 1 ? 'Impreso' : 'Sin imprimir'
@@ -480,19 +498,24 @@ $(document).ready(function () {
         var localTxt = $('#f_local option:selected').text() || 'Todos los locales';
 
         var filas = '';
-        var totalConv = 0, totalExt = 0, totalGen = 0;
+        var totalConv = 0, totalGift = 0, totalExt = 0, totalGen = 0;
         _datosActuales.forEach(function (v) {
             var conv = parseFloat(v.con_monto_convenio) || 0;
+            var gift = parseFloat(v.con_monto_giftcard) || 0;
             var ext  = parseFloat(v.con_monto_externo) || 0;
             var tot  = parseFloat(v.con_valor_total) || 0;
-            totalConv += conv; totalExt += ext; totalGen += tot;
+            totalConv += conv; totalGift += gift; totalExt += ext; totalGen += tot;
+            var empleadoTxt = v.per_nombre
+                ? htmlEsc(v.per_nombre) + '<br><small>' + htmlEsc(v.per_documento) + '</small>'
+                : 'Gift Card<br><small>' + htmlEsc(v.con_giftcard_codigo) + '</small>';
             filas += '<tr>'
                 + '<td>#' + v.con_id + '</td>'
                 + '<td>' + v.con_fecha + '</td>'
                 + '<td>' + v.con_hora + '</td>'
-                + '<td>' + htmlEsc(v.per_nombre) + '<br><small>' + v.per_documento + '</small></td>'
+                + '<td>' + empleadoTxt + '</td>'
                 + '<td>' + htmlEsc(v.cli_descripcion) + '</td>'
-                + '<td class="text-right">$' + conv.toFixed(2) + '</td>'
+                + '<td class="text-right">' + (conv > 0 ? '$' + conv.toFixed(2) : '—') + '</td>'
+                + '<td class="text-right">' + (gift > 0 ? '$' + gift.toFixed(2) : '—') + '</td>'
                 + '<td class="text-right">' + (ext > 0 ? '$' + ext.toFixed(2) : '—') + '</td>'
                 + '<td class="text-right"><strong>$' + tot.toFixed(2) + '</strong></td>'
                 + '</tr>';
@@ -509,10 +532,11 @@ $(document).ready(function () {
             + '</div>'
             + '<table class="hv-table">'
             + '<thead><tr><th>#</th><th>Fecha</th><th>Hora</th><th>Empleado</th><th>Empresa</th>'
-            + '<th class="text-right">Convenio</th><th class="text-right">Externo</th><th class="text-right">Total</th></tr></thead>'
+            + '<th class="text-right">Convenio</th><th class="text-right">Gift Card</th><th class="text-right">Externo</th><th class="text-right">Total</th></tr></thead>'
             + '<tbody>' + filas + '</tbody>'
             + '<tfoot><tr><th colspan="5">TOTALES</th>'
             + '<th class="text-right">$' + totalConv.toFixed(2) + '</th>'
+            + '<th class="text-right">$' + totalGift.toFixed(2) + '</th>'
             + '<th class="text-right">$' + totalExt.toFixed(2) + '</th>'
             + '<th class="text-right">$' + totalGen.toFixed(2) + '</th></tr></tfoot>'
             + '</table>'
