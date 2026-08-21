@@ -169,6 +169,39 @@ switch ($action) {
         echo json_encode(['success' => true, 'mensaje' => 'Cliente actualizado']);
         break;
 
+    // ── ELIMINAR — CL-H: bloqueado si el cliente tiene empleados asociados ─────
+    case 'eliminar':
+        header('Content-Type: application/json');
+        $id = (int)($_POST['cli_id'] ?? 0);
+        if (!$id) { echo json_encode(['success' => false, 'mensaje' => 'Cliente no encontrado']); break; }
+
+        $stmtChk = $mysqli->prepare("SELECT COUNT(*) AS total FROM personal WHERE cli_id = ?");
+        $stmtChk->bind_param('i', $id);
+        $stmtChk->execute();
+        $totalPersonal = (int)$stmtChk->get_result()->fetch_assoc()['total'];
+        if ($totalPersonal > 0) {
+            echo json_encode(['success' => false, 'mensaje' =>
+                "No se puede eliminar: el cliente tiene $totalPersonal empleado(s) asociado(s). Debe eliminarlos o reasignarlos primero."]);
+            break;
+        }
+
+        $stmtDel = $mysqli->prepare("DELETE FROM cliente WHERE cli_id = ?");
+        $stmtDel->bind_param('i', $id);
+        if (!$stmtDel->execute()) {
+            // Otras relaciones (cobranza en Gestiones, lotes/solicitudes de Gift
+            // Card, credenciales de API) también tienen FK hacia cliente — el
+            // conteo de empleados es la regla de negocio explícita, pero la BD
+            // sigue protegiendo estas otras dependencias.
+            $mensaje = (strpos($mysqli->error, 'foreign key') !== false || $mysqli->errno === 1451)
+                ? 'No se puede eliminar: el cliente tiene historial de cobranza, Gift Cards u otra información asociada.'
+                : 'Error: ' . $mysqli->error;
+            echo json_encode(['success' => false, 'mensaje' => $mensaje]);
+            break;
+        }
+
+        echo json_encode(['success' => true, 'mensaje' => 'Cliente eliminado']);
+        break;
+
     // ── TAB: PERSONAL ─────────────────────────────────────────────────────────
     case 'personal_list':
         header('Content-Type: application/json');

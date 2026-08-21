@@ -243,7 +243,7 @@
 <script src="js/users.js"></script>
 <script>
 var PERFILES_CLIENTE  = ['Empresa Cliente', 'Cliente GiftCard'];
-var PERFILES_SUCURSAL = ['Cajero', 'Operador'];
+var PERFILES_SUCURSAL = ['Cajero', 'Operador', 'Supervisor de local'];
 
 function toggleCamposRol(selectEl, sufijo) {
     var nombre = $(selectEl).find('option:selected').data('nombre') || '';

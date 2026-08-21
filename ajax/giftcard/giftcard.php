@@ -25,8 +25,8 @@ $rol     = $_SESSION['permisos_acceso'] ?? '';
 $id_user = (int)$_SESSION['id_user'];
 
 // Acepta rol legacy O el perfil nuevo asignado (per_id -> perfil.per_nombre)
-$esSuperAdminGC = (strtolower($rol) === 'super admin');
-if (!$esSuperAdminGC) {
+$nombrePerfilGC = $rol;
+if (strtolower($rol) !== 'super admin') {
     $qPerfilGC2 = $mysqli->prepare(
         "SELECT p.per_nombre FROM usuario u JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user = ?"
     );
@@ -34,12 +34,26 @@ if (!$esSuperAdminGC) {
     $qPerfilGC2->execute();
     $rowPerfilGC2 = $qPerfilGC2->get_result()->fetch_assoc();
     if ($rowPerfilGC2) {
-        $esSuperAdminGC = strtolower($rowPerfilGC2['per_nombre']) === 'super admin';
+        $nombrePerfilGC = $rowPerfilGC2['per_nombre'];
     }
 }
-// "Cliente" de Gift Cards: rol legacy conocido, o cualquier usuario con
-// empresa asignada (cli_id) que no sea administrador.
-$esClienteGC = !$esSuperAdminGC && (in_array($rol, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
+$esSuperAdminGC = (strtolower($nombrePerfilGC) === 'super admin');
+
+// "Cliente" de Gift Cards: empresa dueña de sus propios códigos (rol legacy
+// o perfil 'Empresa Cliente'/'Cliente GiftCard'). Se identifica por NOMBRE
+// DE PERFIL, no solo por tener cli_id — porque ahora personal interno
+// (Financiero, Supervisor, etc.) también puede tener cli_id asignado para
+// PER-01 (ver $esEmpresaStaffGC) sin ser el dueño de la empresa.
+$rolesClienteExternoGC = ['cliente_giftcard', 'empresa_cliente', 'cliente giftcard', 'empresa cliente'];
+$esClienteGC = !$esSuperAdminGC && (in_array(strtolower($rol), $rolesClienteExternoGC)
+    || in_array(strtolower($nombrePerfilGC), $rolesClienteExternoGC));
+
+// PER-01: personal interno con el módulo Gift Card habilitado y una empresa
+// vinculada (cli_id) ve, en modo SOLO LECTURA, las solicitudes y lotes de esa
+// empresa — nunca puede aprobar, rechazar ni crear lotes (exclusivo de
+// $esSuperAdminGC).
+$esEmpresaStaffGC = !$esSuperAdminGC && !$esClienteGC && !empty($_SESSION['cli_id']);
+$cliIdSesionGC     = (int)($_SESSION['cli_id'] ?? 0);
 
 // ─────────────────────────────────────────────
 // Helper: envío de email
@@ -67,10 +81,15 @@ function get_superadmin_email($mysqli): string {
 switch ($action) {
 
     // ══════════════════════════════════════════════════
-    // LIST LOTES — Super Admin ve todos los lotes creados
+    // LIST LOTES — Super Admin ve todos los lotes creados; personal interno
+    // de solo lectura (PER-01, $esEmpresaStaffGC) solo ve los de su empresa.
     // ══════════════════════════════════════════════════
     case 'list_lotes':
         header('Content-Type: text/html');
+        if (!$esSuperAdminGC && !$esEmpresaStaffGC) {
+            echo '<div class="alert alert-danger">Sin permisos</div>';
+            break;
+        }
         $query = "SELECT l.lgc_id, l.lgc_cantidad, l.lgc_cupo_codigo, l.lgc_fecha, l.lgc_periodo_facturacion,
                          u.name_user,
                          COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre,
@@ -80,9 +99,11 @@ switch ($action) {
                   JOIN usuario u ON l.id_user = u.id_user
                   LEFT JOIN cliente c_directo ON l.cli_id = c_directo.cli_id
                   LEFT JOIN cliente c_usuario ON u.cli_id = c_usuario.cli_id
-                  LEFT JOIN codigo_gift_card c ON l.lgc_id = c.lgc_id
-                  GROUP BY l.lgc_id
-                  ORDER BY l.lgc_id DESC";
+                  LEFT JOIN codigo_gift_card c ON l.lgc_id = c.lgc_id";
+        if ($esEmpresaStaffGC) {
+            $query .= " WHERE COALESCE(l.cli_id, u.cli_id) = $cliIdSesionGC";
+        }
+        $query .= " GROUP BY l.lgc_id ORDER BY l.lgc_id DESC";
         $result = mysqli_query($mysqli, $query);
         ?>
         <table id="table_lotes" class="table table-striped table-bordered" style="width:100%">
@@ -110,10 +131,12 @@ switch ($action) {
                            onclick="ver_codigos(<?php echo $row['lgc_id']; ?>, '<?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?>')">
                             <i style="color:#fff" class="icon dripicons-list"></i>
                         </a>
+                        <?php if ($esSuperAdminGC): ?>
                         <a class="btn btn-outline-secondary btn-md" title="Ver historial de aprobación"
                            onclick="verHistorialLote(<?php echo $row['lgc_id']; ?>)">
                             <i class="icon dripicons-clock"></i>
                         </a>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php $no++; } ?>
@@ -127,7 +150,22 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'list_codigos':
         header('Content-Type: text/html');
+        if (!$esSuperAdminGC && !$esEmpresaStaffGC) {
+            echo '<div class="alert alert-danger">Sin permisos</div>';
+            break;
+        }
         $lgc_id = (int)($_GET['lgc_id'] ?? 0);
+        if ($esEmpresaStaffGC) {
+            // PER-01: solo lectura, y solo de los códigos de un lote de SU empresa.
+            $chkLote = mysqli_query($mysqli, "SELECT COALESCE(l.cli_id, u.cli_id) AS lote_cli_id
+                                               FROM lote_gift_card l JOIN usuario u ON l.id_user = u.id_user
+                                               WHERE l.lgc_id = $lgc_id");
+            $rowChk  = $chkLote ? mysqli_fetch_assoc($chkLote) : null;
+            if (!$rowChk || (int)$rowChk['lote_cli_id'] !== $cliIdSesionGC) {
+                echo '<div class="alert alert-danger">Sin permisos</div>';
+                break;
+            }
+        }
         $result = mysqli_query($mysqli, "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
                                            cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad, cgc_fecha_uso
                                     FROM codigo_gift_card WHERE lgc_id = $lgc_id ORDER BY cgc_id ASC");
@@ -357,6 +395,57 @@ switch ($action) {
             </tbody>
         </table>
         <?php
+        break;
+
+    // ══════════════════════════════════════════════════
+    // LIST SOLICITUDES EMPRESA — PER-01: personal interno de solo lectura
+    // ve TODAS las solicitudes (cualquier estado) de la empresa que tiene
+    // vinculada, sin poder aprobar ni rechazar.
+    // ══════════════════════════════════════════════════
+    case 'list_solicitudes_empresa':
+        header('Content-Type: text/html');
+        if (!$esEmpresaStaffGC) {
+            echo '<div class="alert alert-danger">Sin permisos</div>';
+            break;
+        }
+        $result = mysqli_query($mysqli, "SELECT s.sol_id, s.sol_cantidad, s.sol_cupo_codigo, s.sol_periodo_facturacion,
+                                         s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud, u.name_user
+                                  FROM giftcard_solicitud s JOIN usuario u ON s.id_user = u.id_user
+                                  WHERE COALESCE(s.cli_id, u.cli_id) = $cliIdSesionGC
+                                  ORDER BY s.sol_fecha_solicitud DESC");
+        $badges = ['PENDING' => 'warning', 'APPROVED' => 'success', 'REJECTED' => 'danger'];
+        $labels = ['PENDING' => 'Pendiente', 'APPROVED' => 'Aprobado', 'REJECTED' => 'Rechazado'];
+        $rows   = [];
+        if ($result) { while ($r = mysqli_fetch_assoc($result)) $rows[] = $r; }
+        if (empty($rows)): ?>
+            <div class="text-center py-5 text-muted">
+                <i class="icon dripicons-inbox" style="font-size:2.5rem; display:block; margin-bottom:10px; opacity:.4;"></i>
+                Tu empresa no tiene solicitudes de Gift Cards registradas.
+            </div>
+        <?php else: ?>
+        <div class="gc-timeline">
+        <?php foreach ($rows as $row):
+            $b       = $badges[$row['sol_estado']] ?? 'secondary';
+            $l       = $labels[$row['sol_estado']] ?? $row['sol_estado'];
+            $color_l = $row['sol_estado'] === 'APPROVED' ? '#28a745' : ($row['sol_estado'] === 'REJECTED' ? '#dc3545' : '#ffc107'); ?>
+            <div class="gc-timeline-item mb-3 p-3 border rounded" style="border-left: 4px solid <?php echo $color_l; ?> !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Solicitud #<?php echo $row['sol_id']; ?></strong>
+                        &nbsp;<span class="badge badge-<?php echo $b; ?>"><?php echo $l; ?></span>
+                    </div>
+                    <small class="text-muted"><?php echo date('d/m/Y H:i', strtotime($row['sol_fecha_solicitud'])); ?></small>
+                </div>
+                <div class="mt-2 row">
+                    <div class="col-sm-3"><small class="text-muted">Solicitante</small><br><strong><?php echo htmlspecialchars($row['name_user']); ?></strong></div>
+                    <div class="col-sm-3"><small class="text-muted">Cantidad</small><br><strong><?php echo $row['sol_cantidad']; ?> códigos</strong></div>
+                    <div class="col-sm-3"><small class="text-muted">Cupo x código</small><br><strong>$<?php echo number_format($row['sol_cupo_codigo'], 2); ?></strong></div>
+                    <div class="col-sm-3"><small class="text-muted">Caducidad</small><br><strong><?php echo date('d/m/Y', strtotime($row['sol_fecha_caducidad'])); ?></strong></div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        </div>
+        <?php endif;
         break;
 
     // ══════════════════════════════════════════════════

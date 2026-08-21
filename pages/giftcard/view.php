@@ -15,9 +15,16 @@ if (!$es_admin) {
         $es_admin = strtolower($rowPerfilGC['per_nombre']) === 'super admin';
     }
 }
-// "Cliente" de Gift Cards: rol legacy conocido, o cualquier usuario con
-// empresa asignada (cli_id) que no sea administrador.
-$es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
+// "Cliente" de Gift Cards: empresa dueña de sus propios códigos, identificada
+// por NOMBRE DE PERFIL (no solo por cli_id: ver $es_empresa_staff abajo).
+$rolesClienteExterno = ['cliente_giftcard', 'empresa_cliente', 'cliente giftcard', 'empresa cliente'];
+$nombrePerfilGCView  = $es_admin ? 'super admin' : strtolower($rowPerfilGC['per_nombre'] ?? '');
+$es_cliente = !$es_admin && (in_array(strtolower($rol_gc), $rolesClienteExterno) || in_array($nombrePerfilGCView, $rolesClienteExterno));
+
+// PER-01: personal interno (Financiero, Supervisor, etc.) con el módulo Gift
+// Card habilitado y una empresa vinculada (cli_id) ve, en solo lectura, las
+// solicitudes y lotes de esa empresa.
+$es_empresa_staff = !$es_admin && !$es_cliente && !empty($_SESSION['cli_id']);
 ?>
 <div class="content" data-layout="tabbed">
     <header class="page-header">
@@ -93,6 +100,46 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
                     </div>
                 </div>
             </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($es_empresa_staff): ?>
+        <div class="alert alert-secondary py-2 px-3 mb-3" style="font-size:.85rem;">
+            <i class="icon dripicons-information"></i> Vista de solo lectura: puedes consultar los lotes y
+            solicitudes de Gift Cards de tu empresa. Aprobar, rechazar o crear lotes es exclusivo de administración.
+        </div>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <h5 class="card-header d-flex align-items-center justify-content-between">
+                        <span><i class="icon dripicons-list"></i> Solicitudes de mi Empresa</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="btn_actualizar_sol_empresa">
+                            <i class="icon dripicons-clockwise"></i> Actualizar
+                        </button>
+                    </h5>
+                    <div class="card-body">
+                        <div id="loader_solicitudes_empresa"><div class="text-center p-3"><span class="spinner-border spinner-border-sm"></span></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <h5 class="card-header"><span>Lotes de mi Empresa</span></h5>
+                    <div class="card-body">
+                        <div id="loader_lotes"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!$es_admin && !$es_cliente && !$es_empresa_staff): ?>
+        <div class="text-center text-muted py-5">
+            <i class="icon dripicons-warning" style="font-size:2.5rem; display:block; margin-bottom:10px; opacity:.4;"></i>
+            Tu perfil no tiene una empresa asignada para Gift Cards. Contacta a un administrador para que te
+            vincule a la empresa correspondiente.
         </div>
         <?php endif; ?>
 
@@ -287,6 +334,11 @@ $(document).ready(function () {
     cargarMisSolicitudes();
     $('#btn_actualizar_mis_sol').on('click', function () { cargarMisSolicitudes(); });
     <?php endif; ?>
+    <?php if ($es_empresa_staff): ?>
+    cargarSolicitudesEmpresa();
+    cargarLotes();
+    $('#btn_actualizar_sol_empresa').on('click', function () { cargarSolicitudesEmpresa(); });
+    <?php endif; ?>
 
     // Exportar Excel
     $('#btn_exportar_excel').on('click', function () {
@@ -444,6 +496,14 @@ function cargarMisSolicitudes() {
     });
 }
 
+function cargarSolicitudesEmpresa() {
+    $('#loader_solicitudes_empresa').html('<div class="text-center p-3"><span class="spinner-border spinner-border-sm"></span></div>');
+    $.ajax({
+        url: 'ajax/giftcard/giftcard.php?action=list_solicitudes_empresa', type: 'GET',
+        success: function (r) { $('#loader_solicitudes_empresa').html(r); }
+    });
+}
+
 function abrirModalCrearLote() {
     $('#lote_cli_id').html('<option value="">Cargando...</option>');
     $.getJSON('ajax/clientes/clientes.php?action=list', function (res) {
@@ -503,7 +563,10 @@ function previsualizarSolicitud(sol_id, accion) {
                 '<tr><th class="bg-light">Fecha solicitud</th><td>' + fFechaHora(d.sol_fecha_solicitud) + '</td></tr>' +
                 '</table>');
             if (accion === 'APPROVE' && !d.cli_id) {
-                $('#preview_nuevo_cliente').val(d.name_user || '');
+                // Se sugiere el nombre del solicitante como nombre de empresa, pero
+                // seleccionado: si el admin empieza a escribir sin borrar antes,
+                // reemplaza el sugerido en vez de concatenarse con lo escrito.
+                $('#preview_nuevo_cliente').val(d.name_user || '').select();
                 $('#preview_sin_cliente').show();
             }
         }

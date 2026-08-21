@@ -583,6 +583,31 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════
+     MODAL — CONFIRMAR ELIMINAR CLIENTE (CL-H)
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalConfirmarEliminarCliente" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Eliminar Cliente</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p id="dc_mensaje" class="mb-0"></p>
+                <div id="dc_alerta" class="mt-2"></div>
+                <input type="hidden" id="dc_cli_id">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btn_confirmar_eliminar_cliente">
+                    <i class="icon dripicons-trash"></i> Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
      MODAL — CARGA MASIVA DE PERSONAL (CL-I)
      3 pantallas dentro del mismo modal: Configurar → Revisar → Resultado.
 ══════════════════════════════════════════════════ -->
@@ -791,6 +816,7 @@ var _cliId   = null;   // ID del cliente en vista detalle
 var _cliData = null;   // Datos del cliente actual
 var _tabsLoaded = {};  // tabs ya cargados para evitar re-fetch
 var _personalData = {}; // cache de empleados de la ficha actual, por per_id (CL-E/CL-F)
+var _clientesListData = {}; // cache de la última lista cargada, por cli_id (CL-H)
 
 var cartBadge = {'30':'success','60':'warning','90':'danger','90+':'dark'};
 var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Sin definir':'secondary'};
@@ -822,7 +848,9 @@ function cargarClientes() {
         }
 
         var html = '';
+        _clientesListData = {};
         $.each(res.data, function(i, d) {
+            _clientesListData[d.cli_id] = d;
             var tipoBen = d.cli_tipo_beneficio
                 ? '<span class="badge badge-' + (d.cli_tipo_beneficio==='Cupo'?'info':'primary') + '">'
                   + d.cli_tipo_beneficio
@@ -851,8 +879,13 @@ function cargarClientes() {
                 + '<td class="text-nowrap">'
                   + '<button class="btn btn-info btn-sm mr-1" onclick="verDetalle('+d.cli_id+')" title="Ver perfil">'
                   + '<i class="icon dripicons-user"></i></button>'
-                  + '<button class="btn btn-primary btn-sm" onclick="editarCliente('+d.cli_id+')" title="Editar">'
+                  + '<button class="btn btn-primary btn-sm mr-1" onclick="editarCliente('+d.cli_id+')" title="Editar">'
                   + '<i class="icon dripicons-document-edit"></i></button>'
+                  + (d.total_personal > 0
+                      ? '<button class="btn btn-outline-danger btn-sm" disabled title="No se puede eliminar: tiene '+d.total_personal+' empleado(s) asociado(s)">'
+                        + '<i class="icon dripicons-trash"></i></button>'
+                      : '<button class="btn btn-danger btn-sm" onclick="eliminarCliente('+d.cli_id+')" title="Eliminar">'
+                        + '<i class="icon dripicons-trash"></i></button>')
                 + '</td>'
               + '</tr>';
         });
@@ -873,6 +906,37 @@ function limpiarFiltros() {
     $('#filtro_tipo, #filtro_beneficio, #filtro_cartera').val('');
     cargarClientes();
 }
+
+// ══════════════════════════════════════════════
+// CL-H: ELIMINAR CLIENTE
+// ══════════════════════════════════════════════
+function eliminarCliente(cli_id) {
+    var d = _clientesListData[cli_id];
+    if (!d) return;
+    $('#dc_mensaje').html('¿Seguro que deseas eliminar a <strong>' + esc(d.cli_descripcion) + '</strong>? Esta acción no se puede deshacer.');
+    $('#dc_alerta').html('');
+    $('#dc_cli_id').val(cli_id);
+    $('#modalConfirmarEliminarCliente').modal('show');
+}
+
+$('#btn_confirmar_eliminar_cliente').on('click', function () {
+    var cli_id = $('#dc_cli_id').val();
+    var btn = $(this);
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+    $.post('ajax/clientes/clientes.php?action=eliminar', { cli_id: cli_id }, function (res) {
+        btn.prop('disabled', false).html('<i class="icon dripicons-trash"></i> Eliminar');
+        if (res.success) {
+            $('#modalConfirmarEliminarCliente').modal('hide');
+            cargarClientes();
+        } else {
+            $('#dc_alerta').html('<div class="alert alert-danger py-2 mb-0">' + esc(res.mensaje || 'Error al eliminar el cliente') + '</div>');
+        }
+    }, 'json').fail(function () {
+        btn.prop('disabled', false).html('<i class="icon dripicons-trash"></i> Eliminar');
+        $('#dc_alerta').html('<div class="alert alert-danger py-2 mb-0">Error de conexión</div>');
+    });
+});
 
 // ══════════════════════════════════════════════
 // VISTA DETALLE 360°
