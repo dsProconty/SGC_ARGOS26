@@ -1,5 +1,5 @@
 <?php
-$cartera = $_GET['cartera'];
+$cartera = $_GET['cartera'] ?? '';
 $title = '';
 switch ($cartera) {
     case '30':
