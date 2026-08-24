@@ -355,6 +355,7 @@ switch ($action) {
                     <td><?php echo date('d/m/Y', strtotime($row['sol_fecha_caducidad'])); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['sol_fecha_solicitud'])); ?></td>
                     <td>
+                        <?php if ($esSuperAdminGC): ?>
                         <button class="btn btn-sm btn-success mr-1" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'APPROVE')"
                             title="Aprobar">
@@ -365,6 +366,9 @@ switch ($action) {
                             title="Rechazar">
                             <i class="icon dripicons-cross" style="color:#fff !important;"></i>
                         </button>
+                        <?php else: ?>
+                        <span class="text-muted small">Solo Super Admin aprueba</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php } ?>
@@ -487,7 +491,11 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'aprobar_solicitud':
         header('Content-Type: application/json');
-        if (!$esStaffGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        // Separado de $esStaffGC a propósito: crear/ver solicitudes lo puede
+        // hacer cualquier staff con el módulo Gift Card, pero aprobar/rechazar
+        // (decisión financiera, genera cobranza en Gestiones) queda exclusivo
+        // de Super Admin.
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
@@ -565,7 +573,8 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'rechazar_solicitud':
         header('Content-Type: application/json');
-        if (!$esStaffGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        // Ver nota en 'aprobar_solicitud': solo Super Admin aprueba/rechaza.
+        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
