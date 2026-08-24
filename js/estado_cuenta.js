@@ -5,12 +5,18 @@ $(document).ready(function () {
 
     $('#btn_imprimir_ec').on('click', function () {
         var contenido = document.getElementById('ec_content').innerHTML;
+        // EC-B: "Ver detalle de consumos" es un collapse cerrado por defecto
+        // en el modal (mt-3 sección "collapse" sin "show"); si no se abría a
+        // mano antes de imprimir, esa tabla no salía en el PDF. Se fuerza
+        // visible solo en la copia que va a la ventana de impresión.
+        contenido = contenido.replace('id="detalle_consumos"', 'id="detalle_consumos" style="display:block !important;"');
+
         var ventana   = window.open('', '_blank', 'width=900,height=800');
         ventana.document.write('<html><head><title>Estado de Cuenta - SGC ARGOS</title>');
         ventana.document.write('<link rel="stylesheet" href="assets/vendor/bootstrap/dist/css/bootstrap.min.css">');
         ventana.document.write('<style>');
-        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;color:#2c2c2c;}');
-        ventana.document.write('h4,h5{color:#6d1b3a;}');
+        ventana.document.write('body{font-family:Arial,sans-serif;font-size:13px;padding:20px;color:#2c2c2c;line-height:1.5;}');
+        ventana.document.write('h4,h5,h6{color:#6d1b3a;}');
         ventana.document.write('hr{border-top:2px solid #6d1b3a;}');
         ventana.document.write('.thead-dark th{background-color:#6d1b3a !important;color:#fff !important;border-color:#6d1b3a !important;}');
         ventana.document.write('.thead-light th{background-color:#f7ecf0 !important;color:#4a1226 !important;border-color:#e6d3da !important;}');
@@ -19,6 +25,15 @@ $(document).ready(function () {
         ventana.document.write('.table-dark,.table-dark>td,.table-dark>th{background-color:#4a1226 !important;color:#fff !important;}');
         ventana.document.write('.bg-light{background-color:#f7ecf0 !important;}');
         ventana.document.write('table.table-bordered,table.table-bordered td,table.table-bordered th{border-color:#e6d3da !important;}');
+        // EC-B: separación clara entre secciones (antes quedaban pegadas una
+        // a otra) y evitar que las tablas anchas se corten: el modal las
+        // envuelve en overflow-x:auto para hacer scroll en pantalla, pero al
+        // imprimir no hay scroll posible y el contenido se recortaba.
+        ventana.document.write('.ec-seccion{margin-top:26px;padding-top:16px;border-top:1px solid #e6d3da;}');
+        ventana.document.write('div[style*="overflow-x"]{overflow:visible !important;}');
+        ventana.document.write('table{page-break-inside:auto;}');
+        ventana.document.write('tr{page-break-inside:avoid;}');
+        ventana.document.write('thead{display:table-header-group;}');
         ventana.document.write('@media print{.no-print{display:none} @page{margin:15mm;size:A4;}}');
         ventana.document.write('</style>');
         ventana.document.write('</head><body>');
@@ -284,10 +299,13 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
         '    </div>' +
         '  </div>' +
         '  <hr>' +
-        pivotTable +
-        detalleTable +
+        '  <div class="ec-seccion">' + pivotTable + '</div>' +
+        '  <div class="ec-seccion">' + detalleTable + '</div>' +
+        '  <div class="ec-seccion">' +
+        '    <h6 class="mb-2"><strong>Resumen Financiero</strong></h6>' +
         resumen +
-        '  <div class="mt-4 row">' +
+        '  </div>' +
+        '  <div class="ec-seccion row">' +
         '    <div class="col-6"><p>Firma autorizada: ___________________________</p></div>' +
         '    <div class="col-6"><p>Sello: ___________________________</p></div>' +
         '  </div>' +
