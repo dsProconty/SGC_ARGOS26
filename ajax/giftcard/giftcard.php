@@ -41,6 +41,20 @@ if (!$esSuperAdminGC) {
 // empresa asignada (cli_id) que no sea administrador.
 $esClienteGC = !$esSuperAdminGC && (in_array($rol, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
 
+// H-003/H-013: staff interno (no cliente) con el módulo Gift Card habilitado
+// en su perfil (ej. Supervisor) gestiona solicitudes/lotes igual que Super
+// Admin — antes solo 'Super Admin' podía crear/ver/aprobar solicitudes.
+$esStaffGC = $esSuperAdminGC;
+if (!$esStaffGC && !$esClienteGC) {
+    $qModGC = $mysqli->prepare(
+        "SELECT 1 FROM perfil_modulo pm JOIN usuario u ON u.per_id = pm.per_id
+         WHERE u.id_user = ? AND pm.pm_modulo = 'giftcard' LIMIT 1"
+    );
+    $qModGC->bind_param('i', $id_user);
+    $qModGC->execute();
+    $esStaffGC = (bool)$qModGC->get_result()->fetch_assoc();
+}
+
 // ─────────────────────────────────────────────
 // Helper: envío de email
 // ─────────────────────────────────────────────
@@ -177,7 +191,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'crear_lote':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) {
+        if (!$esStaffGC) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
             break;
         }
@@ -302,7 +316,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'list_solicitudes':
         header('Content-Type: text/html');
-        if (!$esSuperAdminGC) {
+        if (!$esStaffGC) {
             echo '<div class="alert alert-danger">Sin permisos</div>';
             break;
         }
@@ -414,7 +428,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'get_solicitud':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
+        if (!$esStaffGC) { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
         $result = mysqli_query($mysqli, "SELECT s.sol_id, s.id_user, s.sol_cantidad, s.sol_cupo_codigo,
                                     s.sol_periodo_facturacion, s.sol_fecha_caducidad, s.sol_estado, s.sol_fecha_solicitud,
@@ -438,7 +452,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'crear_cliente_solicitante':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esStaffGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $desc   = trim($_POST['cli_descripcion'] ?? '');
@@ -473,7 +487,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'aprobar_solicitud':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esStaffGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
@@ -551,7 +565,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'rechazar_solicitud':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        if (!$esStaffGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
@@ -598,7 +612,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'ver_historial':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
+        if (!$esStaffGC) { echo json_encode(['success' => false]); break; }
         $sol_id = (int)($_GET['sol_id'] ?? 0);
         $res_h  = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                     FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
@@ -617,7 +631,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'ver_historial_lote':
         header('Content-Type: application/json');
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false]); break; }
+        if (!$esStaffGC) { echo json_encode(['success' => false]); break; }
         $lgc_id  = (int)($_GET['lgc_id'] ?? 0);
         $res_sol = mysqli_query($mysqli, "SELECT sol_id FROM giftcard_solicitud WHERE sol_lgc_id = $lgc_id LIMIT 1");
         $solRow  = $res_sol ? mysqli_fetch_assoc($res_sol) : null;

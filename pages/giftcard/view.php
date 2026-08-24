@@ -18,6 +18,20 @@ if (!$es_admin) {
 // "Cliente" de Gift Cards: rol legacy conocido, o cualquier usuario con
 // empresa asignada (cli_id) que no sea administrador.
 $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cliente']) || !empty($_SESSION['cli_id']));
+
+// H-003/H-013: staff interno (no cliente) con el módulo Gift Card habilitado
+// en su perfil (ej. Supervisor) ve/gestiona igual que Super Admin — antes
+// esta vista solo mostraba la administración a 'Super Admin'.
+$es_staff_gc = $es_admin;
+if (!$es_staff_gc && !$es_cliente) {
+    $qModGC = $mysqli->prepare(
+        "SELECT 1 FROM perfil_modulo pm JOIN usuario u ON u.per_id = pm.per_id
+         WHERE u.id_user = ? AND pm.pm_modulo = 'giftcard' LIMIT 1"
+    );
+    $qModGC->bind_param('i', $_SESSION['id_user']);
+    $qModGC->execute();
+    $es_staff_gc = (bool)$qModGC->get_result()->fetch_assoc();
+}
 ?>
 <div class="content" data-layout="tabbed">
     <header class="page-header">
@@ -45,7 +59,7 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
 
     <section class="page-content container-fluid">
 
-        <?php if ($es_admin): ?>
+        <?php if ($es_staff_gc): ?>
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -118,7 +132,7 @@ $es_cliente = !$es_admin && (in_array($rol_gc, ['cliente_giftcard', 'empresa_cli
     </div>
 </div>
 
-<?php if ($es_admin): ?>
+<?php if ($es_staff_gc): ?>
 <!-- Modal Preview Aprobar/Rechazar -->
 <div class="modal fade" id="modal_preview_sol" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -278,7 +292,7 @@ var lgc_id_actual = null;
 $(document).ready(function () {
 
     // Inicialización
-    <?php if ($es_admin): ?>
+    <?php if ($es_staff_gc): ?>
     cargarSolicitudes();
     cargarLotes();
     $('#btn_actualizar_sol').on('click', function () { cargarSolicitudes(); });
