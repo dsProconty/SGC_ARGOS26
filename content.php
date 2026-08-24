@@ -36,6 +36,23 @@ if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
             $allowed[] = $row['pm_modulo'];
         }
 
+        // Fallback: usuario sin per_id asignado (no migrado al sistema de
+        // perfiles) — resolver módulos por el rol legacy permisos_acceso,
+        // igual que hace tienePerfil() en helpers/session_helpers.php.
+        if (empty($allowed) && !empty($_SESSION['permisos_acceso'])) {
+            $stmt2 = $mysqli->prepare(
+                "SELECT pm.pm_modulo FROM perfil_modulo pm
+                 JOIN perfil p ON p.per_id = pm.per_id
+                 WHERE LOWER(p.per_nombre) = LOWER(?)"
+            );
+            $stmt2->bind_param('s', $_SESSION['permisos_acceso']);
+            $stmt2->execute();
+            $res2 = $stmt2->get_result();
+            while ($row = $res2->fetch_assoc()) {
+                $allowed[] = $row['pm_modulo'];
+            }
+        }
+
         if (!in_array($modulo_check, $allowed)) {
             // Redirigir al primer módulo que sí tenga habilitado, no siempre a
             // dashboard: si su perfil tampoco incluye dashboard, redirigir ahí
