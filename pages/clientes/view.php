@@ -828,8 +828,10 @@ function cargarClientes() {
                 + '<td class="text-nowrap">'
                   + '<button class="btn btn-info btn-sm mr-1" onclick="verDetalle('+d.cli_id+')" title="Ver perfil">'
                   + '<i class="icon dripicons-user"></i></button>'
-                  + '<button class="btn btn-primary btn-sm" onclick="editarCliente('+d.cli_id+')" title="Editar">'
+                  + '<button class="btn btn-primary btn-sm mr-1" onclick="editarCliente('+d.cli_id+')" title="Editar">'
                   + '<i class="icon dripicons-document-edit"></i></button>'
+                  + '<button class="btn btn-danger btn-sm btn-eliminar-cliente" data-id="'+d.cli_id+'" data-nombre="'+htmlEsc(d.cli_descripcion)+'" title="Eliminar">'
+                  + '<i class="icon dripicons-trash" style="color:#fff;"></i></button>'
                 + '</td>'
               + '</tr>';
         });
@@ -850,6 +852,26 @@ function limpiarFiltros() {
     $('#filtro_tipo, #filtro_beneficio, #filtro_cartera').val('');
     cargarClientes();
 }
+
+function htmlEsc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// CL-H: eliminar cliente (bloqueado server-side si tiene empleados asociados)
+$(document).on('click', '.btn-eliminar-cliente', function () {
+    var id     = $(this).data('id');
+    var nombre = $(this).data('nombre');
+    if (!confirm('¿Eliminar el cliente "' + nombre + '"?\nEsta acción no se puede deshacer.')) return;
+
+    $.post('ajax/clientes/clientes.php', { action: 'eliminar', cli_id: id }, function (res) {
+        if (res.success) {
+            cargarClientes();
+        } else {
+            alert(res.mensaje);
+        }
+    }, 'json').fail(function () { alert('Error de conexión'); });
+});
 
 // ══════════════════════════════════════════════
 // VISTA DETALLE 360°

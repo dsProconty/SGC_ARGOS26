@@ -196,6 +196,8 @@ if (count($segmentos) === 3 && $segmentos[2] === 'codigos') {
     // que querríamos frenar y poder detectar en la auditoría.
     api_verificar_limite($mysqli, $api_id, 10, 60, '%/codigos');
 
+    gc_expirar_codigos_vencidos($mysqli); // H-001/PV-B
+
     // 409 y no 404: la solicitud existe, pero todavía no hay nada que dar.
     // El cliente debe reintentar más tarde, no corregir la petición.
     if ($sol['sol_estado'] !== 'APPROVED' || !$sol['sol_lgc_id']) {

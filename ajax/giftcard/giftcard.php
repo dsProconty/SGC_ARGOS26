@@ -24,6 +24,11 @@ $action  = $_GET['action'] ?? $_POST['action'] ?? '';
 $rol     = $_SESSION['permisos_acceso'] ?? '';
 $id_user = (int)$_SESSION['id_user'];
 
+// H-001/PV-B: corrige cgc_estado de códigos ya vencidos antes de cualquier
+// lectura de este módulo (list_lotes, list_codigos, etc.), no solo al
+// buscar un código puntual en POS.
+gc_expirar_codigos_vencidos($mysqli);
+
 // Acepta rol legacy O el perfil nuevo asignado (per_id -> perfil.per_nombre)
 $esSuperAdminGC = (strtolower($rol) === 'super admin');
 if (!$esSuperAdminGC) {

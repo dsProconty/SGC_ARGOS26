@@ -2,6 +2,7 @@
 date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once "../../config/database.php";
+require_once "../../services/giftcard_solicitud.php";
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -138,6 +139,29 @@ switch ($action) {
         echo $stmt->execute()
             ? json_encode(['success' => true,  'mensaje' => 'Cliente actualizado'])
             : json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
+        break;
+
+    // ── ELIMINAR — CL-H: no se puede si tiene empleados asociados (mismo
+    // criterio que ajax/convenio/convenio.php, que comparte la tabla cliente) ──
+    case 'eliminar':
+        header('Content-Type: application/json');
+        $id = (int)($_POST['cli_id'] ?? 0);
+        if (!$id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+
+        $chk = $mysqli->prepare("SELECT COUNT(*) AS total FROM personal WHERE cli_id = ?");
+        $chk->bind_param('i', $id);
+        $chk->execute();
+        $total = (int)$chk->get_result()->fetch_assoc()['total'];
+        if ($total > 0) {
+            echo json_encode(['success' => false, 'mensaje' => "No se puede eliminar: tiene $total empleado(s) asociado(s)."]);
+            break;
+        }
+
+        $stmt = $mysqli->prepare("DELETE FROM cliente WHERE cli_id = ?");
+        $stmt->bind_param('i', $id);
+        echo $stmt->execute()
+            ? json_encode(['success' => true, 'mensaje' => 'Cliente eliminado'])
+            : json_encode(['success' => false, 'mensaje' => 'Error al eliminar: ' . $mysqli->error]);
         break;
 
     // ── TAB: PERSONAL ─────────────────────────────────────────────────────────
@@ -535,6 +559,7 @@ switch ($action) {
     // ── TAB: GIFT CARDS ───────────────────────────────────────────────────────
     case 'giftcard_list':
         header('Content-Type: application/json');
+        gc_expirar_codigos_vencidos($mysqli); // H-001/PV-B
         $cli_id = (int)($_GET['cli_id'] ?? 0);
         $stmt = $mysqli->prepare(
             "SELECT lgc.lgc_id, lgc.lgc_fecha, lgc.lgc_cantidad, lgc.lgc_cupo_codigo,
