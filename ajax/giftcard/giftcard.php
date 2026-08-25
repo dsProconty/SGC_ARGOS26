@@ -12,6 +12,7 @@ date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
 require_once '../../services/giftcard_solicitud.php';
+require_once '../../helpers/session_helpers.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -59,6 +60,11 @@ if (!$esStaffGC && !$esClienteGC) {
     $qModGC->execute();
     $esStaffGC = (bool)$qModGC->get_result()->fetch_assoc();
 }
+
+// US-B: aprobar/rechazar sigue siendo exclusivo de Super Admin salvo que el
+// perfil tenga el permiso granular giftcard.aprobar (delegable desde
+// Perfiles y Permisos, sin necesidad de ser Super Admin).
+$puedeAprobarGC = $esSuperAdminGC || tienePermiso($mysqli, 'giftcard.aprobar');
 
 // ─────────────────────────────────────────────
 // Helper: envío de email
@@ -360,7 +366,7 @@ switch ($action) {
                     <td><?php echo date('d/m/Y', strtotime($row['sol_fecha_caducidad'])); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['sol_fecha_solicitud'])); ?></td>
                     <td>
-                        <?php if ($esSuperAdminGC): ?>
+                        <?php if ($puedeAprobarGC): ?>
                         <button class="btn btn-sm btn-success mr-1" style="color:#fff !important;"
                             onclick="previsualizarSolicitud(<?php echo $row['sol_id']; ?>, 'APPROVE')"
                             title="Aprobar">
@@ -498,9 +504,9 @@ switch ($action) {
         header('Content-Type: application/json');
         // Separado de $esStaffGC a propósito: crear/ver solicitudes lo puede
         // hacer cualquier staff con el módulo Gift Card, pero aprobar/rechazar
-        // (decisión financiera, genera cobranza en Gestiones) queda exclusivo
-        // de Super Admin.
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        // (decisión financiera, genera cobranza en Gestiones) exige Super
+        // Admin o el permiso granular giftcard.aprobar (US-B).
+        if (!$puedeAprobarGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');
@@ -578,8 +584,8 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'rechazar_solicitud':
         header('Content-Type: application/json');
-        // Ver nota en 'aprobar_solicitud': solo Super Admin aprueba/rechaza.
-        if (!$esSuperAdminGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        // Ver nota en 'aprobar_solicitud': Super Admin o giftcard.aprobar.
+        if (!$puedeAprobarGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
 
         $sol_id = (int)($_POST['sol_id'] ?? 0);
         $notas  = trim($_POST['notas'] ?? '');

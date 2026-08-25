@@ -1,4 +1,9 @@
-<?php if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; } ?>
+<?php
+if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; }
+require_once 'config/database.php';
+require_once 'helpers/session_helpers.php';
+$puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
+?>
 <div class="content">
     <header class="page-header">
         <div class="container">
@@ -768,6 +773,7 @@ var _cliId   = null;   // ID del cliente en vista detalle
 var _cliData = null;   // Datos del cliente actual
 var _tabsLoaded = {};  // tabs ya cargados para evitar re-fetch
 var _personalData = {}; // cache de empleados de la ficha actual, por per_id (CL-E/CL-F)
+var PUEDE_ELIMINAR_CLIENTE = <?php echo $puedeEliminarCliente ? 'true' : 'false'; ?>; // US-B
 
 var cartBadge = {'30':'success','60':'warning','90':'danger','90+':'dark'};
 var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Sin definir':'secondary'};
@@ -830,8 +836,10 @@ function cargarClientes() {
                   + '<i class="icon dripicons-user"></i></button>'
                   + '<button class="btn btn-primary btn-sm mr-1" onclick="editarCliente('+d.cli_id+')" title="Editar">'
                   + '<i class="icon dripicons-document-edit"></i></button>'
-                  + '<button class="btn btn-danger btn-sm btn-eliminar-cliente" data-id="'+d.cli_id+'" data-nombre="'+htmlEsc(d.cli_descripcion)+'" title="Eliminar">'
-                  + '<i class="icon dripicons-trash" style="color:#fff;"></i></button>'
+                  + (PUEDE_ELIMINAR_CLIENTE
+                      ? '<button class="btn btn-danger btn-sm btn-eliminar-cliente" data-id="'+d.cli_id+'" data-nombre="'+htmlEsc(d.cli_descripcion)+'" title="Eliminar">'
+                        + '<i class="icon dripicons-trash" style="color:#fff;"></i></button>'
+                      : '')
                 + '</td>'
               + '</tr>';
         });
