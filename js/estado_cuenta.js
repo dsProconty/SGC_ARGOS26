@@ -106,6 +106,24 @@ function generarEC() {
     });
 }
 
+function enviarEC(ec_id) {
+    if (!confirm('¿Enviar este estado de cuenta por correo al cliente?')) return;
+
+    $.ajax({
+        url: 'ajax/estado_cuenta/estado_cuenta.php',
+        type: 'POST',
+        data: { action: 'enviar', ec_id: ec_id },
+        dataType: 'json',
+        success: function (resp) {
+            alert(resp.mensaje);
+            cargarEstadosCuenta();
+        },
+        error: function () {
+            alert('Error de conexión al enviar el correo');
+        }
+    });
+}
+
 function ver_ec(ec_id) {
     $('#ec_content').html('<div class="text-center p-4"><span class="spinner-border"></span></div>');
     $('#modal_ver_ec').modal('show');

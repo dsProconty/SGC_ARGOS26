@@ -5,6 +5,13 @@ if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
     echo "<meta http-equiv='refresh' content='0; url=index.php?alert=1'>";
 } else {
 
+    // Sin cron real en el servidor: se dispara en cada carga de módulo de un
+    // usuario autenticado, pero una marca en `configuracion` garantiza que
+    // la generación/envío real de estados de cuenta corra como máximo una
+    // vez por día (ver services/estado_cuenta_service.php).
+    require_once "services/estado_cuenta_service.php";
+    ec_generar_y_enviar_automaticos($mysqli);
+
     $module = $_GET['module'] ?? 'dashboard';
 
     // ── Validación de acceso por perfil ──────────────────────────────────────

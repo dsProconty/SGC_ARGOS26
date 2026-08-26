@@ -67,15 +67,9 @@ if (!$esStaffGC && !$esClienteGC) {
 $puedeAprobarGC = $esSuperAdminGC || tienePermiso($mysqli, 'giftcard.aprobar');
 
 // ─────────────────────────────────────────────
-// Helper: envío de email
+// Helper: envío de email (compartido con Estados de Cuenta)
 // ─────────────────────────────────────────────
-function enviar_email($para, $asunto, $cuerpo) {
-    if (!$para) return;
-    $headers  = "MIME-Version: 1.0\r\n";
-    $headers .= "Content-type: text/html; charset=utf-8\r\n";
-    $headers .= "From: SGC ARGOS <no-reply@sgcargos.com>\r\n";
-    @mail($para, $asunto, $cuerpo, $headers);
-}
+require_once '../../helpers/mail_helpers.php';
 
 // ─────────────────────────────────────────────
 // Helper: obtener email del Super Admin

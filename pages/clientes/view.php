@@ -293,7 +293,7 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                         <table id="table_ec" class="table table-striped table-bordered" style="width:100%">
                             <thead><tr>
                                 <th>#</th><th>Período</th><th>Monto Total</th>
-                                <th>Generado</th><th>Estado Envío</th><th>PDF</th>
+                                <th>Generado</th><th>Estado Envío</th><th>PDF</th><th>Acciones</th>
                             </tr></thead>
                             <tbody id="tbody_ec"></tbody>
                         </table>
@@ -1137,6 +1137,7 @@ function cargarTabEC() {
                 + '<td>' + e.ec_fecha_generacion + '</td>'
                 + '<td><span class="badge badge-'+envBadge+'">'+e.ec_estado_envio+'</span></td>'
                 + '<td>' + pdf + '</td>'
+                + '<td><a class="btn btn-xs btn-success" title="Enviar por correo" onclick="enviarECCliente(' + e.ec_id + ')"><i class="icon dripicons-mail"></i></a></td>'
               + '</tr>';
         });
         $('#tbody_ec').html(html);
@@ -1149,6 +1150,25 @@ function cargarTabEC() {
 
         $('#tabla_ec_wrapper').show();
         _tabsLoaded['estado_cuenta'] = true;
+    });
+}
+
+function enviarECCliente(ec_id) {
+    if (!confirm('¿Enviar este estado de cuenta por correo al cliente?')) return;
+
+    $.ajax({
+        url: 'ajax/estado_cuenta/estado_cuenta.php',
+        type: 'POST',
+        data: { action: 'enviar', ec_id: ec_id },
+        dataType: 'json',
+        success: function (resp) {
+            alert(resp.mensaje);
+            _tabsLoaded['estado_cuenta'] = false;
+            cargarTabEC();
+        },
+        error: function () {
+            alert('Error de conexión al enviar el correo');
+        }
     });
 }
 
