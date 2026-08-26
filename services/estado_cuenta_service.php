@@ -6,6 +6,7 @@
 // Sin type hints nullable ni short-list syntax: PHP < 7.1 en producción.
 
 require_once __DIR__ . '/../helpers/mail_helpers.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 if (!function_exists('ec_generar_estado_cuenta')) {
     /**
@@ -202,6 +203,178 @@ if (!function_exists('ec_obtener_detalle')) {
     }
 }
 
+if (!function_exists('ec_html_pdf')) {
+    /**
+     * HTML simplificado (tablas con estilos inline, sin Bootstrap/CSS
+     * externo) para el motor de renderizado de TCPDF, que solo entiende un
+     * subconjunto de HTML/CSS. Es una versión propia del mismo contenido que
+     * arma renderEC() en js/estado_cuenta.js, no la reutiliza directamente.
+     */
+    function ec_html_pdf($data) {
+        $ec       = $data['ec'];
+        $r        = $data['resumen'];
+        $marcas   = $data['marcas'];
+        $saldos   = $data['saldos'];
+        $detalles = $data['detalles'];
+
+        $empleados = array();
+        foreach ($data['pivot_rows'] as $row) {
+            $pid = $row['per_id'];
+            if (!isset($empleados[$pid])) {
+                $empleados[$pid] = array(
+                    'per_nombre'    => $row['per_nombre'],
+                    'per_documento' => $row['per_documento'],
+                    'brands'        => array(),
+                    'total_periodo' => 0,
+                );
+            }
+            $t = (float)$row['total_marca'];
+            $empleados[$pid]['brands'][$row['mar_id']] = $t;
+            $empleados[$pid]['total_periodo'] += $t;
+        }
+
+        $html  = '<h2 style="text-align:center;color:#6d1b3a;margin-bottom:2px;">SGC ARGOS</h2>';
+        $html .= '<h3 style="text-align:center;color:#6d1b3a;margin-top:0;">ESTADO DE CUENTA</h3><hr/>';
+        $html .= '<table cellpadding="3" style="width:100%;font-size:10pt;"><tr>'
+               . '<td style="width:50%;">'
+               . '<strong>Cliente:</strong> ' . htmlspecialchars($ec['cli_descripcion']) . '<br/>'
+               . '<strong>Contacto:</strong> ' . htmlspecialchars($ec['cli_contacto'] ? $ec['cli_contacto'] : '-') . '<br/>'
+               . '<strong>Teléfono:</strong> ' . htmlspecialchars($ec['cli_telefono'] ? $ec['cli_telefono'] : '-') . '<br/>'
+               . '<strong>Email:</strong> ' . htmlspecialchars($ec['cli_email'] ? $ec['cli_email'] : '-')
+               . '</td>'
+               . '<td style="width:50%;text-align:right;">'
+               . '<strong>No. Estado:</strong> #' . (int)$ec['ec_id'] . '<br/>'
+               . '<strong>Período:</strong> ' . date('d/m/Y', strtotime($ec['ec_periodo_inicio'])) . ' al ' . date('d/m/Y', strtotime($ec['ec_periodo_fin'])) . '<br/>'
+               . '<strong>Generado:</strong> ' . date('d/m/Y H:i', strtotime($ec['ec_fecha_generacion']))
+               . '</td></tr></table><hr/>';
+
+        if (empty($marcas)) {
+            $html .= '<p style="color:#888;">Sin consumos en el período.</p>';
+        } else {
+            $html .= '<h4 style="color:#6d1b3a;">Resumen por Beneficiario y Marca</h4>';
+            $html .= '<table cellpadding="3" style="width:100%;font-size:8pt;">'
+                   . '<thead><tr style="background-color:#6d1b3a;color:#ffffff;">'
+                   . '<th style="border:1px solid #6d1b3a;">Cédula</th><th style="border:1px solid #6d1b3a;">Nombre</th>';
+            foreach ($marcas as $m) {
+                $html .= '<th style="border:1px solid #6d1b3a;text-align:right;">' . htmlspecialchars($m['mar_descripcion']) . '</th>';
+            }
+            $html .= '<th style="border:1px solid #6d1b3a;text-align:right;">Consumido período</th>'
+                   . '<th style="border:1px solid #6d1b3a;text-align:right;">Saldo acumulado</th></tr></thead><tbody>';
+
+            $brandTotals = array();
+            foreach ($marcas as $m) {
+                $brandTotals[$m['mar_id']] = 0;
+            }
+            $grandTotalPeriodo = 0;
+            $grandTotalSaldo   = 0;
+
+            foreach ($empleados as $pid => $emp) {
+                $saldo = isset($saldos[$pid]) ? (float)$saldos[$pid] : 0;
+                $html .= '<tr>'
+                       . '<td style="border:1px solid #e6d3da;">' . htmlspecialchars($emp['per_documento'] ? $emp['per_documento'] : '-') . '</td>'
+                       . '<td style="border:1px solid #e6d3da;">' . htmlspecialchars($emp['per_nombre']) . '</td>';
+                foreach ($marcas as $m) {
+                    $val = isset($emp['brands'][$m['mar_id']]) ? $emp['brands'][$m['mar_id']] : 0;
+                    $brandTotals[$m['mar_id']] += $val;
+                    $html .= '<td style="border:1px solid #e6d3da;text-align:right;">' . ($val > 0 ? '$' . number_format($val, 2) : '-') . '</td>';
+                }
+                $grandTotalPeriodo += $emp['total_periodo'];
+                $grandTotalSaldo   += $saldo;
+                $html .= '<td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format($emp['total_periodo'], 2) . '</strong></td>'
+                       . '<td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format($saldo, 2) . '</strong></td></tr>';
+            }
+
+            $html .= '<tr style="background-color:#f2dbe4;"><td colspan="2" style="border:1px solid #e6d3da;"><strong>TOTALES</strong></td>';
+            foreach ($marcas as $m) {
+                $html .= '<td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format($brandTotals[$m['mar_id']], 2) . '</strong></td>';
+            }
+            $html .= '<td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format($grandTotalPeriodo, 2) . '</strong></td>'
+                   . '<td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format($grandTotalSaldo, 2) . '</strong></td></tr>';
+            $html .= '</tbody></table>';
+        }
+
+        $html .= '<h4 style="color:#6d1b3a;margin-top:14px;">Detalle de Consumos (' . count($detalles) . ')</h4>';
+        $html .= '<table cellpadding="2" style="width:100%;font-size:7pt;">'
+               . '<thead><tr style="background-color:#f7ecf0;color:#4a1226;">'
+               . '<th style="border:1px solid #e6d3da;">Fecha</th><th style="border:1px solid #e6d3da;">Nombres</th>'
+               . '<th style="border:1px solid #e6d3da;">Cédula</th><th style="border:1px solid #e6d3da;">Local</th>'
+               . '<th style="border:1px solid #e6d3da;">Descripción</th>'
+               . '<th style="border:1px solid #e6d3da;text-align:right;">Neto</th>'
+               . '<th style="border:1px solid #e6d3da;text-align:right;">IVA</th>'
+               . '<th style="border:1px solid #e6d3da;text-align:right;">Total</th></tr></thead><tbody>';
+        foreach ($detalles as $d) {
+            $marcaTxt = $d['mar_descripcion'] ? htmlspecialchars($d['mar_descripcion']) . ' - ' : '';
+            $html .= '<tr>'
+                   . '<td style="border:1px solid #e6d3da;">' . htmlspecialchars($d['con_fecha']) . '</td>'
+                   . '<td style="border:1px solid #e6d3da;">' . htmlspecialchars($d['per_nombre']) . '</td>'
+                   . '<td style="border:1px solid #e6d3da;">' . htmlspecialchars($d['per_documento'] ? $d['per_documento'] : '-') . '</td>'
+                   . '<td style="border:1px solid #e6d3da;">' . $marcaTxt . htmlspecialchars($d['loc_direccion'] ? $d['loc_direccion'] : '-') . '</td>'
+                   . '<td style="border:1px solid #e6d3da;">' . htmlspecialchars($d['con_descripcion'] ? $d['con_descripcion'] : '-') . '</td>'
+                   . '<td style="border:1px solid #e6d3da;text-align:right;">$' . number_format((float)$d['con_valor_neto'], 2) . '</td>'
+                   . '<td style="border:1px solid #e6d3da;text-align:right;">$' . number_format((float)$d['con_iva'], 2) . '</td>'
+                   . '<td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format((float)$d['con_valor_total'], 2) . '</strong></td></tr>';
+        }
+        $html .= '</tbody></table>';
+
+        $html .= '<h4 style="color:#6d1b3a;margin-top:14px;">Resumen Financiero</h4>';
+        $html .= '<table cellpadding="4" style="width:60%;margin-left:40%;font-size:10pt;">'
+               . '<tr><td style="border:1px solid #e6d3da;"><strong>VENTA NETA</strong></td><td style="border:1px solid #e6d3da;text-align:right;">$' . number_format($r['venta_neta'], 2) . '</td></tr>'
+               . '<tr><td style="border:1px solid #e6d3da;"><strong>IVA</strong></td><td style="border:1px solid #e6d3da;text-align:right;">$' . number_format($r['iva'], 2) . '</td></tr>'
+               . '<tr style="background-color:#f2dbe4;"><td style="border:1px solid #e6d3da;"><strong>TOTAL VENTA</strong></td><td style="border:1px solid #e6d3da;text-align:right;"><strong>$' . number_format($r['total_venta'], 2) . '</strong></td></tr>'
+               . '<tr><td style="border:1px solid #e6d3da;"><strong>COMISIÓN (' . number_format($r['comision_pct'], 2) . '%)</strong></td><td style="border:1px solid #e6d3da;text-align:right;">$' . number_format($r['comision_monto'], 2) . '</td></tr>'
+               . '<tr style="background-color:#4a1226;color:#ffffff;"><td style="border:1px solid #4a1226;"><strong>TOTAL A PAGAR</strong></td><td style="border:1px solid #4a1226;text-align:right;"><strong>$' . number_format($r['total_pagar'], 2) . '</strong></td></tr>'
+               . '</table>';
+
+        $html .= '<table style="width:100%;margin-top:24px;font-size:9pt;"><tr>'
+               . '<td style="width:50%;">Firma autorizada: ___________________________</td>'
+               . '<td style="width:50%;">Sello: ___________________________</td>'
+               . '</tr></table>';
+
+        return $html;
+    }
+}
+
+if (!function_exists('ec_generar_pdf')) {
+    /**
+     * Genera el PDF del estado de cuenta con TCPDF y lo guarda en
+     * uploads/estados_cuenta/, actualizando ec_archivo_pdf. Devuelve la ruta
+     * absoluta del archivo en disco, o false si el ec_id no existe.
+     */
+    function ec_generar_pdf($mysqli, $ec_id) {
+        $ec_id = (int)$ec_id;
+        $data  = ec_obtener_detalle($mysqli, $ec_id);
+
+        if (!$data) {
+            return false;
+        }
+
+        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetCreator('SGC ARGOS');
+        $pdf->SetAuthor('SGC ARGOS');
+        $pdf->SetTitle('Estado de Cuenta #' . $ec_id . ' - ' . $data['ec']['cli_descripcion']);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->AddPage();
+        $pdf->writeHTML(ec_html_pdf($data), true, false, true, false, '');
+
+        $dir = __DIR__ . '/../uploads/estados_cuenta';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $nombreArchivo = 'ec_' . $ec_id . '.pdf';
+        $rutaAbsoluta  = $dir . '/' . $nombreArchivo;
+        $pdf->Output($rutaAbsoluta, 'F');
+
+        $rutaWeb = 'uploads/estados_cuenta/' . $nombreArchivo;
+        mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_archivo_pdf = '" . mysqli_real_escape_string($mysqli, $rutaWeb) . "' WHERE ec_id = $ec_id");
+
+        return $rutaAbsoluta;
+    }
+}
+
 if (!function_exists('ec_enviar_correo')) {
     /**
      * Envía por correo el resumen del estado de cuenta al cli_email
@@ -248,11 +421,18 @@ if (!function_exists('ec_enviar_correo')) {
             . '<tr><td style="padding:6px 0;">Comisión (' . number_format($r['comision_pct'], 2) . '%)</td><td style="text-align:right;">$' . number_format($r['comision_monto'], 2) . '</td></tr>'
             . '<tr style="background-color:#4a1226;color:#fff;"><td style="padding:8px 6px;"><strong>TOTAL A PAGAR</strong></td><td style="text-align:right;padding:8px 6px;"><strong>$' . number_format($r['total_pagar'], 2) . '</strong></td></tr>'
             . '</table>'
-            . '<p style="margin-top:20px;">Para ver el detalle completo de consumos y descargar el documento, ingrese al sistema SGC ARGOS.</p>'
+            . '<p style="margin-top:20px;">Adjunto encontrará el PDF con el detalle completo de consumos.</p>'
             . '<p style="color:#888;font-size:12px;margin-top:24px;">Este es un correo automático, por favor no responda a este mensaje.</p>'
             . '</div></div>';
 
-        $enviado = enviar_email($email, $asunto, $cuerpo);
+        $rutaPdf = ec_generar_pdf($mysqli, $ec_id);
+        $nombrePdf = 'estado_cuenta_' . $ec_id . '.pdf';
+
+        if ($rutaPdf) {
+            $enviado = enviar_email_adjunto($email, $asunto, $cuerpo, $rutaPdf, $nombrePdf);
+        } else {
+            $enviado = enviar_email($email, $asunto, $cuerpo);
+        }
 
         if ($enviado) {
             mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'enviado', ec_fecha_envio = NOW() WHERE ec_id = $ec_id");

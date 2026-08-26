@@ -1,5 +1,6 @@
 {
     "require": {
-        "econea/nusoap": "^0.9.10"
+        "econea/nusoap": "^0.9.10",
+        "tecnickcom/tcpdf": "6.7.8"
     }
 }
