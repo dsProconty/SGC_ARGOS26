@@ -741,7 +741,7 @@ switch ($action) {
         $cli_id = (int)($_GET['cli_id'] ?? 0);
         $stmt = $mysqli->prepare(
             "SELECT ec_id, ec_periodo_inicio, ec_periodo_fin, ec_monto_total,
-                    ec_fecha_generacion, ec_estado_envio, ec_archivo_pdf
+                    ec_fecha_generacion, ec_estado_envio, ec_archivo_pdf, ec_fecha_envio, ec_error_detalle
              FROM estado_cuenta WHERE cli_id = ? ORDER BY ec_id DESC"
         );
         $stmt->bind_param('i', $cli_id);

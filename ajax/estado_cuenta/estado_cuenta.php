@@ -18,7 +18,7 @@ switch ($action) {
     case 'list':
         header('Content-Type: text/html');
         $query = "SELECT ec.ec_id, ec.ec_periodo_inicio, ec.ec_periodo_fin, ec.ec_monto_total,
-                         ec.ec_fecha_generacion, ec.ec_estado_envio,
+                         ec.ec_fecha_generacion, ec.ec_estado_envio, ec.ec_fecha_envio, ec.ec_error_detalle,
                          c.cli_descripcion
                   FROM estado_cuenta ec
                   JOIN cliente c ON ec.cli_id = c.cli_id
@@ -51,7 +51,14 @@ switch ($action) {
                     </td>
                     <td>$<?php echo number_format($row['ec_monto_total'], 2); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['ec_fecha_generacion'])); ?></td>
-                    <td><span class="badge badge-<?php echo $color; ?>" id="badge_envio_<?php echo $row['ec_id']; ?>"><?php echo $row['ec_estado_envio']; ?></span></td>
+                    <td>
+                        <span class="badge badge-<?php echo $color; ?>" id="badge_envio_<?php echo $row['ec_id']; ?>"><?php echo $row['ec_estado_envio']; ?></span>
+                        <?php if ($row['ec_estado_envio'] === 'enviado' && $row['ec_fecha_envio']): ?>
+                            <br><small class="text-muted">Enviado <?php echo date('d/m/Y H:i', strtotime($row['ec_fecha_envio'])); ?></small>
+                        <?php elseif ($row['ec_estado_envio'] === 'error' && $row['ec_error_detalle']): ?>
+                            <br><small class="text-danger"><?php echo htmlspecialchars($row['ec_error_detalle']); ?></small>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <a class="btn btn-info btn-md" title="Ver estado de cuenta"
                            onclick="ver_ec(<?php echo $row['ec_id']; ?>)">

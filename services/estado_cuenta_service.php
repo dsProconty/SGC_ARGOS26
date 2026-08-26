@@ -394,7 +394,7 @@ if (!function_exists('ec_enviar_correo')) {
         $email = trim($ec['cli_email'] ? $ec['cli_email'] : '');
 
         if (!$email) {
-            mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'error' WHERE ec_id = $ec_id");
+            mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'error', ec_error_detalle = 'Sin correo registrado' WHERE ec_id = $ec_id");
             return array('success' => false, 'mensaje' => 'El cliente no tiene un correo registrado');
         }
 
@@ -435,11 +435,15 @@ if (!function_exists('ec_enviar_correo')) {
         }
 
         if ($enviado) {
-            mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'enviado', ec_fecha_envio = NOW() WHERE ec_id = $ec_id");
+            mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'enviado', ec_fecha_envio = NOW(), ec_error_detalle = NULL WHERE ec_id = $ec_id");
             return array('success' => true, 'mensaje' => 'Estado de cuenta enviado a ' . $email);
         }
 
-        mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'error', ec_reintentos = ec_reintentos + 1 WHERE ec_id = $ec_id");
+        $motivoError = $rutaPdf
+            ? 'Fallo al enviar el correo (revisar configuración de mail() del servidor)'
+            : 'Fallo al generar el PDF y al enviar el correo';
+        mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'error', ec_reintentos = ec_reintentos + 1,
+                                ec_error_detalle = '" . mysqli_real_escape_string($mysqli, $motivoError) . "' WHERE ec_id = $ec_id");
         return array('success' => false, 'mensaje' => 'No se pudo enviar el correo a ' . $email);
     }
 }

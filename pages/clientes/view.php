@@ -1193,12 +1193,18 @@ function cargarTabEC() {
             var pdf = e.ec_archivo_pdf
                 ? '<a href="' + e.ec_archivo_pdf + '" target="_blank" class="btn btn-xs btn-outline-danger"><i class="icon dripicons-document"></i> PDF</a>'
                 : '<span class="text-muted">—</span>';
+            var leyendaEnvio = '';
+            if (e.ec_estado_envio === 'enviado' && e.ec_fecha_envio) {
+                leyendaEnvio = '<br><small class="text-muted">Enviado ' + e.ec_fecha_envio + '</small>';
+            } else if (e.ec_estado_envio === 'error' && e.ec_error_detalle) {
+                leyendaEnvio = '<br><small class="text-danger">' + esc(e.ec_error_detalle) + '</small>';
+            }
             html += '<tr>'
                 + '<td>' + e.ec_id + '</td>'
                 + '<td>' + e.ec_periodo_inicio + ' → ' + e.ec_periodo_fin + '</td>'
                 + '<td class="text-right font-weight-bold">$ ' + parseFloat(e.ec_monto_total||0).toFixed(2) + '</td>'
                 + '<td>' + e.ec_fecha_generacion + '</td>'
-                + '<td><span class="badge badge-'+envBadge+'">'+e.ec_estado_envio+'</span></td>'
+                + '<td><span class="badge badge-'+envBadge+'">'+e.ec_estado_envio+'</span>' + leyendaEnvio + '</td>'
                 + '<td>' + pdf + '</td>'
                 + '<td><a class="btn btn-xs btn-success" title="Enviar por correo" onclick="enviarECCliente(' + e.ec_id + ')"><i class="icon dripicons-mail"></i></a></td>'
               + '</tr>';
