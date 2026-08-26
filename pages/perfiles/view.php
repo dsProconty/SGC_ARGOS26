@@ -15,7 +15,10 @@ $modulos_categorias = [
 // US-B: permisos granulares — acciones específicas dentro de un módulo,
 // además de tener acceso al módulo en sí (perfil_modulo).
 $permisos_granulares = [
-    'pos.anular' => 'Anular ventas del mismo día',
+    'pos.anular'               => 'Anular ventas del mismo día',
+    'gestiones.confirmar_pago' => 'Confirmar / rechazar pagos en Gestiones',
+    'giftcard.aprobar'         => 'Aprobar / rechazar solicitudes de Gift Card',
+    'clientes.eliminar'        => 'Eliminar clientes',
 ];
 ?>
 <div class="content">

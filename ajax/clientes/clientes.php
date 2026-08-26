@@ -3,6 +3,8 @@ date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once "../../config/database.php";
 require_once "../../helpers/cupo_marca_helpers.php";
+require_once "../../services/giftcard_solicitud.php";
+require_once "../../helpers/session_helpers.php";
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -172,6 +174,13 @@ switch ($action) {
     // ── ELIMINAR — CL-H: bloqueado si el cliente tiene empleados asociados ─────
     case 'eliminar':
         header('Content-Type: application/json');
+
+        // US-B: eliminar cliente es una acción destructiva, requiere el
+        // permiso granular clientes.eliminar (o Super Admin).
+        if (!tienePermiso($mysqli, 'clientes.eliminar')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para eliminar clientes']); break;
+        }
+
         $id = (int)($_POST['cli_id'] ?? 0);
         if (!$id) { echo json_encode(['success' => false, 'mensaje' => 'Cliente no encontrado']); break; }
 
@@ -767,6 +776,7 @@ switch ($action) {
     // ── TAB: GIFT CARDS ───────────────────────────────────────────────────────
     case 'giftcard_list':
         header('Content-Type: application/json');
+        gc_expirar_codigos_vencidos($mysqli); // H-001/PV-B
         $cli_id = (int)($_GET['cli_id'] ?? 0);
         $stmt = $mysqli->prepare(
             "SELECT lgc.lgc_id, lgc.lgc_fecha, lgc.lgc_cantidad, lgc.lgc_cupo_codigo,

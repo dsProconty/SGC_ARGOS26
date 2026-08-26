@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once('../../config/database.php');
+require_once('../../services/estado_cuenta_service.php');
 
 header('Content-Type: application/json');
 
@@ -50,11 +51,15 @@ switch ($action) {
                     </td>
                     <td>$<?php echo number_format($row['ec_monto_total'], 2); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['ec_fecha_generacion'])); ?></td>
-                    <td><span class="badge badge-<?php echo $color; ?>"><?php echo $row['ec_estado_envio']; ?></span></td>
+                    <td><span class="badge badge-<?php echo $color; ?>" id="badge_envio_<?php echo $row['ec_id']; ?>"><?php echo $row['ec_estado_envio']; ?></span></td>
                     <td>
                         <a class="btn btn-info btn-md" title="Ver estado de cuenta"
                            onclick="ver_ec(<?php echo $row['ec_id']; ?>)">
                             <i style="color:#fff" class="icon dripicons-document"></i>
+                        </a>
+                        <a class="btn btn-success btn-md" title="Enviar por correo"
+                           onclick="enviarEC(<?php echo $row['ec_id']; ?>)">
+                            <i style="color:#fff" class="icon dripicons-mail"></i>
                         </a>
                     </td>
                 </tr>
@@ -66,167 +71,53 @@ switch ($action) {
 
     case 'generar':
         $cli_id         = (int)($_POST['cli_id']          ?? 0);
-        $periodo_inicio = mysqli_real_escape_string($mysqli, trim($_POST['periodo_inicio'] ?? ''));
-        $periodo_fin    = mysqli_real_escape_string($mysqli, trim($_POST['periodo_fin']    ?? ''));
+        $periodo_inicio = trim($_POST['periodo_inicio'] ?? '');
+        $periodo_fin    = trim($_POST['periodo_fin']    ?? '');
 
         if ($cli_id === 0 || !$periodo_inicio || !$periodo_fin || $periodo_fin < $periodo_inicio) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos o fechas inválidas']);
             break;
         }
 
-        // Sumar consumos regulares del período para ese cliente
-        $q_total = "SELECT COALESCE(SUM(con.con_valor_total), 0) AS total
-                    FROM consumo con
-                    JOIN personal p ON con.per_id = p.per_id
-                    WHERE p.cli_id = $cli_id
-                      AND con.con_fecha BETWEEN '$periodo_inicio' AND '$periodo_fin'";
-        $r_total = mysqli_query($mysqli, $q_total);
-        $total   = (float)mysqli_fetch_assoc($r_total)['total'];
+        $ec_id = ec_generar_estado_cuenta($mysqli, $cli_id, $periodo_inicio, $periodo_fin);
 
-        // Sumar cuotas de ventas diferidas que caen en el período
-        $q_vd_total = "WITH RECURSIVE seq (n) AS (
-                           SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60
-                       )
-                       SELECT COALESCE(SUM(vd.vd_monto_cuota), 0) AS total
-                       FROM venta_diferida vd
-                       JOIN personal p ON vd.per_id = p.per_id
-                       JOIN seq s ON s.n <= vd.vd_num_cuotas
-                       WHERE p.cli_id = $cli_id
-                         AND vd.vd_estado != 'cancelado'
-                         AND DATE_ADD(vd.vd_fecha_inicio, INTERVAL (s.n - 1) MONTH)
-                             BETWEEN '$periodo_inicio' AND '$periodo_fin'";
-        $r_vd  = mysqli_query($mysqli, $q_vd_total);
-        $total += (float)mysqli_fetch_assoc($r_vd)['total'];
-
-        $sql = "INSERT INTO estado_cuenta (cli_id, ec_periodo_inicio, ec_periodo_fin, ec_monto_total, ec_estado_envio)
-                VALUES ($cli_id, '$periodo_inicio', '$periodo_fin', $total, 'pendiente')";
-
-        if (!mysqli_query($mysqli, $sql)) {
+        if (!$ec_id) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al guardar: ' . mysqli_error($mysqli)]);
             break;
         }
 
-        $ec_id = mysqli_insert_id($mysqli);
         echo json_encode(['success' => true, 'ec_id' => $ec_id, 'mensaje' => 'Estado de cuenta generado']);
         break;
 
     case 'ver':
-        $ec_id  = (int)($_GET['ec_id'] ?? 0);
-        $q_ec   = "SELECT ec.*, c.cli_descripcion, c.cli_email, c.cli_contacto, c.cli_telefono, c.cli_comision
-                   FROM estado_cuenta ec
-                   JOIN cliente c ON ec.cli_id = c.cli_id
-                   WHERE ec.ec_id = $ec_id";
-        $r_ec   = mysqli_query($mysqli, $q_ec);
+        $ec_id = (int)($_GET['ec_id'] ?? 0);
+        $data  = ec_obtener_detalle($mysqli, $ec_id);
 
-        if (!$r_ec || mysqli_num_rows($r_ec) === 0) {
+        if (!$data) {
             echo json_encode(['success' => false, 'mensaje' => 'Estado de cuenta no encontrado']);
             break;
         }
 
-        $ec     = mysqli_fetch_assoc($r_ec);
-        $cli_id = (int)$ec['cli_id'];
-        $p_ini  = $ec['ec_periodo_inicio'];
-        $p_fin  = $ec['ec_periodo_fin'];
+        echo json_encode([
+            'success'    => true,
+            'ec'         => $data['ec'],
+            'detalles'   => $data['detalles'],
+            'marcas'     => $data['marcas'],
+            'pivot_rows' => $data['pivot_rows'],
+            'saldos'     => $data['saldos'],
+        ]);
+        break;
 
-        // Detalle de consumos regulares
-        $q_det = "SELECT con.con_fecha, con.con_hora, p.per_nombre, p.per_documento,
-                         p.per_numero_tarjeta, l.loc_direccion, m.mar_descripcion, con.con_valor_neto, con.con_iva,
-                         con.con_valor_total, con.con_monto_convenio, con.con_monto_externo,
-                         con.con_descripcion, 'consumo' AS origen
-                  FROM consumo con
-                  JOIN personal p ON con.per_id = p.per_id
-                  LEFT JOIN local l ON con.loc_id = l.loc_id
-                  LEFT JOIN marca m ON l.mar_id = m.mar_id
-                  WHERE p.cli_id = $cli_id
-                    AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'";
-        $r_det = mysqli_query($mysqli, $q_det);
+    case 'enviar':
+        $ec_id = (int)($_POST['ec_id'] ?? $_GET['ec_id'] ?? 0);
 
-        $detalles = [];
-        while ($d = mysqli_fetch_assoc($r_det)) {
-            $detalles[] = $d;
+        if ($ec_id <= 0) {
+            echo json_encode(['success' => false, 'mensaje' => 'Estado de cuenta inválido']);
+            break;
         }
 
-        // Detalle de cuotas de ventas diferidas que caen en el período
-        // Cada cuota cae en el mes de: DATE_ADD(vd_fecha_inicio, INTERVAL (n-1) MONTH)
-        $q_vd = "WITH RECURSIVE seq (n) AS (
-                     SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60
-                 )
-                 SELECT
-                     DATE_ADD(vd.vd_fecha_inicio, INTERVAL (s.n - 1) MONTH) AS con_fecha,
-                     NULL                          AS con_hora,
-                     p.per_nombre,
-                     p.per_documento,
-                     p.per_numero_tarjeta,
-                     NULL                          AS loc_direccion,
-                     NULL                          AS mar_descripcion,
-                     ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2) AS con_valor_neto,
-                     ROUND(vd.vd_monto_cuota - ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2), 2) AS con_iva,
-                     vd.vd_monto_cuota             AS con_valor_total,
-                     vd.vd_monto_cuota             AS con_monto_convenio,
-                     NULL                          AS con_monto_externo,
-                     CONCAT(vd.vd_descripcion, ' – Cuota ', s.n, '/', vd.vd_num_cuotas) AS con_descripcion,
-                     'diferida'                    AS origen
-                 FROM venta_diferida vd
-                 JOIN personal p ON vd.per_id = p.per_id
-                 JOIN seq s ON s.n <= vd.vd_num_cuotas
-                 WHERE p.cli_id = $cli_id
-                   AND vd.vd_estado != 'cancelado'
-                   AND DATE_ADD(vd.vd_fecha_inicio, INTERVAL (s.n - 1) MONTH) BETWEEN '$p_ini' AND '$p_fin'
-                 ORDER BY con_fecha ASC";
-        $r_vd = mysqli_query($mysqli, $q_vd);
-
-        while ($d = mysqli_fetch_assoc($r_vd)) {
-            $detalles[] = $d;
-        }
-
-        // Ordenar todo por fecha
-        usort($detalles, function($a, $b) {
-            return strcmp($a['con_fecha'] . ($a['con_hora'] ?? ''), $b['con_fecha'] . ($b['con_hora'] ?? ''));
-        });
-
-        // Get all brands with consumptions for this client in this period.
-        // LEFT JOIN + COALESCE: un consumo sin local asignado (loc_id NULL,
-        // ej. registrado por Super Admin) no debe desaparecer del resumen —
-        // se agrupa bajo "Sin local asignado" (mar_id=0) en vez de perderse.
-        $q_marcas = "SELECT DISTINCT COALESCE(m.mar_id, 0) AS mar_id,
-                            COALESCE(m.mar_descripcion, 'Sin local asignado') AS mar_descripcion
-                     FROM consumo con
-                     JOIN personal per ON con.per_id = per.per_id
-                     LEFT JOIN local l ON con.loc_id = l.loc_id
-                     LEFT JOIN marca m ON l.mar_id = m.mar_id
-                     WHERE per.cli_id = $cli_id
-                       AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
-                     ORDER BY mar_descripcion ASC";
-        $r_marcas = mysqli_query($mysqli, $q_marcas);
-        $marcas = [];
-        while ($m = mysqli_fetch_assoc($r_marcas)) $marcas[] = $m;
-
-        // Get pivot: per_id, per_nombre, per_documento + sum per brand in period
-        $q_pivot = "SELECT per.per_id, per.per_nombre, per.per_documento,
-                           COALESCE(m.mar_id, 0) AS mar_id, SUM(con.con_valor_total) AS total_marca
-                    FROM consumo con
-                    JOIN personal per ON con.per_id = per.per_id
-                    LEFT JOIN local l ON con.loc_id = l.loc_id
-                    LEFT JOIN marca m ON l.mar_id = m.mar_id
-                    WHERE per.cli_id = $cli_id
-                      AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
-                    GROUP BY per.per_id, COALESCE(m.mar_id, 0)
-                    ORDER BY per.per_nombre ASC";
-        $r_pivot = mysqli_query($mysqli, $q_pivot);
-        $pivot_rows = [];
-        while ($row = mysqli_fetch_assoc($r_pivot)) $pivot_rows[] = $row;
-
-        // Get saldo acumulado: total consumption per employee across ALL history
-        $q_saldo = "SELECT per.per_id, SUM(con.con_valor_total) AS saldo_acumulado
-                    FROM consumo con
-                    JOIN personal per ON con.per_id = per.per_id
-                    WHERE per.cli_id = $cli_id
-                    GROUP BY per.per_id";
-        $r_saldo = mysqli_query($mysqli, $q_saldo);
-        $saldos = [];
-        while ($row = mysqli_fetch_assoc($r_saldo)) $saldos[$row['per_id']] = (float)$row['saldo_acumulado'];
-
-        echo json_encode(['success' => true, 'ec' => $ec, 'detalles' => $detalles, 'marcas' => $marcas, 'pivot_rows' => $pivot_rows, 'saldos' => $saldos]);
+        $resultado = ec_enviar_correo($mysqli, $ec_id);
+        echo json_encode($resultado);
         break;
 
     default:

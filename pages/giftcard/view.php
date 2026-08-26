@@ -25,6 +25,21 @@ $es_cliente = !$es_admin && (in_array(strtolower($rol_gc), $rolesClienteExterno)
 // Card habilitado y una empresa vinculada (cli_id) ve, en solo lectura, las
 // solicitudes y lotes de esa empresa.
 $es_empresa_staff = !$es_admin && !$es_cliente && !empty($_SESSION['cli_id']);
+
+// H-003/H-013: staff interno (no cliente) con el módulo Gift Card habilitado
+// en su perfil (ej. Supervisor) ve/gestiona igual que Super Admin — antes
+// esta vista solo mostraba la administración a 'Super Admin'. Independiente
+// de $es_empresa_staff (PER-01, solo lectura y solo de SU empresa).
+$es_staff_gc = $es_admin;
+if (!$es_staff_gc && !$es_cliente) {
+    $qModGC = $mysqli->prepare(
+        "SELECT 1 FROM perfil_modulo pm JOIN usuario u ON u.per_id = pm.per_id
+         WHERE u.id_user = ? AND pm.pm_modulo = 'giftcard' LIMIT 1"
+    );
+    $qModGC->bind_param('i', $_SESSION['id_user']);
+    $qModGC->execute();
+    $es_staff_gc = (bool)$qModGC->get_result()->fetch_assoc();
+}
 ?>
 <div class="content" data-layout="tabbed">
     <header class="page-header">
@@ -52,7 +67,7 @@ $es_empresa_staff = !$es_admin && !$es_cliente && !empty($_SESSION['cli_id']);
 
     <section class="page-content container-fluid">
 
-        <?php if ($es_admin): ?>
+        <?php if ($es_staff_gc): ?>
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -165,7 +180,7 @@ $es_empresa_staff = !$es_admin && !$es_cliente && !empty($_SESSION['cli_id']);
     </div>
 </div>
 
-<?php if ($es_admin): ?>
+<?php if ($es_staff_gc): ?>
 <!-- Modal Preview Aprobar/Rechazar -->
 <div class="modal fade" id="modal_preview_sol" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -325,7 +340,7 @@ var lgc_id_actual = null;
 $(document).ready(function () {
 
     // Inicialización
-    <?php if ($es_admin): ?>
+    <?php if ($es_staff_gc): ?>
     cargarSolicitudes();
     cargarLotes();
     $('#btn_actualizar_sol').on('click', function () { cargarSolicitudes(); });

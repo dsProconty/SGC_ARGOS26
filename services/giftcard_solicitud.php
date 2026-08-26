@@ -84,6 +84,25 @@ if (!function_exists('gc_validar_solicitud')) {
     }
 }
 
+if (!function_exists('gc_expirar_codigos_vencidos')) {
+    /**
+     * Marca como 'vencido' cualquier código activo cuya fecha de caducidad
+     * ya pasó. Sin cron garantizado en el servidor (mismo motivo que
+     * api_purgar_auditoria en api/v1/lib.php), se llama al cargar cualquier
+     * lista que muestre cgc_estado, para que nunca se vea "activo" un
+     * código ya vencido (H-001/PV-B): antes cgc_estado solo se corregía al
+     * buscar ESE código puntual en POS, no en las listas.
+     */
+    function gc_expirar_codigos_vencidos($mysqli)
+    {
+        @$mysqli->query(
+            "UPDATE codigo_gift_card SET cgc_estado = 'vencido'
+             WHERE cgc_estado = 'activo' AND cgc_fecha_caducidad IS NOT NULL
+               AND cgc_fecha_caducidad < CURDATE()"
+        );
+    }
+}
+
 if (!function_exists('gc_crear_solicitud')) {
     /**
      * Inserta la solicitud en estado PENDING y devuelve su sol_id.
