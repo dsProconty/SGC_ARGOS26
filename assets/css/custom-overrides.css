@@ -65,7 +65,7 @@
    submenú pero deja padding-right:0, así que un título largo (ej. "Cobranza
    Pendiente por Empresa") llega hasta el borde sin aire. */
 .nav.metismenu .nav-sub > li > a {
-    padding-right: 15px;
+    padding-right: 20px !important;
 }
 
 /* Modal Nuevo/Editar Cliente sin scroll en modo "Por marca".
