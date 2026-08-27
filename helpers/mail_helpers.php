@@ -25,6 +25,21 @@ if (!function_exists('mail_smtp_configurado')) {
     }
 }
 
+if (!function_exists('mail_ultimo_error')) {
+    /**
+     * Motivo real del último envío fallido (mensaje de PHPMailer/SMTP), para
+     * que ec_enviar_correo() lo guarde en ec_error_detalle y se vea en
+     * pantalla sin tener que ir a buscar el log del servidor.
+     */
+    function mail_ultimo_error($nuevo = null) {
+        static $ultimo = '';
+        if ($nuevo !== null) {
+            $ultimo = $nuevo;
+        }
+        return $ultimo;
+    }
+}
+
 if (!function_exists('mail_enviar_legacy')) {
     /** Envío por mail() nativo — solo como respaldo si no hay SMTP configurado. */
     function mail_enviar_legacy($para, $asunto, $cuerpo_html, $ruta_adjunto, $nombre_adjunto) {
@@ -68,6 +83,7 @@ if (!function_exists('mail_enviar_legacy')) {
 if (!function_exists('mail_enviar_smtp')) {
     /** Envío por SMTP autenticado vía PHPMailer. Devuelve false si falla. */
     function mail_enviar_smtp($para, $asunto, $cuerpo_html, $ruta_adjunto, $nombre_adjunto) {
+        mail_ultimo_error(''); // limpiar cualquier error de un envío anterior en el mismo request
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
@@ -92,9 +108,15 @@ if (!function_exists('mail_enviar_smtp')) {
                 $mail->addAttachment($ruta_adjunto, $nombre_adjunto ? $nombre_adjunto : basename($ruta_adjunto));
             }
 
-            return $mail->send();
+            $ok = $mail->send();
+            if (!$ok) {
+                mail_ultimo_error($mail->ErrorInfo);
+            }
+            return $ok;
         } catch (Exception $e) {
-            error_log('SMTP mail error a ' . $para . ': ' . $mail->ErrorInfo);
+            $detalle = $mail->ErrorInfo ? $mail->ErrorInfo : $e->getMessage();
+            error_log('SMTP mail error a ' . $para . ': ' . $detalle);
+            mail_ultimo_error($detalle);
             return false;
         }
     }
