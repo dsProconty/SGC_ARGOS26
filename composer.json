@@ -1,6 +1,7 @@
 {
     "require": {
         "econea/nusoap": "^0.9.10",
-        "tecnickcom/tcpdf": "6.7.8"
+        "tecnickcom/tcpdf": "6.7.8",
+        "phpmailer/phpmailer": "^6.9"
     }
 }

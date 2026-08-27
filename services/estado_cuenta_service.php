@@ -440,7 +440,7 @@ if (!function_exists('ec_enviar_correo')) {
         }
 
         $motivoError = $rutaPdf
-            ? 'Fallo al enviar el correo (revisar configuración de mail() del servidor)'
+            ? 'Fallo al enviar el correo (revisar configuración SMTP / logs del servidor)'
             : 'Fallo al generar el PDF y al enviar el correo';
         mysqli_query($mysqli, "UPDATE estado_cuenta SET ec_estado_envio = 'error', ec_reintentos = ec_reintentos + 1,
                                 ec_error_detalle = '" . mysqli_real_escape_string($mysqli, $motivoError) . "' WHERE ec_id = $ec_id");
