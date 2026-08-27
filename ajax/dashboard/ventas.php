@@ -7,7 +7,13 @@ $action = $_GET['action'];
 switch ($action) {
     case 'consumos_semana':
 
-        $marca = $_GET['marca'];
+        $marca = mysqli_real_escape_string($mysqli, $_GET['marca']);
+        // Dash-1: la tarjeta "Otro" del dashboard agrupa todas las marcas que
+        // no son Pizza Hut ni Fridays (antes no existía ninguna llamada para
+        // ella, quedaba fija en $0.00 sin importar las ventas reales).
+        $condMarca = ($marca === 'OTRO')
+            ? "m.mar_descripcion NOT IN ('PIZZA HUT','FRIDAYS')"
+            : "m.mar_descripcion = '$marca'";
 
         $diaSemana = date("w") - 1;
         # Calcular el tiempo (no la fecha) de cuándo fue el inicio de semana
@@ -19,8 +25,8 @@ switch ($action) {
         # Y formateamos
         $fechaFinSemana = date("Y-m-d", $tiempoDeFinDeSemana);
 
-        $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m 
-        where c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
+        where c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
         and c.con_fecha >= '$fechaInicioSemana' and c.con_fecha <= '$fechaFinSemana'";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -31,10 +37,13 @@ switch ($action) {
 
         break;
     case 'consumos_mes':
-        $marca = $_GET['marca'];
+        $marca = mysqli_real_escape_string($mysqli, $_GET['marca']);
+        $condMarca = ($marca === 'OTRO')
+            ? "m.mar_descripcion NOT IN ('PIZZA HUT','FRIDAYS')"
+            : "m.mar_descripcion = '$marca'";
 
-        $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m 
-        where c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
+        where c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
         and extract(month from c.con_fecha) = extract(month from (select now())) and extract(year from c.con_fecha) = extract(year from (select now()))";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -45,10 +54,13 @@ switch ($action) {
         break;
 
     case 'consumos_anio':
-        $marca = $_GET['marca'];
+        $marca = mysqli_real_escape_string($mysqli, $_GET['marca']);
+        $condMarca = ($marca === 'OTRO')
+            ? "m.mar_descripcion NOT IN ('PIZZA HUT','FRIDAYS')"
+            : "m.mar_descripcion = '$marca'";
 
-        $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m 
-            where c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
+            where c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
             and extract(year from c.con_fecha) = extract(year from (select now()))";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -84,7 +96,14 @@ switch ($action) {
                         <td><?php echo $row['pag_fecha']; ?></td>
                         <td><?php echo $row['pag_monto']; ?></td>
                         <td>
-                            <a href="javascript:void(0)"><i class="icon dripicons-download"></i></a>
+                            <a href="javascript:void(0)" class="btn-descargar-pago"
+                               data-gestor="<?php echo htmlspecialchars($row['name_user']); ?>"
+                               data-cliente="<?php echo htmlspecialchars($row['cli_descripcion']); ?>"
+                               data-fecha="<?php echo htmlspecialchars($row['pag_fecha']); ?>"
+                               data-monto="<?php echo htmlspecialchars($row['pag_monto']); ?>"
+                               title="Descargar comprobante">
+                                <i class="icon dripicons-download"></i>
+                            </a>
                         </td>
                     </tr>
                 <?php

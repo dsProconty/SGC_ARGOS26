@@ -1654,9 +1654,26 @@ $('#cm_dropzone').on('drop', function (e) {
         $('#cm_archivo').trigger('change');
     }
 });
+// Carga Masiva: el atributo accept=".xlsx,.xls,.csv" del <input> solo es una
+// sugerencia del selector de archivos del sistema operativo — no se aplica
+// nunca al arrastrar y soltar, y se puede saltar eligiendo "Todos los
+// archivos". Antes, subir un PDF no daba ningún error: XLSX.read() truena
+// más abajo y el callback se corta en silencio sin avisar nada.
+function extensionValidaCargaMasiva(nombre) {
+    return /\.(xlsx|xls|csv)$/i.test(nombre || '');
+}
+
 $('#cm_archivo').on('change', function () {
     var f = this.files[0];
-    if (f) { $('#cm_file_name').text(f.name); $('#cm_file_chip').addClass('show'); }
+    if (!f) return;
+    if (!extensionValidaCargaMasiva(f.name)) {
+        $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Formato no permitido. Solo se aceptan archivos .xlsx, .xls o .csv.</div>');
+        $('#cm_archivo').val('');
+        $('#cm_file_chip').removeClass('show');
+        return;
+    }
+    $('#alerta_carga_masiva').html('');
+    $('#cm_file_name').text(f.name); $('#cm_file_chip').addClass('show');
 });
 $('#cm_file_quitar').on('click', function (e) {
     e.stopPropagation();
@@ -1707,10 +1724,20 @@ $('#btn_procesar_carga_masiva').on('click', function () {
         $('#alerta_carga_masiva').html('<div class="alert alert-warning mb-0">Selecciona un archivo.</div>');
         return;
     }
+    if (!extensionValidaCargaMasiva(archivo.name)) {
+        $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Formato no permitido. Solo se aceptan archivos .xlsx, .xls o .csv.</div>');
+        return;
+    }
 
     var reader = new FileReader();
     reader.onload = function (e) {
-        var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        var wb;
+        try {
+            wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        } catch (err) {
+            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">No se pudo leer el archivo. Verifica que sea un Excel o CSV válido.</div>');
+            return;
+        }
         var ws = wb.Sheets[wb.SheetNames[0]];
         var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
 
