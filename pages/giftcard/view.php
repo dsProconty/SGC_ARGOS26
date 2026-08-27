@@ -250,8 +250,8 @@ if (!$es_staff_gc && !$es_cliente) {
                             <option value="">— Seleccionar —</option>
                         </select>
                         <div class="input-group-append">
-                            <button class="btn btn-outline-secondary" type="button" id="btn_toggle_nuevo_cliente" title="Crear cliente nuevo">
-                                <i class="icon dripicons-plus"></i>
+                            <button class="btn btn-success" type="button" id="btn_toggle_nuevo_cliente" title="Crear cliente nuevo">
+                                <i class="icon dripicons-plus" style="color:#fff"></i>
                             </button>
                         </div>
                     </div>

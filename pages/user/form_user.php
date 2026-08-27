@@ -114,9 +114,19 @@
                         } else {
                             if (isset($_GET['id'])) {
 
-                                $query = mysqli_query($mysqli, "SELECT * FROM usuario WHERE id_user='$_GET[id]'")
+                                $query = mysqli_query($mysqli, "SELECT u.*, p.per_nombre FROM usuario u LEFT JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user='$_GET[id]'")
                                     or die('error: ' . mysqli_error($mysqli));
                                 $data  = mysqli_fetch_assoc($query);
+
+                                // Perfil real del usuario para decidir qué campos mostrar de entrada
+                                // (antes de que el JS reaccione a un cambio manual del select): prioriza
+                                // el perfil nuevo (per_nombre) sobre el rol legacy, igual que el resto del
+                                // sistema. Sin esto, "Local asignado"/"Empresa" solo se veían si tocabas el
+                                // select de Perfil — al abrir Editar en un usuario que YA es Supervisor de
+                                // local u Operador (o Cliente GiftCard), el campo quedaba oculto siempre.
+                                $rolActualEdit = strtolower($data['per_nombre'] ?: $data['permisos_acceso']);
+                                $esClienteEdit  = in_array($rolActualEdit, ['empresa cliente', 'cliente giftcard', 'empresa_cliente', 'cliente_giftcard']);
+                                $esSucursalEdit = in_array($rolActualEdit, ['cajero', 'operador', 'supervisor de local']);
                             } ?>
                             <div class="col-lg-12 offset-lg-3">
                                 <form role="form" class="form-horizontal" method="POST" action="pages/user/proses.php?act=update" enctype="multipart/form-data">
@@ -188,7 +198,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="form-group" id="div_cli_id_edit" style="<?= $data['permisos_acceso'] === 'empresa_cliente' ? '' : 'display:none;' ?>">
+                                        <div class="form-group" id="div_cli_id_edit" style="<?= $esClienteEdit ? '' : 'display:none;' ?>">
                                             <label class="col-sm-2 control-label">Empresa (Cliente)</label>
                                             <div class="col-sm-5">
                                                 <select class="form-control" name="cli_id" id="edit_cli_id">
@@ -204,7 +214,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="form-group" id="div_loc_id_edit" style="<?= $data['permisos_acceso'] === 'cajero' ? '' : 'display:none;' ?>">
+                                        <div class="form-group" id="div_loc_id_edit" style="<?= $esSucursalEdit ? '' : 'display:none;' ?>">
                                             <label class="col-sm-2 control-label">Local asignado</label>
                                             <div class="col-sm-5">
                                                 <select class="form-control" name="loc_id" id="edit_loc_id">
