@@ -1057,7 +1057,7 @@ switch ($tipo) {
             </tr>
             <?php
             $query = "SELECT per_nombre, per_documento, per_numero_tarjeta, per_cupo_asignado, per_cupo_disponible, per_estado
-                      FROM personal WHERE cli_id = $cliente ORDER BY per_nombre ASC";
+                      FROM personal WHERE cli_id = $cliente AND per_estado != 'archivado' ORDER BY per_nombre ASC";
             $result = mysqli_query($mysqli, $query);
             $hay_datos = false;
             while ($row = mysqli_fetch_array($result)) {

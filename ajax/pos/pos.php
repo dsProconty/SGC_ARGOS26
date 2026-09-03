@@ -86,13 +86,17 @@ switch ($action) {
         // tarjeta del empleado (16 dígitos, per_numero_tarjeta) — antes solo
         // se buscaba por cédula, así que un empleado bloqueado localizado por
         // su tarjeta caía en "no encontrado" en vez de avisar que está bloqueado.
+        // 'archivado' se excluye directo del WHERE (no con un mensaje como
+        // bloqueado/inactivo): para el cajero tiene que verse igual que si la
+        // cédula no existiera, no como una tarjeta rechazada.
         if (preg_match('/^\d+$/', $input)) {
             $query = "SELECT p.per_id, p.per_nombre, p.per_documento, p.per_estado,
                              p.per_cupo_asignado, p.per_cupo_disponible,
                              c.cli_id, c.cli_descripcion, c.cli_tipo_beneficio, c.cli_valor_beneficio
                       FROM personal p
                       JOIN cliente c ON p.cli_id = c.cli_id
-                      WHERE p.per_documento = '$input' OR p.per_numero_tarjeta = '$input'
+                      WHERE (p.per_documento = '$input' OR p.per_numero_tarjeta = '$input')
+                        AND p.per_estado != 'archivado'
                       LIMIT 1";
             $result = mysqli_query($mysqli, $query);
 

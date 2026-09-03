@@ -28,7 +28,7 @@ switch ($action) {
 
         $qBase = "SELECT COUNT(*) AS total_empleados,
                          SUM(CASE WHEN per_estado = 'activo' THEN 1 ELSE 0 END) AS activos
-                  FROM personal WHERE cli_id = $cli_id";
+                  FROM personal WHERE cli_id = $cli_id AND per_estado != 'archivado'";
         $r = mysqli_fetch_assoc(mysqli_query($mysqli, $qBase));
 
         if ($modo['modo'] === 'marca') {
@@ -86,7 +86,7 @@ switch ($action) {
     // ----------------------------------------------------------
     case 'nomina':
         $buscar = isset($_GET['buscar']) ? mysqli_real_escape_string($mysqli, trim($_GET['buscar'])) : '';
-        $where  = "p.cli_id = $cli_id";
+        $where  = "p.cli_id = $cli_id AND p.per_estado != 'archivado'";
         if ($buscar) {
             $where .= " AND (p.per_nombre LIKE '%$buscar%' OR p.per_documento LIKE '%$buscar%')";
         }
@@ -171,7 +171,7 @@ switch ($action) {
         $q = "SELECT p.per_id, p.per_nombre, p.per_documento, p.per_numero_tarjeta, p.per_correo,
                      p.per_estado, p.per_cupo_asignado, p.per_cupo_disponible
               FROM personal p
-              WHERE p.per_id = $per_id AND p.cli_id = $cli_id LIMIT 1";
+              WHERE p.per_id = $per_id AND p.cli_id = $cli_id AND p.per_estado != 'archivado' LIMIT 1";
         $row = mysqli_fetch_assoc(mysqli_query($mysqli, $q));
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']); exit; }
 

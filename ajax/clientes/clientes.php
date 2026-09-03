@@ -218,7 +218,7 @@ switch ($action) {
         $stmt = $mysqli->prepare(
             "SELECT per_id, per_nombre, per_documento, per_numero_tarjeta,
                     per_correo, per_estado, per_cupo_asignado, per_cupo_disponible
-             FROM personal WHERE cli_id = ? ORDER BY per_nombre ASC"
+             FROM personal WHERE cli_id = ? AND per_estado != 'archivado' ORDER BY per_nombre ASC"
         );
         $stmt->bind_param('i', $cli_id);
         $stmt->execute();
@@ -513,7 +513,10 @@ switch ($action) {
                     }
                 }
 
-                $chk = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_documento = ? LIMIT 1");
+                // Excluye 'archivado': son bajas definitivas que se conservan solo para
+                // no romper el historial de estados de cuenta, no deben bloquear que se
+                // vuelva a dar de alta a la misma cédula si la empresa la re-contrata.
+                $chk = $mysqli->prepare("SELECT per_id, per_estado FROM personal WHERE per_documento = ? AND per_estado != 'archivado' LIMIT 1");
                 $chk->bind_param('s', $cedula);
                 $chk->execute();
                 $existente = $chk->get_result()->fetch_assoc();
