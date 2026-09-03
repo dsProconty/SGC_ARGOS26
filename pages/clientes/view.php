@@ -240,7 +240,7 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                         <table id="table_personal" class="table table-striped table-bordered" style="width:100%">
                             <thead><tr>
                                 <th>#</th><th>Nombre</th><th>Documento</th>
-                                <th>N° Tarjeta</th><th>Email</th><th>Estado</th>
+                                <th>N° Tarjeta</th><th>Estado</th>
                                 <th>Cupo Asignado</th><th>Cupo Disponible</th><th>Acciones</th>
                             </tr></thead>
                             <tbody id="tbody_personal"></tbody>
@@ -1065,7 +1065,6 @@ function cargarTabPersonal() {
                 + '<td>' + p.per_nombre + '</td>'
                 + '<td>' + (p.per_documento || '—') + '</td>'
                 + '<td><code>' + (p.per_numero_tarjeta || '—') + '</code></td>'
-                + '<td>' + (p.per_correo || '—') + '</td>'
                 + '<td><span class="badge badge-'+estadoBadge+'">'+p.per_estado+'</span></td>'
                 + '<td class="text-right">$ ' + parseFloat(p.per_cupo_asignado||0).toFixed(2) + '</td>'
                 + '<td class="text-right">$ ' + parseFloat(p.per_cupo_disponible||0).toFixed(2) + '</td>'
@@ -1084,7 +1083,7 @@ function cargarTabPersonal() {
         if ($.fn.DataTable.isDataTable('#table_personal')) $('#table_personal').DataTable().destroy();
         $('#table_personal').DataTable({
             language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-            columnDefs: [{ orderable: false, targets: [8] }],
+            columnDefs: [{ orderable: false, targets: [7] }],
             pageLength: 10, order: [[1,'asc']]
         });
 
