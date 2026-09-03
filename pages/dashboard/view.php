@@ -413,13 +413,13 @@
                                                 </h5>
                                                 <div class="tab-content" id="total-uniquevisits-tab-content">
                                                     <div class="tab-pane fade show active" id="total-other-tab-1" role="tabpanel" aria-labelledby="total-other-tab-1">
-                                                        <span class="card-title text-white font-size-40 font-w-300 p-l-20 counter" data-count="">0</span>
+                                                        <span class="card-title text-white font-size-40 font-w-300 p-l-20 counter" data-count="" id="otro_semana">0</span>
                                                     </div>
                                                     <div class="tab-pane fade" id="total-other-tab-2" role="tabpanel" aria-labelledby="total-other-tab-2">
-                                                        <span class="card-title text-white font-size-40 font-w-300 p-l-20 counter" data-count="">0</span>
+                                                        <span class="card-title text-white font-size-40 font-w-300 p-l-20 counter" data-count="" id="otro_mes">0</span>
                                                     </div>
                                                     <div class="tab-pane fade" id="total-other-tab-3" role="tabpanel" aria-labelledby="other-tab-3">
-                                                        <span class="card-title text-white font-size-40 font-w-300 p-l-20 counter" data-count="">0</span>
+                                                        <span class="card-title text-white font-size-40 font-w-300 p-l-20 counter" data-count="" id="otro_anio">0</span>
                                                     </div>
                                                 </div>
 

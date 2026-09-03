@@ -59,3 +59,21 @@
     margin-right: 4px;
     vertical-align: -2px;
 }
+
+/* Títulos de submenú pegados al borde derecho de la barra lateral.
+   El tema base (menu-type/default.css) da padding-left:60px a los links de
+   submenú pero deja padding-right:0, así que un título largo (ej. "Cobranza
+   Pendiente por Empresa") llega hasta el borde sin aire. */
+.nav.metismenu .nav-sub > li > a {
+    padding-right: 20px !important;
+}
+
+/* Modal Nuevo/Editar Cliente sin scroll en modo "Por marca".
+   El template solo agrega scroll a un modal si lleva data-modal="scroll"
+   (ver assets/js/global/app.js); #modalCliente no lo tiene, así que al
+   desplegar row_cupo_por_marca (un input por cada marca activa) el
+   contenido puede quedar más alto que la pantalla sin forma de verlo. */
+#modalCliente .modal-body {
+    max-height: 75vh;
+    overflow-y: auto;
+}

@@ -1,5 +1,13 @@
 <?php
 require_once __DIR__ . "/../../config/database.php";
+require_once __DIR__ . "/../../services/giftcard_solicitud.php";
+
+// H-001/PV-B: los reportes de Gift Card (giftpoint, reporte gifcards, registro
+// pagos gift) leían cgc_estado directo, sin pasar nunca por
+// gc_expirar_codigos_vencidos() — un código vencido seguía saliendo "activo"
+// en el reporte hasta que alguien lo consultaba en otra pantalla (POS,
+// módulo Gift Card). Se corrige aquí igual que en esas otras pantallas.
+gc_expirar_codigos_vencidos($mysqli);
 
 $tipo = $_GET['tipo'];
 header("Content-Type: application/xls");

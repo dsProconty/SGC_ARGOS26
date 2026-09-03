@@ -379,7 +379,10 @@ switch ($action) {
             case 'pendiente_confirmacion':
                 // Migración automática: crear columna si no existe
                 $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
-                $esFinanciero = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'financiero');
+                // US-B: 'financiero' se mantiene por compatibilidad, pero el
+                // permiso granular gestiones.confirmar_pago es la forma de
+                // delegar esto sin crear un perfil aparte.
+                $esFinanciero = tienePermiso($mysqli, 'gestiones.confirmar_pago') || tienePerfil($mysqli, 'financiero');
                 $query = "SELECT c.*, cli.*, g.ges_id, g.us_id,
                                  p.pag_id, p.pag_monto, p.pag_fecha AS pag_fecha_reg, p.pag_observacion,
                                  p.pag_estado, u.name_user AS gestor_nombre
@@ -748,7 +751,7 @@ switch ($action) {
         break;
     case 'confirmar_pago':
         header('Content-Type: application/json');
-        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'financiero')) {
+        if (!tienePermiso($mysqli, 'gestiones.confirmar_pago') && !tienePerfil($mysqli, 'financiero')) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break;
         }
         $pag_id = (int)($_POST['pag_id'] ?? 0);
@@ -792,7 +795,7 @@ switch ($action) {
 
     case 'rechazar_pago':
         header('Content-Type: application/json');
-        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'financiero')) {
+        if (!tienePermiso($mysqli, 'gestiones.confirmar_pago') && !tienePerfil($mysqli, 'financiero')) {
             echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break;
         }
         $pag_id = (int)($_POST['pag_id'] ?? 0);

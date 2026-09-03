@@ -29,7 +29,7 @@
     <!-- ======================= THEME COLOR STYLES ===========================-->
     <link rel="stylesheet" href="./assets/css/layouts/vertical/themes/theme-a.css">
     <!-- ======================= CORRECCIONES PROPIAS (cargar al final) =======-->
-    <link rel="stylesheet" href="./assets/css/custom-overrides.css">
+    <link rel="stylesheet" href="./assets/css/custom-overrides.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/custom-overrides.css'); ?>">
 </head>
 
 <body>

@@ -1,4 +1,9 @@
-<?php if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; } ?>
+<?php
+if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; }
+require_once 'config/database.php';
+require_once 'helpers/session_helpers.php';
+$puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
+?>
 <div class="content">
     <header class="page-header">
         <div class="container">
@@ -288,7 +293,7 @@
                         <table id="table_ec" class="table table-striped table-bordered" style="width:100%">
                             <thead><tr>
                                 <th>#</th><th>Período</th><th>Monto Total</th>
-                                <th>Generado</th><th>Estado Envío</th><th>PDF</th>
+                                <th>Generado</th><th>Estado Envío</th><th>PDF</th><th>Acciones</th>
                             </tr></thead>
                             <tbody id="tbody_ec"></tbody>
                         </table>
@@ -817,6 +822,7 @@ var _cliData = null;   // Datos del cliente actual
 var _tabsLoaded = {};  // tabs ya cargados para evitar re-fetch
 var _personalData = {}; // cache de empleados de la ficha actual, por per_id (CL-E/CL-F)
 var _clientesListData = {}; // cache de la última lista cargada, por cli_id (CL-H)
+var PUEDE_ELIMINAR_CLIENTE = <?php echo $puedeEliminarCliente ? 'true' : 'false'; ?>; // US-B
 
 var cartBadge = {'30':'success','60':'warning','90':'danger','90+':'dark'};
 var tipoBadge = {'Empresarial':'primary','Gift Card':'info','Sin definir':'secondary'};
@@ -881,11 +887,11 @@ function cargarClientes() {
                   + '<i class="icon dripicons-user"></i></button>'
                   + '<button class="btn btn-primary btn-sm mr-1" onclick="editarCliente('+d.cli_id+')" title="Editar">'
                   + '<i class="icon dripicons-document-edit"></i></button>'
-                  + (d.total_personal > 0
+                  + (!PUEDE_ELIMINAR_CLIENTE ? '' : (d.total_personal > 0
                       ? '<button class="btn btn-outline-danger btn-sm" disabled title="No se puede eliminar: tiene '+d.total_personal+' empleado(s) asociado(s)">'
                         + '<i class="icon dripicons-trash"></i></button>'
                       : '<button class="btn btn-danger btn-sm" onclick="eliminarCliente('+d.cli_id+')" title="Eliminar">'
-                        + '<i class="icon dripicons-trash"></i></button>')
+                        + '<i class="icon dripicons-trash"></i></button>'))
                 + '</td>'
               + '</tr>';
         });
@@ -1187,13 +1193,20 @@ function cargarTabEC() {
             var pdf = e.ec_archivo_pdf
                 ? '<a href="' + e.ec_archivo_pdf + '" target="_blank" class="btn btn-xs btn-outline-danger"><i class="icon dripicons-document"></i> PDF</a>'
                 : '<span class="text-muted">—</span>';
+            var leyendaEnvio = '';
+            if (e.ec_estado_envio === 'enviado' && e.ec_fecha_envio) {
+                leyendaEnvio = '<br><small class="text-muted">Enviado ' + e.ec_fecha_envio + '</small>';
+            } else if (e.ec_estado_envio === 'error' && e.ec_error_detalle) {
+                leyendaEnvio = '<br><small class="text-danger">' + esc(e.ec_error_detalle) + '</small>';
+            }
             html += '<tr>'
                 + '<td>' + e.ec_id + '</td>'
                 + '<td>' + e.ec_periodo_inicio + ' → ' + e.ec_periodo_fin + '</td>'
                 + '<td class="text-right font-weight-bold">$ ' + parseFloat(e.ec_monto_total||0).toFixed(2) + '</td>'
                 + '<td>' + e.ec_fecha_generacion + '</td>'
-                + '<td><span class="badge badge-'+envBadge+'">'+e.ec_estado_envio+'</span></td>'
+                + '<td><span class="badge badge-'+envBadge+'">'+e.ec_estado_envio+'</span>' + leyendaEnvio + '</td>'
                 + '<td>' + pdf + '</td>'
+                + '<td><a class="btn btn-xs btn-success" title="Enviar por correo" onclick="enviarECCliente(' + e.ec_id + ')"><i class="icon dripicons-mail"></i></a></td>'
               + '</tr>';
         });
         $('#tbody_ec').html(html);
@@ -1206,6 +1219,25 @@ function cargarTabEC() {
 
         $('#tabla_ec_wrapper').show();
         _tabsLoaded['estado_cuenta'] = true;
+    });
+}
+
+function enviarECCliente(ec_id) {
+    if (!confirm('¿Enviar este estado de cuenta por correo al cliente?')) return;
+
+    $.ajax({
+        url: 'ajax/estado_cuenta/estado_cuenta.php',
+        type: 'POST',
+        data: { action: 'enviar', ec_id: ec_id },
+        dataType: 'json',
+        success: function (resp) {
+            alert(resp.mensaje);
+            _tabsLoaded['estado_cuenta'] = false;
+            cargarTabEC();
+        },
+        error: function () {
+            alert('Error de conexión al enviar el correo');
+        }
     });
 }
 
@@ -1622,9 +1654,26 @@ $('#cm_dropzone').on('drop', function (e) {
         $('#cm_archivo').trigger('change');
     }
 });
+// Carga Masiva: el atributo accept=".xlsx,.xls,.csv" del <input> solo es una
+// sugerencia del selector de archivos del sistema operativo — no se aplica
+// nunca al arrastrar y soltar, y se puede saltar eligiendo "Todos los
+// archivos". Antes, subir un PDF no daba ningún error: XLSX.read() truena
+// más abajo y el callback se corta en silencio sin avisar nada.
+function extensionValidaCargaMasiva(nombre) {
+    return /\.(xlsx|xls|csv)$/i.test(nombre || '');
+}
+
 $('#cm_archivo').on('change', function () {
     var f = this.files[0];
-    if (f) { $('#cm_file_name').text(f.name); $('#cm_file_chip').addClass('show'); }
+    if (!f) return;
+    if (!extensionValidaCargaMasiva(f.name)) {
+        $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Formato no permitido. Solo se aceptan archivos .xlsx, .xls o .csv.</div>');
+        $('#cm_archivo').val('');
+        $('#cm_file_chip').removeClass('show');
+        return;
+    }
+    $('#alerta_carga_masiva').html('');
+    $('#cm_file_name').text(f.name); $('#cm_file_chip').addClass('show');
 });
 $('#cm_file_quitar').on('click', function (e) {
     e.stopPropagation();
@@ -1675,10 +1724,20 @@ $('#btn_procesar_carga_masiva').on('click', function () {
         $('#alerta_carga_masiva').html('<div class="alert alert-warning mb-0">Selecciona un archivo.</div>');
         return;
     }
+    if (!extensionValidaCargaMasiva(archivo.name)) {
+        $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">Formato no permitido. Solo se aceptan archivos .xlsx, .xls o .csv.</div>');
+        return;
+    }
 
     var reader = new FileReader();
     reader.onload = function (e) {
-        var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        var wb;
+        try {
+            wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        } catch (err) {
+            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">No se pudo leer el archivo. Verifica que sea un Excel o CSV válido.</div>');
+            return;
+        }
         var ws = wb.Sheets[wb.SheetNames[0]];
         var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
 
