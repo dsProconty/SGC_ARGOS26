@@ -229,7 +229,19 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
             <!-- TAB: PERSONAL -->
             <div class="card tab-panel" id="tab_personal" style="display:none;">
                 <div class="card-body">
-                    <div class="text-right mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <ul class="nav nav-pills" id="filtros_estado_personal">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" data-estado="activo" onclick="filtrarPersonalPorEstado(this,'activo'); return false;">
+                                    Activos <span class="badge badge-light ml-1" id="badge_personal_activo">0</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-estado="bloqueado" onclick="filtrarPersonalPorEstado(this,'bloqueado'); return false;">
+                                    Bloqueados <span class="badge badge-light ml-1" id="badge_personal_bloqueado">0</span>
+                                </a>
+                            </li>
+                        </ul>
                         <button class="btn btn-sm btn-outline-secondary" onclick="abrirModalCargaMasiva()">
                             <i class="icon dripicons-upload"></i> Carga Masiva
                         </button>
@@ -1044,6 +1056,9 @@ function cambiarTab(el, tab) {
 }
 
 // — Personal ──────────────────────────────────────────────────────────────────
+var _personalLista = [];          // ultimo fetch completo (activos + bloqueados), sin filtrar
+var _personalFiltroEstado = 'activo'; // tab actualmente seleccionado
+
 function cargarTabPersonal() {
     if (_tabsLoaded['personal']) return;
     $('#loader_personal').show();
@@ -1053,42 +1068,67 @@ function cargarTabPersonal() {
         $('#loader_personal').hide();
         if (!res.success) return;
 
+        _personalLista = res.data;
         $('#badge_personal').text(res.data.length);
-        _personalData = {};
-        var html = '';
-        $.each(res.data, function(i, p) {
-            _personalData[p.per_id] = p;
-            var estadoBadge = {activo:'success', bloqueado:'danger', inactivo:'secondary'}[p.per_estado] || 'secondary';
-            var esBloqueado = p.per_estado === 'bloqueado';
-            html += '<tr' + (esBloqueado ? ' class="table-danger"' : '') + '>'
-                + '<td>' + (i+1) + '</td>'
-                + '<td>' + p.per_nombre + '</td>'
-                + '<td>' + (p.per_documento || '—') + '</td>'
-                + '<td><code>' + (p.per_numero_tarjeta || '—') + '</code></td>'
-                + '<td><span class="badge badge-'+estadoBadge+'">'+p.per_estado+'</span></td>'
-                + '<td class="text-right">$ ' + parseFloat(p.per_cupo_asignado||0).toFixed(2) + '</td>'
-                + '<td class="text-right">$ ' + parseFloat(p.per_cupo_disponible||0).toFixed(2) + '</td>'
-                + '<td class="text-nowrap">'
-                  + '<button class="btn btn-primary btn-sm mr-1" onclick="editarEmpleado('+p.per_id+')" title="Editar">'
-                  + '<i class="icon dripicons-document-edit"></i></button>'
-                  + '<button class="btn btn-sm ' + (esBloqueado ? 'btn-success' : 'btn-danger') + ' mr-1" onclick="bloquearEmpleado('+p.per_id+')" title="'+(esBloqueado ? 'Activar' : 'Bloquear')+'">'
-                  + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock') + '"></i></button>'
-                  + '<button class="btn btn-outline-secondary btn-sm" onclick="verAuditoria('+p.per_id+')" title="Auditoría">'
-                  + '<i class="icon dripicons-clock"></i></button>'
-                + '</td>'
-              + '</tr>';
-        });
-        $('#tbody_personal').html(html);
-
-        if ($.fn.DataTable.isDataTable('#table_personal')) $('#table_personal').DataTable().destroy();
-        $('#table_personal').DataTable({
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-            columnDefs: [{ orderable: false, targets: [7] }],
-            pageLength: 10, order: [[1,'asc']]
-        });
+        renderTablaPersonal();
 
         $('#tabla_personal_wrapper').show();
         _tabsLoaded['personal'] = true;
+    });
+}
+
+function filtrarPersonalPorEstado(el, estado) {
+    _personalFiltroEstado = estado;
+    $('#filtros_estado_personal .nav-link').removeClass('active');
+    $(el).addClass('active');
+    renderTablaPersonal();
+}
+
+// Filtra _personalLista (ya en memoria, sin volver a pedirle nada al server)
+// por el tab activo y redibuja la tabla + los contadores de cada tab.
+function renderTablaPersonal() {
+    var activos    = _personalLista.filter(function (p) { return p.per_estado === 'activo'; });
+    var bloqueados = _personalLista.filter(function (p) { return p.per_estado === 'bloqueado'; });
+    $('#badge_personal_activo').text(activos.length);
+    $('#badge_personal_bloqueado').text(bloqueados.length);
+
+    var visibles = _personalFiltroEstado === 'bloqueado' ? bloqueados : activos;
+
+    _personalData = {};
+    var html = '';
+    $.each(visibles, function(i, p) {
+        _personalData[p.per_id] = p;
+        var estadoBadge = {activo:'success', bloqueado:'danger', inactivo:'secondary'}[p.per_estado] || 'secondary';
+        var esBloqueado = p.per_estado === 'bloqueado';
+        html += '<tr' + (esBloqueado ? ' class="table-danger"' : '') + '>'
+            + '<td>' + (i+1) + '</td>'
+            + '<td>' + p.per_nombre + '</td>'
+            + '<td>' + (p.per_documento || '—') + '</td>'
+            + '<td><code>' + (p.per_numero_tarjeta || '—') + '</code></td>'
+            + '<td><span class="badge badge-'+estadoBadge+'">'+p.per_estado+'</span></td>'
+            + '<td class="text-right">$ ' + parseFloat(p.per_cupo_asignado||0).toFixed(2) + '</td>'
+            + '<td class="text-right">$ ' + parseFloat(p.per_cupo_disponible||0).toFixed(2) + '</td>'
+            + '<td class="text-nowrap">'
+              + '<button class="btn btn-primary btn-sm mr-1" onclick="editarEmpleado('+p.per_id+')" title="Editar">'
+              + '<i class="icon dripicons-document-edit"></i></button>'
+              + '<button class="btn btn-sm ' + (esBloqueado ? 'btn-success' : 'btn-danger') + ' mr-1" onclick="bloquearEmpleado('+p.per_id+')" title="'+(esBloqueado ? 'Activar' : 'Bloquear')+'">'
+              + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock') + '"></i></button>'
+              + '<button class="btn btn-outline-secondary btn-sm" onclick="verAuditoria('+p.per_id+')" title="Auditoría">'
+              + '<i class="icon dripicons-clock"></i></button>'
+            + '</td>'
+          + '</tr>';
+    });
+    // destroy() ANTES de reemplazar el tbody: llamado despues, DataTables
+    // restaura su copia cacheada del HTML original (el de la primera carga)
+    // en vez de quedarse con las filas nuevas — dejaba siempre la tabla
+    // mostrando los datos del primer render sin importar el tab elegido.
+    if ($.fn.DataTable.isDataTable('#table_personal')) $('#table_personal').DataTable().destroy();
+    $('#tbody_personal').html(html);
+
+    $('#table_personal').DataTable({
+        language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+        columnDefs: [{ orderable: false, targets: [7] }],
+        pageLength: 10, order: [[1,'asc']]
     });
 }
 
