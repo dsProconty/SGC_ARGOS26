@@ -471,9 +471,12 @@ switch ($action) {
     // Historial con filtro de fechas (pantalla aparte)
     // ----------------------------------------------------------
     case 'historial_filtro':
-        $permisos    = $_SESSION['permisos_acceso'] ?? '';
-        $esAdmin     = in_array($permisos, ['Super Admin', 'Administrador']);
-        $id_user     = (int)$_SESSION['id_user'];
+        $id_user = (int)$_SESSION['id_user'];
+        // Ver todos los locales/cajeros (no solo las propias ventas) requiere ser
+        // admin O tener el permiso puntual de mover ventas de local — antes esto
+        // se decidía con $_SESSION['permisos_acceso'] crudo, que no reconoce
+        // perfiles personalizados con permisos granulares asignados.
+        $puedeVerTodo = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador') || tienePermiso($mysqli, 'pos.mover_local');
 
         $fecha_inicio = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? date('Y-m-d'));
         $fecha_fin    = mysqli_real_escape_string($mysqli, $_GET['fecha_fin']    ?? date('Y-m-d'));
@@ -486,11 +489,15 @@ switch ($action) {
 
         $where = "c.con_fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'";
 
-        if ($esAdmin) {
-            // Admin puede filtrar por local; sin filtro ve todos
+        if ($puedeVerTodo) {
+            // Puede filtrar por local y por cajero; sin filtro ve todos
             if (!empty($_GET['loc_id'])) {
                 $loc_id = (int)$_GET['loc_id'];
                 $where .= " AND c.loc_id = $loc_id";
+            }
+            if (!empty($_GET['id_user_cajero'])) {
+                $idUserCajero = (int)$_GET['id_user_cajero'];
+                $where .= " AND c.id_user = $idUserCajero";
             }
         } else {
             // Cajero solo ve sus propias ventas
@@ -501,17 +508,22 @@ switch ($action) {
         // (no hay empleado de por medio), pero toda Gift Card sí pertenece a un
         // convenio (el que la compró) — se resuelve por el lote que la generó
         // para que la empresa dueña del convenio siga apareciendo en el historial.
-        $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total, c.con_estado,
+        $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_total, c.con_estado, c.loc_id,
                          c.con_monto_convenio, c.con_monto_externo, c.con_monto_giftcard,
                          c.con_giftcard_codigo, c.con_voucher_impreso,
                          p.per_nombre, p.per_documento,
-                         COALESCE(cl.cli_descripcion, clgc.cli_descripcion) AS cli_descripcion
+                         COALESCE(cl.cli_descripcion, clgc.cli_descripcion) AS cli_descripcion,
+                         u.name_user AS cajero_nombre,
+                         l.loc_direccion AS local_nombre,
+                         (SELECT COUNT(*) FROM consumo_movimiento_local cml WHERE cml.con_id = c.con_id) AS con_veces_movida
                   FROM consumo c
                   LEFT JOIN personal p  ON c.per_id = p.per_id
                   LEFT JOIN cliente  cl ON p.cli_id = cl.cli_id
                   LEFT JOIN codigo_gift_card cgc ON c.con_giftcard_codigo = cgc.cgc_codigo
                   LEFT JOIN lote_gift_card   lgc ON cgc.lgc_id = lgc.lgc_id
                   LEFT JOIN cliente clgc ON lgc.cli_id = clgc.cli_id
+                  LEFT JOIN usuario  u ON c.id_user = u.id_user
+                  LEFT JOIN local    l ON c.loc_id  = l.loc_id
                   WHERE $where
                   ORDER BY c.con_fecha DESC, c.con_id DESC";
 
@@ -641,6 +653,170 @@ switch ($action) {
         echo $row
             ? json_encode(['success' => true, 'data' => $row])
             : json_encode(['success' => false, 'mensaje' => 'Sin registro de anulación']);
+        break;
+
+    // ----------------------------------------------------------
+    // Mover transacción de local: locales candidatos (misma franquicia
+    // que el local actual del consumo, sin incluirlo a él mismo).
+    // ----------------------------------------------------------
+    case 'locales_para_mover':
+        if (!tienePermiso($mysqli, 'pos.mover_local')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para mover ventas de local']);
+            break;
+        }
+        $con_id = (int)($_GET['con_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT loc_id FROM consumo WHERE con_id = ? LIMIT 1");
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $con = $stmt->get_result()->fetch_assoc();
+        if (!$con) { echo json_encode(['success' => false, 'mensaje' => 'Venta no encontrada']); break; }
+
+        $marOrigen = cupoMarcaDeLocal($mysqli, $con['loc_id']);
+        if ($marOrigen === null) {
+            echo json_encode(['success' => false, 'mensaje' => 'No se pudo determinar la franquicia del local actual']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare(
+            "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion
+             FROM local l JOIN marca m ON l.mar_id = m.mar_id
+             WHERE l.mar_id = ? AND l.loc_activo = 1 AND l.loc_id != ?
+             ORDER BY l.loc_direccion ASC"
+        );
+        $stmt->bind_param('ii', $marOrigen, $con['loc_id']);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $locales = [];
+        $marDescripcion = null;
+        while ($row = $res->fetch_assoc()) {
+            $marDescripcion = $row['mar_descripcion'];
+            $locales[] = ['loc_id' => (int)$row['loc_id'], 'loc_direccion' => $row['loc_direccion']];
+        }
+        if ($marDescripcion === null) {
+            // No hubo otro local de esa marca; igual devolvemos el nombre de la marca.
+            $mR = $mysqli->prepare("SELECT mar_descripcion FROM marca WHERE mar_id = ?");
+            $mR->bind_param('i', $marOrigen);
+            $mR->execute();
+            $mRow = $mR->get_result()->fetch_assoc();
+            $marDescripcion = $mRow ? $mRow['mar_descripcion'] : '';
+        }
+        echo json_encode(['success' => true, 'mar_descripcion' => $marDescripcion, 'locales' => $locales]);
+        break;
+
+    // ----------------------------------------------------------
+    // Mover transacción de local: corrige una venta que quedó registrada
+    // en el local equivocado (cajero cambiado de local sin avisar).
+    // Solo entre locales de la misma franquicia; motivo obligatorio;
+    // si ya salió en un Estado de Cuenta enviado, avisa antes de mover.
+    // ----------------------------------------------------------
+    case 'mover_local':
+        if (!tienePermiso($mysqli, 'pos.mover_local')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Sin permisos para mover ventas de local']);
+            break;
+        }
+        $con_id        = (int)($_POST['con_id'] ?? 0);
+        $loc_id_destino = (int)($_POST['loc_id_destino'] ?? 0);
+        $motivo        = trim($_POST['motivo'] ?? '');
+        $confirmar     = !empty($_POST['confirmar']);
+
+        if (!$con_id || !$loc_id_destino || $motivo === '') {
+            echo json_encode(['success' => false, 'mensaje' => 'Indique el local destino y el motivo']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare("SELECT con_id, con_fecha, con_estado, per_id, loc_id FROM consumo WHERE con_id = ? LIMIT 1");
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $con = $stmt->get_result()->fetch_assoc();
+
+        if (!$con) { echo json_encode(['success' => false, 'mensaje' => 'Venta no encontrada']); break; }
+        if ($con['con_estado'] === 'anulado') {
+            echo json_encode(['success' => false, 'mensaje' => 'Esta venta está anulada, no se puede mover']);
+            break;
+        }
+        if ((int)$con['loc_id'] === $loc_id_destino) {
+            echo json_encode(['success' => false, 'mensaje' => 'Elija un local distinto al actual']);
+            break;
+        }
+
+        $marOrigen  = cupoMarcaDeLocal($mysqli, $con['loc_id']);
+        $marDestino = cupoMarcaDeLocal($mysqli, $loc_id_destino);
+        if ($marOrigen === null || $marDestino === null || $marOrigen !== $marDestino) {
+            echo json_encode(['success' => false, 'mensaje' => 'Solo se puede mover a un local de la misma franquicia']);
+            break;
+        }
+
+        // Aviso si ya salió en un Estado de Cuenta enviado al convenio — mismo
+        // criterio de fecha/cliente que usa ec_generar_estado_cuenta().
+        if ($con['per_id']) {
+            $stmt = $mysqli->prepare(
+                "SELECT ec.ec_fecha_envio
+                 FROM estado_cuenta ec
+                 JOIN personal p ON p.cli_id = ec.cli_id
+                 WHERE p.per_id = ?
+                   AND ec.ec_estado_envio = 'enviado'
+                   AND ? BETWEEN ec.ec_periodo_inicio AND ec.ec_periodo_fin
+                 ORDER BY ec.ec_fecha_envio DESC LIMIT 1"
+            );
+            $stmt->bind_param('is', $con['per_id'], $con['con_fecha']);
+            $stmt->execute();
+            $ecRow = $stmt->get_result()->fetch_assoc();
+            if ($ecRow && !$confirmar) {
+                $fechaEnvio = date('d/m/Y', strtotime($ecRow['ec_fecha_envio']));
+                echo json_encode([
+                    'success' => false,
+                    'requiere_confirmacion' => true,
+                    'mensaje' => "Esta venta ya salió en un Estado de Cuenta enviado el $fechaEnvio. ¿Moverla igual?"
+                ]);
+                break;
+            }
+        }
+
+        $mysqli->begin_transaction();
+        try {
+            $upd = $mysqli->prepare("UPDATE consumo SET loc_id = ? WHERE con_id = ?");
+            $upd->bind_param('ii', $loc_id_destino, $con_id);
+            if (!$upd->execute()) throw new Exception('Error al mover la venta');
+
+            $idUserSesion = (int)$_SESSION['id_user'];
+            $locOrigen    = (int)$con['loc_id'];
+            $ins = $mysqli->prepare(
+                "INSERT INTO consumo_movimiento_local (con_id, id_user, loc_id_origen, loc_id_destino, cml_motivo)
+                 VALUES (?, ?, ?, ?, ?)"
+            );
+            if (!$ins) throw new Exception('Ejecute la migración migrations/bloque17_mover_transaccion_local.sql en phpMyAdmin.');
+            $ins->bind_param('iiiis', $con_id, $idUserSesion, $locOrigen, $loc_id_destino, $motivo);
+            if (!$ins->execute()) throw new Exception('Error al registrar el movimiento');
+
+            $mysqli->commit();
+            echo json_encode(['success' => true, 'mensaje' => 'Venta movida correctamente']);
+        } catch (Exception $e) {
+            $mysqli->rollback();
+            echo json_encode(['success' => false, 'mensaje' => $e->getMessage()]);
+        }
+        break;
+
+    // ----------------------------------------------------------
+    // Mover transacción de local: ver quién movió una venta y por qué
+    // ----------------------------------------------------------
+    case 'ver_movimiento_local':
+        $con_id = (int)($_GET['con_id'] ?? 0);
+        $stmt = $mysqli->prepare(
+            "SELECT cml.cml_motivo, cml.cml_fecha, u.name_user,
+                    lo.loc_direccion AS local_origen, ld.loc_direccion AS local_destino
+             FROM consumo_movimiento_local cml
+             JOIN usuario u ON cml.id_user = u.id_user
+             JOIN local lo ON cml.loc_id_origen = lo.loc_id
+             JOIN local ld ON cml.loc_id_destino = ld.loc_id
+             WHERE cml.con_id = ? ORDER BY cml.cml_fecha DESC LIMIT 1"
+        );
+        if (!$stmt) { echo json_encode(['success' => false]); break; }
+        $stmt->bind_param('i', $con_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        echo $row
+            ? json_encode(['success' => true, 'data' => $row])
+            : json_encode(['success' => false, 'mensaje' => 'Sin registro de movimiento']);
         break;
 
     default:

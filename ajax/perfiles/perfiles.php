@@ -32,7 +32,8 @@ define('MODULOS_SISTEMA', [
 
 // US-B: permisos granulares (acciones específicas dentro de un módulo)
 define('PERMISOS_GRANULARES', [
-    'pos.anular' => 'Anular ventas del mismo día (Punto de Venta)',
+    'pos.anular'       => 'Anular ventas del mismo día (Punto de Venta)',
+    'pos.mover_local'  => 'Mover una venta a otro local (Punto de Venta)',
 ]);
 
 switch ($action) {

@@ -1,9 +1,13 @@
 <?php
 require_once 'config/database.php';
 require_once 'helpers/session_helpers.php';
-$esAdmin     = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador');
-$puedeAnular = esSuperAdmin($mysqli) || tienePermiso($mysqli, 'pos.anular');
-$hoy         = date('Y-m-d');
+$esAdmin       = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador');
+$puedeAnular   = esSuperAdmin($mysqli) || tienePermiso($mysqli, 'pos.anular');
+$puedeMoverLocal = esSuperAdmin($mysqli) || tienePermiso($mysqli, 'pos.mover_local');
+// Ver todos los locales/cajeros (no solo las propias ventas): mismo criterio
+// ampliado que usa ajax/pos/pos.php historial_filtro.
+$puedeVerTodo  = $esAdmin || $puedeMoverLocal;
+$hoy           = date('Y-m-d');
 ?>
 <div class="content">
     <!-- PAGE HEADER -->
@@ -39,7 +43,7 @@ $hoy         = date('Y-m-d');
                         <label>Fecha fin</label>
                         <input type="date" id="f_fin" class="form-control" value="<?= $hoy ?>">
                     </div>
-                    <?php if ($esAdmin): ?>
+                    <?php if ($puedeVerTodo): ?>
                     <div class="col-md-3">
                         <label>Local</label>
                         <select id="f_local" class="form-control">
@@ -48,6 +52,18 @@ $hoy         = date('Y-m-d');
                             $rLoc = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id ORDER BY m.mar_descripcion, l.loc_direccion");
                             while ($loc = mysqli_fetch_assoc($rLoc)) {
                                 echo '<option value="' . $loc['loc_id'] . '">' . htmlspecialchars($loc['mar_descripcion'] . ' – ' . $loc['loc_direccion']) . '</option>';
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label>Cajero</label>
+                        <select id="f_cajero" class="form-control">
+                            <option value="">Todos los cajeros</option>
+                            <?php
+                            $rCaj = mysqli_query($mysqli, "SELECT id_user, name_user FROM usuario WHERE status = 'activo' ORDER BY name_user");
+                            while ($caj = mysqli_fetch_assoc($rCaj)) {
+                                echo '<option value="' . $caj['id_user'] . '">' . htmlspecialchars($caj['name_user']) . '</option>';
                             }
                             ?>
                         </select>
@@ -127,6 +143,8 @@ $hoy         = date('Y-m-d');
                                 <th>#</th>
                                 <th>Fecha</th>
                                 <th>Hora</th>
+                                <th>Cajero</th>
+                                <th>Local</th>
                                 <th>Empleado</th>
                                 <th>Empresa</th>
                                 <th>Convenio</th>
@@ -193,6 +211,53 @@ $hoy         = date('Y-m-d');
 </div>
 <?php endif; ?>
 
+<?php if ($puedeMoverLocal): ?>
+<!-- MODAL MOVER DE LOCAL -->
+<div class="modal fade" id="modal_mover" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="icon dripicons-arrow-thin-right"></i> Mover Venta #<span id="mover_con_id"></span> de Local</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="alerta_mover"></div>
+                <p class="text-muted mb-2" id="mover_franquicia_txt">Solo se puede mover a otro local de la misma franquicia.</p>
+                <div class="form-group">
+                    <label>Local destino <span class="text-danger">*</span></label>
+                    <select class="form-control" id="mover_loc_destino"></select>
+                </div>
+                <div class="form-group">
+                    <label>Motivo del movimiento <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="mover_motivo" rows="3" placeholder="Ej: El cajero fue reasignado a otro local y siguió facturando con su usuario..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="btn_confirmar_mover">
+                    <i class="icon dripicons-checkmark"></i> Mover Venta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- MODAL VER MOVIMIENTO DE LOCAL -->
+<div class="modal fade" id="modal_ver_movimiento" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-information"></i> Detalle del Movimiento</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" id="ver_movimiento_body">
+                <div class="text-center"><span class="spinner-border spinner-border-sm"></span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- MODAL VER MOTIVO DE ANULACIÓN -->
 <div class="modal fade" id="modal_ver_anulacion" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -213,7 +278,9 @@ $(document).ready(function () {
 
     var con_id_actual = null;
     var puedeAnular = <?php echo $puedeAnular ? 'true' : 'false'; ?>;
+    var puedeMoverLocal = <?php echo $puedeMoverLocal ? 'true' : 'false'; ?>;
     var hoy = '<?= $hoy ?>';
+    var mover_ultima_respuesta_requiere_confirmacion = false;
 
     // Buscar al cargar con fecha de hoy
     buscarVentas();
@@ -238,9 +305,11 @@ $(document).ready(function () {
 
         var data = { action: 'historial_filtro', fecha_inicio: inicio, fecha_fin: fin };
 
-        <?php if ($esAdmin): ?>
+        <?php if ($puedeVerTodo): ?>
         var local = $('#f_local').val();
         if (local) data.loc_id = local;
+        var cajero = $('#f_cajero').val();
+        if (cajero) data.id_user_cajero = cajero;
         <?php endif; ?>
 
         $.ajax({
@@ -291,17 +360,29 @@ $(document).ready(function () {
                     + '<i class="icon dripicons-cross"></i></button>';
             }
 
+            if (!anulada && puedeMoverLocal) {
+                acciones += ' <button class="btn btn-xs btn-outline-warning btn-mover" data-id="' + v.con_id + '" style="font-size:11px;padding:1px 6px;" title="Mover de local">'
+                    + '<i class="icon dripicons-arrow-thin-right"></i></button>';
+            }
+            if (parseInt(v.con_veces_movida) > 0) {
+                acciones += ' <button class="btn btn-xs btn-outline-secondary btn-ver-movimiento" data-id="' + v.con_id + '" style="font-size:11px;padding:1px 6px;" title="Ver movimiento de local">'
+                    + '<i class="icon dripicons-checklist"></i></button>';
+            }
+
             var rowClass = anulada ? ' class="table-secondary"' : '';
             var estadoTxt = anulada ? ' <span class="badge badge-danger">ANULADA</span>' : '';
+            var movidaTxt = parseInt(v.con_veces_movida) > 0 ? ' <span class="badge badge-warning" title="Esta venta se movió de local">MOVIDA</span>' : '';
 
             var empleadoCell = v.per_nombre
                 ? '<strong>' + htmlEsc(v.per_nombre) + '</strong><br><small class="text-muted">' + htmlEsc(v.per_documento) + '</small>'
                 : '<span class="badge badge-info">Gift Card</span><br><small class="text-muted">' + htmlEsc(v.con_giftcard_codigo) + '</small>';
 
             html += '<tr' + rowClass + '>'
-                + '<td>#' + v.con_id + estadoTxt + '</td>'
+                + '<td>#' + v.con_id + estadoTxt + movidaTxt + '</td>'
                 + '<td>' + v.con_fecha + '</td>'
                 + '<td>' + v.con_hora + '</td>'
+                + '<td>' + htmlEsc(v.cajero_nombre || '—') + '</td>'
+                + '<td>' + htmlEsc(v.local_nombre || '—') + '</td>'
                 + '<td>' + empleadoCell + '</td>'
                 + '<td>' + htmlEsc(v.cli_descripcion) + '</td>'
                 + '<td class="text-success">' + (parseFloat(v.con_monto_convenio) > 0 ? '$' + parseFloat(v.con_monto_convenio).toFixed(2) : '—') + '</td>'
@@ -417,6 +498,125 @@ $(document).ready(function () {
             },
             error: function () {
                 $('#ver_anulacion_body').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
+            }
+        });
+    });
+
+    // Mover transacción de local
+    $(document).on('click', '.btn-mover', function () {
+        con_id_actual = $(this).data('id');
+        $('#mover_con_id').text(con_id_actual);
+        $('#mover_motivo').val('');
+        $('#alerta_mover').html('');
+        $('#mover_loc_destino').html('<option>Cargando...</option>');
+        $('#mover_franquicia_txt').text('Solo se puede mover a otro local de la misma franquicia.');
+        mover_ultima_respuesta_requiere_confirmacion = false;
+        $('#modal_mover').modal('show');
+
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'GET',
+            data: { action: 'locales_para_mover', con_id: con_id_actual },
+            dataType: 'json',
+            success: function (resp) {
+                if (!resp.success) {
+                    $('#mover_loc_destino').html('<option value="">—</option>');
+                    $('#alerta_mover').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo cargar la lista de locales') + '</div>');
+                    return;
+                }
+                if (resp.mar_descripcion) {
+                    $('#mover_franquicia_txt').text('Franquicia: ' + resp.mar_descripcion + ' — solo se muestran locales de la misma franquicia.');
+                }
+                if (resp.locales.length === 0) {
+                    $('#mover_loc_destino').html('<option value="">No hay otro local de esta franquicia</option>');
+                    return;
+                }
+                var opts = '<option value="">Seleccione...</option>';
+                resp.locales.forEach(function (l) {
+                    opts += '<option value="' + l.loc_id + '">' + htmlEsc(l.loc_direccion) + '</option>';
+                });
+                $('#mover_loc_destino').html(opts);
+            },
+            error: function () {
+                $('#mover_loc_destino').html('<option value="">—</option>');
+                $('#alerta_mover').html('<div class="alert alert-danger">Error de conexión</div>');
+            }
+        });
+    });
+
+    function confirmarMoverLocal(confirmar) {
+        var locDestino = $('#mover_loc_destino').val();
+        var motivo = $('#mover_motivo').val().trim();
+        if (!locDestino) {
+            $('#alerta_mover').html('<div class="alert alert-danger">Seleccione el local destino</div>');
+            return;
+        }
+        if (!motivo) {
+            $('#alerta_mover').html('<div class="alert alert-danger">Indique el motivo del movimiento</div>');
+            return;
+        }
+        var $btn = $('#btn_confirmar_mover');
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'POST',
+            data: { action: 'mover_local', con_id: con_id_actual, loc_id_destino: locDestino, motivo: motivo, confirmar: confirmar ? 1 : 0 },
+            dataType: 'json',
+            success: function (resp) {
+                $btn.prop('disabled', false);
+                if (resp.success) {
+                    $('#modal_mover').modal('hide');
+                    buscarVentas();
+                    return;
+                }
+                if (resp.requiere_confirmacion) {
+                    mover_ultima_respuesta_requiere_confirmacion = true;
+                    $('#alerta_mover').html(
+                        '<div class="alert alert-warning">' + htmlEsc(resp.mensaje) + '</div>'
+                        + '<button type="button" class="btn btn-sm btn-outline-danger" id="btn_mover_confirmar_igual">Mover igual</button>'
+                    );
+                } else {
+                    $('#alerta_mover').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo mover la venta') + '</div>');
+                }
+            },
+            error: function () {
+                $btn.prop('disabled', false);
+                $('#alerta_mover').html('<div class="alert alert-danger">Error de conexión</div>');
+            }
+        });
+    }
+
+    $('#btn_confirmar_mover').on('click', function () { confirmarMoverLocal(false); });
+    $(document).on('click', '#btn_mover_confirmar_igual', function () { confirmarMoverLocal(true); });
+
+    // Ver detalle de un movimiento de local
+    $(document).on('click', '.btn-ver-movimiento', function () {
+        var con_id = $(this).data('id');
+        $('#ver_movimiento_body').html('<div class="text-center"><span class="spinner-border spinner-border-sm"></span></div>');
+        $('#modal_ver_movimiento').modal('show');
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'GET',
+            data: { action: 'ver_movimiento_local', con_id: con_id },
+            dataType: 'json',
+            success: function (resp) {
+                if (resp.success) {
+                    var d = resp.data;
+                    $('#ver_movimiento_body').html(
+                        '<table class="table table-sm table-borderless mb-0">'
+                        + '<tr><td><strong>Movida por</strong></td><td>' + htmlEsc(d.name_user) + '</td></tr>'
+                        + '<tr><td><strong>Fecha</strong></td><td>' + htmlEsc(d.cml_fecha) + '</td></tr>'
+                        + '<tr><td><strong>De</strong></td><td>' + htmlEsc(d.local_origen) + '</td></tr>'
+                        + '<tr><td><strong>A</strong></td><td>' + htmlEsc(d.local_destino) + '</td></tr>'
+                        + '<tr><td><strong>Motivo</strong></td><td>' + htmlEsc(d.cml_motivo) + '</td></tr>'
+                        + '</table>'
+                    );
+                } else {
+                    $('#ver_movimiento_body').html('<div class="alert alert-warning mb-0">' + htmlEsc(resp.mensaje || 'Sin registro de movimiento') + '</div>');
+                }
+            },
+            error: function () {
+                $('#ver_movimiento_body').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
             }
         });
     });

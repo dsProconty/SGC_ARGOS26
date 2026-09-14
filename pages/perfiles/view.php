@@ -16,6 +16,7 @@ $modulos_categorias = [
 // además de tener acceso al módulo en sí (perfil_modulo).
 $permisos_granulares = [
     'pos.anular'               => 'Anular ventas del mismo día',
+    'pos.mover_local'          => 'Mover una venta a otro local',
     'gestiones.confirmar_pago' => 'Confirmar / rechazar pagos en Gestiones',
     'giftcard.aprobar'         => 'Aprobar / rechazar solicitudes de Gift Card',
     'clientes.eliminar'        => 'Eliminar clientes',
