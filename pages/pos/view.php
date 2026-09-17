@@ -40,6 +40,66 @@
     </header>
 
     <section class="container m-t-30">
+
+        <!-- ===== CÓDIGO B2B (COMBOS ESPECIALES) ===== -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <h5 class="card-header"><i class="icon dripicons-tags"></i> Código B2B (Combo Especial)</h5>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <input type="text" id="combo_codigo_input" class="form-control form-control-lg"
+                                   placeholder="Código del combo..." maxlength="50" autocomplete="off"
+                                   style="text-transform:uppercase;">
+                            <div class="input-group-append">
+                                <button class="btn btn-warning" id="btn_buscar_combo" type="button">
+                                    <i class="icon dripicons-search"></i> Buscar
+                                </button>
+                            </div>
+                        </div>
+                        <div id="alerta_combo_b2b" class="mt-2" style="display:none;"></div>
+
+                        <div id="div_combo_encontrado" style="display:none;">
+                            <hr class="mt-3 mb-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-5">
+                                    <p class="mb-1"><small class="text-muted">Combo</small></p>
+                                    <h5 class="font-weight-bold mb-0" id="combo_nombre_display"></h5>
+                                    <small class="text-muted" id="combo_descripcion_display"></small>
+                                </div>
+                                <div class="col-md-3 text-center">
+                                    <p class="mb-1"><small class="text-muted">Valor</small></p>
+                                    <h4 class="text-success font-weight-bold mb-0" id="combo_valor_display"></h4>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-1"><small class="text-muted">Tipo de pago</small></p>
+                                    <div class="btn-group btn-block" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-tipo-pago-combo" data-tipo="credito">Crédito</button>
+                                        <button type="button" class="btn btn-outline-primary btn-tipo-pago-combo" data-tipo="contado">Contado</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="combo_aviso_credito" class="alert alert-info mt-3 mb-0" style="display:none;">
+                                <i class="icon dripicons-information"></i> Busque al empleado por su cédula en el
+                                cuadro de abajo para continuar — el valor del combo se cargará a su cupo.
+                            </div>
+
+                            <div id="combo_contado_box" class="mt-3" style="display:none;">
+                                <button class="btn btn-success btn-block" id="btn_registrar_combo_contado">
+                                    <i class="icon dripicons-checkmark"></i> Registrar Combo (Contado)
+                                </button>
+                            </div>
+
+                            <div class="text-right mt-2">
+                                <button type="button" class="btn btn-sm btn-link text-muted p-0" id="btn_quitar_combo">Quitar combo</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
 
             <!-- ===== COL 1: BÚSQUEDA + DATOS EMPLEADO ===== -->
@@ -380,6 +440,16 @@ $(document).ready(function () {
     var gc_saldo        = 0;
     var IVA_PCT         = 15;     // se actualiza desde el servidor al cargar
 
+    // Combos Especiales (Código B2B) — independiente de la búsqueda de
+    // empleado/Gift Card. En modo Crédito, "engancha" la tarjeta de
+    // Registrar Venta una vez que se encuentra al empleado.
+    var combo_actual     = null;  // {ce_id, ce_nombre, ce_descripcion, ce_valor}
+    var combo_tipo_pago  = null;  // 'credito' | 'contado'
+
+    function comboCreditoActivo() {
+        return !!combo_actual && combo_tipo_pago === 'credito' && modo === 'empleado';
+    }
+
     // Cargar % IVA configurado
     $.getJSON('ajax/pos/pos.php?action=get_config', function(r) {
         if (r.success) IVA_PCT = r.iva_porcentaje;
@@ -477,6 +547,7 @@ $(document).ready(function () {
         $('#div_giftcard').hide();
         $('#div_empleado').slideDown();
         activarFormVenta();
+        aplicarModoComboEnFormVenta();
     }
 
     // -------------------------------------------------------
@@ -507,6 +578,7 @@ $(document).ready(function () {
         $('#div_empleado').hide();
         $('#div_giftcard').slideDown();
         activarFormVenta();
+        aplicarModoComboEnFormVenta();
     }
 
     function activarFormVenta() {
@@ -528,6 +600,109 @@ $(document).ready(function () {
             $('#btn_confirmar').prop('disabled', false).removeAttr('title');
         }
     }
+
+    // -------------------------------------------------------
+    // Combos Especiales (Código B2B)
+    // -------------------------------------------------------
+    function buscarCombo() {
+        var codigo = $('#combo_codigo_input').val().trim();
+        if (codigo === '') return;
+        $('#btn_buscar_combo').prop('disabled', true);
+        ocultarAlerta('alerta_combo_b2b');
+
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'GET',
+            data: { action: 'buscar_combo', codigo: codigo },
+            dataType: 'json',
+            success: function (resp) {
+                if (!resp.success) {
+                    mostrarAlerta('alerta_combo_b2b', 'danger', resp.mensaje);
+                    combo_actual = null;
+                    combo_tipo_pago = null;
+                    $('#div_combo_encontrado').slideUp();
+                    aplicarModoComboEnFormVenta();
+                    return;
+                }
+                combo_actual    = resp.data;
+                combo_tipo_pago = null;
+                $('#combo_nombre_display').text(combo_actual.ce_nombre);
+                $('#combo_descripcion_display').text(combo_actual.ce_descripcion || '');
+                $('#combo_valor_display').text('$' + combo_actual.ce_valor.toFixed(2));
+                $('.btn-tipo-pago-combo').removeClass('active btn-primary').addClass('btn-outline-primary');
+                $('#combo_aviso_credito, #combo_contado_box').hide();
+                $('#div_combo_encontrado').slideDown();
+                aplicarModoComboEnFormVenta();
+            },
+            error: function () { mostrarAlerta('alerta_combo_b2b', 'danger', 'Error de conexión'); },
+            complete: function () { $('#btn_buscar_combo').prop('disabled', false); }
+        });
+    }
+    $('#btn_buscar_combo').on('click', buscarCombo);
+    $('#combo_codigo_input').on('keypress', function (e) { if (e.which === 13) buscarCombo(); });
+
+    $(document).on('click', '.btn-tipo-pago-combo', function () {
+        combo_tipo_pago = $(this).data('tipo');
+        $('.btn-tipo-pago-combo').removeClass('active btn-primary').addClass('btn-outline-primary');
+        $(this).removeClass('btn-outline-primary').addClass('active btn-primary');
+        $('#combo_aviso_credito').toggle(combo_tipo_pago === 'credito');
+        $('#combo_contado_box').toggle(combo_tipo_pago === 'contado');
+        aplicarModoComboEnFormVenta();
+    });
+
+    $('#btn_quitar_combo').on('click', function () {
+        combo_actual = null;
+        combo_tipo_pago = null;
+        $('#combo_codigo_input').val('');
+        $('#div_combo_encontrado').slideUp();
+        aplicarModoComboEnFormVenta();
+    });
+
+    // Cuando hay un combo en modo Crédito y ya se encontró al empleado, la
+    // tarjeta "Registrar Venta" queda fija en el nombre/valor del combo — el
+    // cajero no puede escribir un monto ni descripción distintos (H-B2B-01).
+    function aplicarModoComboEnFormVenta() {
+        if (comboCreditoActivo()) {
+            $('#con_descripcion').val(combo_actual.ce_nombre).prop('readonly', true);
+            $('#monto_convenio').val(combo_actual.ce_valor.toFixed(2)).prop('readonly', true);
+            $('#monto_externo').val('0').prop('readonly', true);
+            $('#div_aviso_mixto').hide();
+            actualizarResumen(combo_actual.ce_valor, 0);
+            $('#div_resumen').slideDown();
+        } else {
+            $('#con_descripcion').prop('readonly', false);
+            $('#monto_convenio').prop('readonly', false);
+            $('#monto_externo').prop('readonly', false);
+        }
+    }
+
+    // Registrar combo de contado: autocontenido, no usa la tarjeta de
+    // Registrar Venta ni pide datos de empleado.
+    $('#btn_registrar_combo_contado').on('click', function () {
+        if (!combo_actual) return;
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Procesando...');
+        ocultarAlerta('alerta_combo_b2b');
+
+        $.ajax({
+            url: 'ajax/pos/pos.php',
+            type: 'POST',
+            data: { action: 'registrar_combo_contado', combo_id: combo_actual.ce_id },
+            dataType: 'json',
+            success: function (resp) {
+                $btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Registrar Combo (Contado)');
+                if (resp.success) {
+                    cargarVoucher(resp.con_id, false);
+                } else {
+                    mostrarAlerta('alerta_combo_b2b', 'danger', resp.mensaje);
+                }
+            },
+            error: function () {
+                $btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Registrar Combo (Contado)');
+                mostrarAlerta('alerta_combo_b2b', 'danger', 'Error de conexión');
+            }
+        });
+    });
 
     // -------------------------------------------------------
     // Validar montos al escribir
@@ -659,6 +834,9 @@ $(document).ready(function () {
             _postDataPendiente.action         = 'registrar';
             _postDataPendiente.per_id         = per_id_actual;
             _postDataPendiente.monto_convenio = principal.toFixed(2);
+            if (comboCreditoActivo()) {
+                _postDataPendiente.combo_id = combo_actual.ce_id;
+            }
         }
 
         $('#modal_confirmar_venta').modal('show');
@@ -730,6 +908,12 @@ $(document).ready(function () {
                 + '<tr><td><strong>Gift Card</strong></td><td class="text-right"><code>' + d.con_giftcard_codigo + '</code></td></tr>'
                 + '</table><hr>';
         }
+        var comboSection = d.combo_nombre
+            ? '<table class="table table-sm table-borderless mb-0" style="font-size:11px;">'
+                + '<tr><td><strong>Combo</strong></td><td class="text-right">' + htmlEsc(d.combo_nombre) + '</td></tr>'
+                + '<tr><td><strong>Código</strong></td><td class="text-right"><code>' + htmlEsc(d.combo_codigo) + '</code></td></tr>'
+                + '</table><hr>'
+            : '';
 
         var html = '<div id="voucher_print" style="font-family:monospace; font-size:12px; padding:10px;">'
             + reimpresionBadge
@@ -742,6 +926,7 @@ $(document).ready(function () {
             + '<tr><td><strong>Cajero</strong></td><td class="text-right">' + (d.cajero || 'N/A') + '</td></tr>'
             + '</table><hr>'
             + beneficiarioSection
+            + comboSection
             + '<table class="table table-sm table-borderless mb-0" style="font-size:11px;">'
             + descripcionRow
             + (parseFloat(d.con_monto_convenio) > 0 ? '<tr><td>Cargo convenio</td><td class="text-right">$' + parseFloat(d.con_monto_convenio).toFixed(2) + '</td></tr>' : '')
@@ -762,9 +947,34 @@ $(document).ready(function () {
     $('#btn_imprimir_voucher').on('click', function () {
         var contenido = document.getElementById('voucher_print').innerHTML;
         var ventana = window.open('', '_blank', 'width=400,height=600');
-        ventana.document.write('<html><head><title>Voucher SGC</title><link rel="stylesheet" href="assets/css/vendor/bootstrap.css"></head><body onload="window.print();window.close();">');
-        ventana.document.write(contenido);
-        ventana.document.write('</body></html>');
+        // Ancho de rollo térmico: cambiar ambos valores para 58mm (ej. "58mm" / "50mm").
+        var anchoPagina  = '80mm';
+        var anchoImpreso = '72mm';
+        // Estilos propios, sin depender de bootstrap.css externo: cargar ese
+        // archivo completo en una ventana en blanco es lento/frágil (ruta
+        // relativa desde about:blank) y dejaba la vista de impresión colgada
+        // esperando a que cargara (H-016). Además bootstrap.css está pensado
+        // para pantallas anchas, no para un ticket térmico angosto.
+        var estilos = '<style>'
+            + '@page { size: ' + anchoPagina + ' auto; margin: 0; }'
+            + '* { box-sizing: border-box; }'
+            + 'html, body { margin: 0; padding: 0; }'
+            + 'body { width: ' + anchoImpreso + '; margin: 0 auto; padding: 2mm 4mm; font-family: "Courier New", monospace; font-size: 11px; color: #000; }'
+            + 'table { width: 100%; border-collapse: collapse; }'
+            + 'td { padding: 1px 0; vertical-align: top; }'
+            + 'hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }'
+            + '.text-right { text-align: right; }'
+            + '.text-center { text-align: center; }'
+            + '.mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: 2px; } .mb-2 { margin-bottom: 4px; } .mb-3 { margin-bottom: 6px; }'
+            + '.mt-2 { margin-top: 4px; } .mt-3 { margin-top: 6px; }'
+            + 'strong, .font-weight-bold { font-weight: bold; }'
+            + 'small { font-size: 9px; }'
+            + '.badge { display: inline-block; padding: 2px 6px; border: 1px solid #000; border-radius: 3px; font-size: 10px; }'
+            + 'code { font-family: "Courier New", monospace; }'
+            + '</style>';
+        ventana.document.open();
+        ventana.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Voucher SGC</title>' + estilos
+            + '</head><body onload="window.focus();window.print();window.close();">' + contenido + '</body></html>');
         ventana.document.close();
     });
 
@@ -780,6 +990,20 @@ $(document).ready(function () {
         $('#div_aviso_mixto').hide();
         $('#div_resumen').hide();
         $('#aviso_cupo').hide();
+        // H-017: al confirmar una venta el formulario quedaba con los datos
+        // de la transacción anterior. Limpiar todo para dejarlo listo para
+        // registrar la siguiente.
+        $('#cedula_input').val('');
+        $('#con_descripcion').val('').prop('readonly', false);
+        $('#monto_convenio').val('').prop('readonly', false);
+        $('#monto_externo').val('0').prop('readonly', false);
+        $('#local_selector').val('');
+        // Un combo se usa una vez por venta — listo para el siguiente cliente.
+        combo_actual = null;
+        combo_tipo_pago = null;
+        $('#combo_codigo_input').val('');
+        $('#div_combo_encontrado').slideUp();
+        $('.btn-tipo-pago-combo').removeClass('active btn-primary').addClass('btn-outline-primary');
     }
 
     function ocultarPaneles() {

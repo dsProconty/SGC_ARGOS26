@@ -188,6 +188,108 @@ switch ($action) {
         break;
 
     // ----------------------------------------------------------
+    // Combos Especiales: buscar por código B2B. Independiente de la
+    // búsqueda de empleado/Gift Card — se puede usar junto con cualquiera
+    // de las dos. Reutilizable por cualquier cliente hasta su vencimiento;
+    // solo válido en locales de la misma franquicia del combo.
+    // ----------------------------------------------------------
+    case 'buscar_combo':
+        $codigo = strtoupper(trim($_GET['codigo'] ?? ''));
+        if ($codigo === '') {
+            echo json_encode(['success' => false, 'mensaje' => 'Ingrese el código del combo']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare(
+            "SELECT ce_id, ce_nombre, ce_descripcion, ce_valor, ce_fecha_caducidad, mar_id FROM combo_especial WHERE ce_codigo = ?"
+        );
+        $stmt->bind_param('s', $codigo);
+        $stmt->execute();
+        $combo = $stmt->get_result()->fetch_assoc();
+
+        if (!$combo) {
+            echo json_encode(['success' => false, 'mensaje' => 'Código de combo no encontrado']);
+            break;
+        }
+        if ($combo['ce_fecha_caducidad'] < date('Y-m-d')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Este combo venció el ' . date('d/m/Y', strtotime($combo['ce_fecha_caducidad']))]);
+            break;
+        }
+
+        $loc_id_actual = resolverLocId($mysqli);
+        $mar_id_actual = $loc_id_actual ? cupoMarcaDeLocal($mysqli, $loc_id_actual) : null;
+        if ($mar_id_actual === null || (int)$combo['mar_id'] !== $mar_id_actual) {
+            echo json_encode(['success' => false, 'mensaje' => 'Este combo no aplica en este local']);
+            break;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'data'    => [
+                'ce_id'          => (int)$combo['ce_id'],
+                'ce_nombre'      => $combo['ce_nombre'],
+                'ce_descripcion' => $combo['ce_descripcion'],
+                'ce_valor'       => (float)$combo['ce_valor'],
+            ]
+        ]);
+        break;
+
+    // ----------------------------------------------------------
+    // Combos Especiales: registrar de contado, sin empleado en el sistema.
+    // ----------------------------------------------------------
+    case 'registrar_combo_contado':
+        $combo_id = (int)($_POST['combo_id'] ?? 0);
+        $id_user  = (int)$_SESSION['id_user'];
+        $loc_id   = resolverLocId($mysqli);
+
+        if ($combo_id === 0) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        $stmt = $mysqli->prepare("SELECT ce_id, ce_nombre, ce_valor, ce_fecha_caducidad, mar_id FROM combo_especial WHERE ce_id = ?");
+        $stmt->bind_param('i', $combo_id);
+        $stmt->execute();
+        $combo = $stmt->get_result()->fetch_assoc();
+
+        if (!$combo) { echo json_encode(['success' => false, 'mensaje' => 'Combo no encontrado']); break; }
+        if ($combo['ce_fecha_caducidad'] < date('Y-m-d')) {
+            echo json_encode(['success' => false, 'mensaje' => 'Este combo ya venció']);
+            break;
+        }
+        $mar_id_actual = $loc_id ? cupoMarcaDeLocal($mysqli, $loc_id) : null;
+        if ($mar_id_actual === null || (int)$combo['mar_id'] !== $mar_id_actual) {
+            echo json_encode(['success' => false, 'mensaje' => 'Este combo no aplica en este local']);
+            break;
+        }
+
+        // El valor SIEMPRE se toma del combo en el servidor, nunca de lo que
+        // mande el navegador — evita que se manipule el monto desde el cliente.
+        $valor_total = (float)$combo['ce_valor'];
+        $iva_calc    = calcularIva($valor_total, $IVA_PCT);
+        $valor_neto  = $iva_calc['subtotal'];
+        $valor_iva   = $iva_calc['iva'];
+        $fecha       = date('Y-m-d');
+        $hora        = date('H:i:s');
+        $loc_sql     = $loc_id ? $loc_id : 'NULL';
+        $desc_sql    = "'" . mysqli_real_escape_string($mysqli, $combo['ce_nombre']) . "'";
+
+        $insert = "INSERT INTO consumo (con_fecha, con_hora, con_valor_neto, con_iva, con_valor_total,
+                                        con_estado, con_descripcion, id_user, loc_id,
+                                        con_monto_convenio, con_monto_externo, con_voucher_impreso, con_combo_id)
+                   VALUES ('$fecha', '$hora', '$valor_neto', '$valor_iva', '$valor_total',
+                           'pendiente', $desc_sql, $id_user, $loc_sql,
+                           '0', '$valor_total', 0, $combo_id)";
+
+        if (!mysqli_query($mysqli, $insert)) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al registrar: ' . mysqli_error($mysqli)]);
+            break;
+        }
+
+        echo json_encode(['success' => true, 'con_id' => mysqli_insert_id($mysqli)]);
+        break;
+
+    // ----------------------------------------------------------
     // Registrar consumo solo con Gift Card (sin empleado)
     // ----------------------------------------------------------
     case 'registrar_giftcard':
@@ -272,12 +374,40 @@ switch ($action) {
     // ----------------------------------------------------------
     case 'registrar':
         $per_id         = (int)($_POST['per_id'] ?? 0);
+        $combo_id       = (int)($_POST['combo_id'] ?? 0);
         $monto_convenio = (float)($_POST['monto_convenio'] ?? 0);
         $monto_externo  = (float)($_POST['monto_externo']  ?? 0);
         $monto_giftcard = (float)($_POST['monto_giftcard'] ?? 0);
         $cgc_id         = (int)($_POST['cgc_id']           ?? 0);
         $id_user        = (int)$_SESSION['id_user'];
         $loc_id         = resolverLocId($mysqli);
+
+        // Combos Especiales a crédito: el valor y el resto de medios de pago
+        // SIEMPRE se fuerzan desde el servidor cuando hay un combo — nunca lo
+        // que mande el navegador — y un combo no se combina con gift card ni
+        // pago externo en la misma venta.
+        if ($combo_id > 0) {
+            $stmtCombo = $mysqli->prepare("SELECT ce_id, ce_valor, ce_fecha_caducidad, mar_id FROM combo_especial WHERE ce_id = ?");
+            $stmtCombo->bind_param('i', $combo_id);
+            $stmtCombo->execute();
+            $combo = $stmtCombo->get_result()->fetch_assoc();
+
+            if (!$combo) { echo json_encode(['success' => false, 'mensaje' => 'Combo no encontrado']); break; }
+            if ($combo['ce_fecha_caducidad'] < date('Y-m-d')) {
+                echo json_encode(['success' => false, 'mensaje' => 'Este combo ya venció']);
+                break;
+            }
+            $marIdComboLocal = $loc_id ? cupoMarcaDeLocal($mysqli, $loc_id) : null;
+            if ($marIdComboLocal === null || (int)$combo['mar_id'] !== $marIdComboLocal) {
+                echo json_encode(['success' => false, 'mensaje' => 'Este combo no aplica en este local']);
+                break;
+            }
+
+            $monto_convenio = (float)$combo['ce_valor'];
+            $monto_externo  = 0;
+            $monto_giftcard = 0;
+            $cgc_id         = 0;
+        }
 
         if ($per_id === 0 || $monto_convenio <= 0) {
             echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']);
@@ -362,14 +492,16 @@ switch ($action) {
         $hora        = date('H:i:s');
         $loc_sql     = $loc_id ? $loc_id : 'NULL';
 
+        $combo_id_sql = $combo_id > 0 ? $combo_id : 'NULL';
+
         $insert = "INSERT INTO consumo (con_fecha, con_hora, con_valor_neto, con_iva, con_valor_total,
                                         con_estado, id_user, loc_id, per_id,
                                         con_monto_convenio, con_monto_externo, con_voucher_impreso,
-                                        con_giftcard_codigo, con_monto_giftcard)
+                                        con_giftcard_codigo, con_monto_giftcard, con_combo_id)
                    VALUES ('$fecha', '$hora', '$valor_neto', '$valor_iva', '$valor_total',
                            'pendiente', $id_user, $loc_sql, $per_id,
                            '$monto_convenio', '$monto_externo', 0,
-                           $gc_codigo_sql, '$monto_giftcard')";
+                           $gc_codigo_sql, '$monto_giftcard', $combo_id_sql)";
 
         if (!mysqli_query($mysqli, $insert)) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al registrar: ' . mysqli_error($mysqli)]);
@@ -417,12 +549,14 @@ switch ($action) {
                          p.per_nombre, p.per_documento,
                          cl.cli_descripcion,
                          u.name_user AS cajero,
-                         l.loc_direccion
+                         l.loc_direccion,
+                         ce.ce_nombre AS combo_nombre, ce.ce_codigo AS combo_codigo
                   FROM consumo c
                   LEFT JOIN personal p  ON c.per_id = p.per_id
                   LEFT JOIN cliente  cl ON p.cli_id = cl.cli_id
                   LEFT JOIN usuario  u  ON c.id_user = u.id_user
                   LEFT JOIN local    l  ON c.loc_id  = l.loc_id
+                  LEFT JOIN combo_especial ce ON c.con_combo_id = ce.ce_id
                   WHERE c.con_id = $con_id";
 
         $r = mysqli_query($mysqli, $query);

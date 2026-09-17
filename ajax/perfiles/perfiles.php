@@ -28,6 +28,7 @@ define('MODULOS_SISTEMA', [
     'locales'        => 'Locales Comerciales',
     'clientes'       => 'Clientes',
     'perfiles'       => 'Perfiles y Permisos',
+    'combos'         => 'Combos Especiales',
 ]);
 
 // US-B: permisos granulares (acciones específicas dentro de un módulo)

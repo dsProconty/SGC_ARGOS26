@@ -8,7 +8,7 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
 $modulos_categorias = [
     'General'         => ['dashboard' => 'Dashboard'],
     'Operaciones'     => ['gestiones' => 'Gestiones', 'pos' => 'Punto de Venta', 'venta_diferida' => 'Ventas Diferidas', 'convenios' => 'Convenios'],
-    'Finanzas'        => ['giftcard' => 'Gift Cards', 'estado_cuenta' => 'Estados de Cuenta', 'portal_empresa' => 'Portal Empresa / Nómina'],
+    'Finanzas'        => ['giftcard' => 'Gift Cards', 'combos' => 'Combos Especiales', 'estado_cuenta' => 'Estados de Cuenta', 'portal_empresa' => 'Portal Empresa / Nómina'],
     'Administración'  => ['usuarios' => 'Gestión de Usuarios', 'perfiles' => 'Perfiles y Permisos', 'configuracion' => 'Configuración', 'locales' => 'Locales Comerciales', 'clientes' => 'Clientes', 'reportes' => 'Reportes'],
 ];
 

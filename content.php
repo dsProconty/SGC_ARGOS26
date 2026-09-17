@@ -97,6 +97,8 @@ if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
         include "pages/pos/historial.php";
     } elseif ($module === 'giftcard') {
         include "pages/giftcard/view.php";
+    } elseif ($module === 'combos') {
+        include "pages/combos/view.php";
     } elseif ($module === 'venta_diferida') {
         include "pages/venta_diferida/view.php";
     } elseif ($module === 'estado_cuenta') {

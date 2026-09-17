@@ -50,7 +50,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
         <nav class="main-menu">
             <ul class="nav metismenu">
 
-                <?php if ($has('dashboard') || $has('gestiones') || $has('reportes') || $has('pos') || $has('giftcard') || $has('venta_diferida') || $has('estado_cuenta') || $has('portal_empresa')): ?>
+                <?php if ($has('dashboard') || $has('gestiones') || $has('reportes') || $has('pos') || $has('giftcard') || $has('combos') || $has('venta_diferida') || $has('estado_cuenta') || $has('portal_empresa')): ?>
                 <li class="sidebar-header"><span>NAVEGACIÓN</span></li>
                 <?php endif; ?>
 
@@ -151,6 +151,14 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 <li class="nav-dropdown <?php if ($cur === 'giftcard') echo 'active'; ?>">
                     <a href="?module=giftcard">
                         <i class="icon dripicons-card"></i><span>Gift Cards</span>
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <?php if ($has('combos')): ?>
+                <li class="nav-dropdown <?php if ($cur === 'combos') echo 'active'; ?>">
+                    <a href="?module=combos">
+                        <i class="icon dripicons-tags"></i><span>Combos Especiales</span>
                     </a>
                 </li>
                 <?php endif; ?>
