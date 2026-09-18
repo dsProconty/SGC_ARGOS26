@@ -654,8 +654,13 @@ $(document).ready(function () {
         var ventana = window.open('', '_blank', 'width=400,height=600');
         ventana.document.write('<html><head><title>Voucher SGC</title>');
         ventana.document.write('<link rel="stylesheet" href="css/bootstrap.min.css">');
-        ventana.document.write('</head><body onload="window.print();window.close();">');
+        ventana.document.write('</head><body>');
         ventana.document.write(contenido);
+        // H-B2B-02: cerrar recién cuando el diálogo de impresión se cierra
+        // (evento afterprint), no justo después de llamar a print() — en
+        // varios navegadores print() ya no bloquea el JS, así que cerrar de
+        // inmediato hacía que la ventana se cerrara sola casi al instante.
+        ventana.document.write('<script>window.onafterprint = function () { window.close(); }; window.print();<\/script>');
         ventana.document.write('</body></html>');
         ventana.document.close();
     });

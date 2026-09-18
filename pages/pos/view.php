@@ -1064,9 +1064,21 @@ $(document).ready(function () {
             + '.badge { display: inline-block; padding: 2px 6px; border: 1px solid #000; border-radius: 3px; font-size: 10px; }'
             + 'code { font-family: "Courier New", monospace; }'
             + '</style>';
+        // H-B2B-02: en varios navegadores window.print() ya no bloquea la
+        // ejecución de JS mientras el diálogo de impresión está abierto —
+        // con window.close() justo después (en el mismo onload), la ventana
+        // se cerraba sola casi al instante, antes de que el diálogo llegara
+        // a verse. Cerrar recién cuando el navegador avisa que el diálogo de
+        // impresión se cerró (evento afterprint), sea que se imprimió o se
+        // canceló, en vez de cerrar a ciegas apenas se llama a print().
+        var scriptImprimir = '<script>'
+            + 'window.onafterprint = function () { window.close(); };'
+            + 'window.focus();'
+            + 'window.print();'
+            + '<\/script>';
         ventana.document.open();
         ventana.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Voucher SGC</title>' + estilos
-            + '</head><body onload="window.focus();window.print();window.close();">' + contenido + '</body></html>');
+            + '</head><body>' + contenido + scriptImprimir + '</body></html>');
         ventana.document.close();
     });
 
