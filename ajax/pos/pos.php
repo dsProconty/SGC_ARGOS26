@@ -661,7 +661,20 @@ switch ($action) {
                   WHERE $where
                   ORDER BY c.con_fecha DESC, c.con_id DESC";
 
-        $r    = mysqli_query($mysqli, $query);
+        $r = mysqli_query($mysqli, $query);
+        if (!$r) {
+            // Si consumo_movimiento_local no existe (falta correr
+            // migrations/bloque17_mover_transaccion_local.sql), esta consulta
+            // fallaba en silencio: mysqli_query devolvía false, y en la
+            // versión de PHP de producción (anterior a 7.1) eso NO lanza un
+            // error fatal en mysqli_fetch_assoc — solo un warning ignorado,
+            // devolviendo $rows vacío y "success:true" como si de verdad no
+            // hubiera ventas. Se detectó como H-001/H-002 en QA: el Historial
+            // completo se mostraba vacío para todos, no solo para "mover
+            // local". Ahora se corta acá con un mensaje explícito.
+            echo json_encode(['success' => false, 'mensaje' => 'Error al consultar el historial: ' . mysqli_error($mysqli)]);
+            break;
+        }
         $rows = [];
         while ($row = mysqli_fetch_assoc($r)) {
             $rows[] = $row;

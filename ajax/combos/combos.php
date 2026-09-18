@@ -26,6 +26,10 @@ switch ($action) {
                   JOIN marca m ON ce.mar_id = m.mar_id
                   ORDER BY ce.ce_fecha_creacion DESC";
         $r = mysqli_query($mysqli, $query);
+        if (!$r) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al listar combos: ' . mysqli_error($mysqli)]);
+            break;
+        }
         $data = [];
         while ($row = mysqli_fetch_assoc($r)) $data[] = $row;
         echo json_encode(['success' => true, 'data' => $data]);
@@ -143,6 +147,10 @@ switch ($action) {
                   WHERE $where
                   ORDER BY c.con_fecha DESC, c.con_id DESC";
         $r = mysqli_query($mysqli, $query);
+        if (!$r) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al consultar movimientos: ' . mysqli_error($mysqli)]);
+            break;
+        }
         $data = [];
         while ($row = mysqli_fetch_assoc($r)) $data[] = $row;
         echo json_encode(['success' => true, 'data' => $data]);
