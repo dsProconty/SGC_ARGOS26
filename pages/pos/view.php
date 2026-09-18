@@ -1,3 +1,88 @@
+<style>
+    /* Código B2B (Combo Especial) — panel resaltado + selector de tipo de pago */
+    .combo-panel{
+        background:#FBF1F5;
+        border:1px solid #ECCBD9;
+        border-radius:12px;
+        padding:18px 20px;
+        margin-top:16px;
+    }
+    .combo-panel-top{
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:16px;
+        flex-wrap:wrap;
+    }
+    .combo-panel .lbl{
+        font-size:10.5px;
+        font-weight:700;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        color:#6d1b3a;
+        opacity:.75;
+        margin:0 0 4px;
+    }
+    .combo-panel .combo-info h3{ margin:0 0 2px; font-size:19px; font-weight:800; }
+    .combo-panel .combo-info .desc{ font-size:13px; color:#6c757d; }
+    .combo-panel .combo-valor{ text-align:right; }
+    .combo-panel .combo-valor .num{ font-size:26px; font-weight:800; color:#1e8e5a; line-height:1; }
+    .paytype-lbl{ font-size:12.5px; font-weight:700; color:#2b2b2e; margin:18px 0 9px; }
+    .paytype-group{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media (max-width:575.98px){ .paytype-group{ grid-template-columns:1fr; } }
+    .paytype-btn{
+        display:flex; align-items:center; gap:11px;
+        padding:13px 16px;
+        border-radius:10px;
+        border:1.5px solid #dee2e6;
+        background:#fff;
+        cursor:pointer;
+        text-align:left;
+        transition:border-color .15s ease, transform .1s ease, box-shadow .15s ease;
+        font-family:inherit;
+        width:100%;
+    }
+    .paytype-btn:hover{ border-color:#ECCBD9; transform:translateY(-1px); box-shadow:0 6px 16px -10px rgba(109,27,58,.35); }
+    .paytype-btn:active{ transform:translateY(0); }
+    .paytype-ico{
+        width:36px; height:36px; border-radius:9px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        font-size:16px; background:#f1f2f5; color:#6c757d;
+        transition:background .15s ease, color .15s ease;
+    }
+    .paytype-text{ line-height:1.25; }
+    .paytype-text strong{ display:block; font-size:14.5px; font-weight:700; color:#2b2b2e; }
+    .paytype-text span{ display:block; font-size:11.5px; color:#6c757d; margin-top:1px; }
+    .paytype-check{
+        margin-left:auto; width:20px; height:20px; border-radius:50%;
+        border:1.5px solid #dee2e6; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        font-size:11px; color:transparent; transition:all .15s ease;
+    }
+    .paytype-btn.is-selected{ border-color:#6d1b3a; box-shadow:0 0 0 3px #FBF1F5, 0 8px 18px -12px rgba(109,27,58,.4); }
+    .paytype-btn.is-selected .paytype-ico{ background:#6d1b3a; color:#fff; }
+    .paytype-btn.is-selected .paytype-check{ background:#6d1b3a; border-color:#6d1b3a; color:#fff; }
+    .paytype-btn.is-selected.contado{ border-color:#dfa03a; box-shadow:0 0 0 3px #FBF1E3, 0 8px 18px -12px rgba(223,160,58,.45); }
+    .paytype-btn.is-selected.contado .paytype-ico{ background:#dfa03a; }
+    .paytype-btn.is-selected.contado .paytype-check{ background:#dfa03a; border-color:#dfa03a; }
+    .next-step{
+        margin-top:14px; border-radius:9px; padding:12px 14px; font-size:13px;
+        display:none; align-items:center; gap:9px;
+    }
+    .next-step.credito{ background:#E9EFFD; color:#2F5FD6; }
+    .next-step.contado{ background:#FBF1E3; color:#8A5C13; }
+    .next-step .go-btn{
+        margin-left:auto; border:none; background:#dfa03a; color:#fff;
+        font-weight:700; font-size:12.5px; padding:8px 14px; border-radius:7px; cursor:pointer; white-space:nowrap;
+    }
+    .combo-quitar{ text-align:right; margin-top:14px; }
+    .combo-quitar button{
+        background:none; border:none; padding:0; cursor:pointer;
+        font-size:12px; color:#adb5bd; font-family:inherit;
+    }
+    .combo-quitar button:hover{ color:#6c757d; text-decoration:underline; }
+</style>
+
 <div class="content">
     <!-- PAGE HEADER – igual que el resto del sistema -->
     <header class="page-header">
@@ -59,40 +144,47 @@
                         </div>
                         <div id="alerta_combo_b2b" class="mt-2" style="display:none;"></div>
 
-                        <div id="div_combo_encontrado" style="display:none;">
-                            <hr class="mt-3 mb-3">
-                            <div class="row align-items-center">
-                                <div class="col-md-5">
-                                    <p class="mb-1"><small class="text-muted">Combo</small></p>
-                                    <h5 class="font-weight-bold mb-0" id="combo_nombre_display"></h5>
-                                    <small class="text-muted" id="combo_descripcion_display"></small>
+                        <div id="div_combo_encontrado" class="combo-panel" style="display:none;">
+                            <div class="combo-panel-top">
+                                <div class="combo-info">
+                                    <p class="lbl">Combo encontrado</p>
+                                    <h3 id="combo_nombre_display"></h3>
+                                    <p class="desc mb-0" id="combo_descripcion_display"></p>
                                 </div>
-                                <div class="col-md-3 text-center">
-                                    <p class="mb-1"><small class="text-muted">Valor</small></p>
-                                    <h4 class="text-success font-weight-bold mb-0" id="combo_valor_display"></h4>
-                                </div>
-                                <div class="col-md-4">
-                                    <p class="mb-1"><small class="text-muted">Tipo de pago</small></p>
-                                    <div class="btn-group btn-block" role="group">
-                                        <button type="button" class="btn btn-outline-primary btn-tipo-pago-combo" data-tipo="credito">Crédito</button>
-                                        <button type="button" class="btn btn-outline-primary btn-tipo-pago-combo" data-tipo="contado">Contado</button>
-                                    </div>
+                                <div class="combo-valor">
+                                    <p class="lbl">Valor</p>
+                                    <p class="num mb-0" id="combo_valor_display"></p>
                                 </div>
                             </div>
 
-                            <div id="combo_aviso_credito" class="alert alert-info mt-3 mb-0" style="display:none;">
+                            <p class="paytype-lbl">¿Cómo paga?</p>
+                            <div class="paytype-group">
+                                <button type="button" class="paytype-btn btn-tipo-pago-combo credito" data-tipo="credito">
+                                    <span class="paytype-ico"><i class="icon dripicons-user"></i></span>
+                                    <span class="paytype-text"><strong>Crédito</strong><span>Va al cupo del empleado</span></span>
+                                    <span class="paytype-check"><i class="icon dripicons-checkmark"></i></span>
+                                </button>
+                                <button type="button" class="paytype-btn btn-tipo-pago-combo contado" data-tipo="contado">
+                                    <span class="paytype-ico"><i class="icon dripicons-card"></i></span>
+                                    <span class="paytype-text"><strong>Contado</strong><span>Sin datos del cliente</span></span>
+                                    <span class="paytype-check"><i class="icon dripicons-checkmark"></i></span>
+                                </button>
+                            </div>
+
+                            <div id="combo_aviso_credito" class="next-step credito">
                                 <i class="icon dripicons-information"></i> Busque al empleado por su cédula en el
                                 cuadro de abajo para continuar — el valor del combo se cargará a su cupo.
                             </div>
 
-                            <div id="combo_contado_box" class="mt-3" style="display:none;">
-                                <button class="btn btn-success btn-block" id="btn_registrar_combo_contado">
-                                    <i class="icon dripicons-checkmark"></i> Registrar Combo (Contado)
+                            <div id="combo_contado_box" class="next-step contado">
+                                <span>Listo para cobrar de contado.</span>
+                                <button class="go-btn" id="btn_registrar_combo_contado" type="button">
+                                    <i class="icon dripicons-checkmark"></i> Registrar Combo
                                 </button>
                             </div>
 
-                            <div class="text-right mt-2">
-                                <button type="button" class="btn btn-sm btn-link text-muted p-0" id="btn_quitar_combo">Quitar combo</button>
+                            <div class="combo-quitar">
+                                <button type="button" id="btn_quitar_combo">Quitar combo</button>
                             </div>
                         </div>
                     </div>
@@ -629,8 +721,8 @@ $(document).ready(function () {
                 $('#combo_nombre_display').text(combo_actual.ce_nombre);
                 $('#combo_descripcion_display').text(combo_actual.ce_descripcion || '');
                 $('#combo_valor_display').text('$' + combo_actual.ce_valor.toFixed(2));
-                $('.btn-tipo-pago-combo').removeClass('active btn-primary').addClass('btn-outline-primary');
-                $('#combo_aviso_credito, #combo_contado_box').hide();
+                $('.btn-tipo-pago-combo').removeClass('is-selected');
+                $('#combo_aviso_credito, #combo_contado_box').css('display', 'none');
                 $('#div_combo_encontrado').slideDown();
                 aplicarModoComboEnFormVenta();
             },
@@ -643,10 +735,10 @@ $(document).ready(function () {
 
     $(document).on('click', '.btn-tipo-pago-combo', function () {
         combo_tipo_pago = $(this).data('tipo');
-        $('.btn-tipo-pago-combo').removeClass('active btn-primary').addClass('btn-outline-primary');
-        $(this).removeClass('btn-outline-primary').addClass('active btn-primary');
-        $('#combo_aviso_credito').toggle(combo_tipo_pago === 'credito');
-        $('#combo_contado_box').toggle(combo_tipo_pago === 'contado');
+        $('.btn-tipo-pago-combo').removeClass('is-selected');
+        $(this).addClass('is-selected');
+        $('#combo_aviso_credito').css('display', combo_tipo_pago === 'credito' ? 'flex' : 'none');
+        $('#combo_contado_box').css('display', combo_tipo_pago === 'contado' ? 'flex' : 'none');
         aplicarModoComboEnFormVenta();
     });
 
@@ -1003,7 +1095,8 @@ $(document).ready(function () {
         combo_tipo_pago = null;
         $('#combo_codigo_input').val('');
         $('#div_combo_encontrado').slideUp();
-        $('.btn-tipo-pago-combo').removeClass('active btn-primary').addClass('btn-outline-primary');
+        $('#combo_aviso_credito, #combo_contado_box').css('display', 'none');
+        $('.btn-tipo-pago-combo').removeClass('is-selected');
     }
 
     function ocultarPaneles() {
