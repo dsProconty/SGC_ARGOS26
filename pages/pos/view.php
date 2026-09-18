@@ -27,44 +27,45 @@
     .combo-panel .combo-info .desc{ font-size:13px; color:#6c757d; }
     .combo-panel .combo-valor{ text-align:right; }
     .combo-panel .combo-valor .num{ font-size:26px; font-weight:800; color:#1e8e5a; line-height:1; }
-    .paytype-lbl{ font-size:12.5px; font-weight:700; color:#2b2b2e; margin:18px 0 9px; }
-    .paytype-group{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    @media (max-width:575.98px){ .paytype-group{ grid-template-columns:1fr; } }
+    .paytype-lbl{ font-size:15px; font-weight:800; color:#1e2a4a; margin:18px 0 10px; }
+    .paytype-group{ display:flex; flex-direction:column; gap:12px; }
     .paytype-btn{
-        display:flex; align-items:center; gap:11px;
-        padding:13px 16px;
-        border-radius:10px;
-        border:1.5px solid #dee2e6;
+        display:flex; align-items:center; gap:16px;
+        padding:14px 18px;
+        border-radius:14px;
+        border:2px solid #e3e6ec;
         background:#fff;
         cursor:pointer;
         text-align:left;
-        transition:border-color .15s ease, transform .1s ease, box-shadow .15s ease;
+        transition:border-color .15s ease, background .15s ease, transform .1s ease, box-shadow .15s ease;
         font-family:inherit;
         width:100%;
     }
-    .paytype-btn:hover{ border-color:#ECCBD9; transform:translateY(-1px); box-shadow:0 6px 16px -10px rgba(109,27,58,.35); }
-    .paytype-btn:active{ transform:translateY(0); }
+    .paytype-btn:hover{ border-color:#c7cee3; }
+    .paytype-btn:active{ transform:scale(.995); }
     .paytype-ico{
-        width:36px; height:36px; border-radius:9px; flex-shrink:0;
+        width:52px; height:52px; border-radius:13px; flex-shrink:0;
         display:flex; align-items:center; justify-content:center;
-        font-size:16px; background:#f1f2f5; color:#6c757d;
+        font-size:22px; background:#eceef2; color:#8a90a0;
         transition:background .15s ease, color .15s ease;
     }
-    .paytype-text{ line-height:1.25; }
-    .paytype-text strong{ display:block; font-size:14.5px; font-weight:700; color:#2b2b2e; }
-    .paytype-text span{ display:block; font-size:11.5px; color:#6c757d; margin-top:1px; }
+    .paytype-text{ line-height:1.3; }
+    .paytype-text strong{ display:block; font-size:17px; font-weight:800; color:#1e2a4a; }
+    .paytype-text span{ display:block; font-size:13.5px; color:#7a8194; margin-top:2px; }
     .paytype-check{
-        margin-left:auto; width:20px; height:20px; border-radius:50%;
-        border:1.5px solid #dee2e6; flex-shrink:0;
+        margin-left:auto; width:26px; height:26px; border-radius:50%;
+        border:2px solid #cfd3dc; flex-shrink:0;
         display:flex; align-items:center; justify-content:center;
-        font-size:11px; color:transparent; transition:all .15s ease;
+        transition:all .15s ease;
     }
-    .paytype-btn.is-selected{ border-color:#6d1b3a; box-shadow:0 0 0 3px #FBF1F5, 0 8px 18px -12px rgba(109,27,58,.4); }
-    .paytype-btn.is-selected .paytype-ico{ background:#6d1b3a; color:#fff; }
-    .paytype-btn.is-selected .paytype-check{ background:#6d1b3a; border-color:#6d1b3a; color:#fff; }
-    .paytype-btn.is-selected.contado{ border-color:#dfa03a; box-shadow:0 0 0 3px #FBF1E3, 0 8px 18px -12px rgba(223,160,58,.45); }
-    .paytype-btn.is-selected.contado .paytype-ico{ background:#dfa03a; }
-    .paytype-btn.is-selected.contado .paytype-check{ background:#dfa03a; border-color:#dfa03a; }
+    .paytype-check::after{
+        content:""; width:12px; height:12px; border-radius:50%;
+        background:#fff; transform:scale(0); transition:transform .15s ease;
+    }
+    .paytype-btn.is-selected{ border-color:#2f5fd6; background:#eef2ff; box-shadow:0 4px 14px -8px rgba(47,95,214,.35); }
+    .paytype-btn.is-selected .paytype-ico{ background:#2f5fd6; color:#fff; }
+    .paytype-btn.is-selected .paytype-check{ background:#2f5fd6; border-color:#2f5fd6; }
+    .paytype-btn.is-selected .paytype-check::after{ transform:scale(1); }
     .next-step{
         margin-top:14px; border-radius:9px; padding:12px 14px; font-size:13px;
         display:none; align-items:center; gap:9px;
@@ -162,12 +163,12 @@
                                 <button type="button" class="paytype-btn btn-tipo-pago-combo credito" data-tipo="credito">
                                     <span class="paytype-ico"><i class="icon dripicons-user"></i></span>
                                     <span class="paytype-text"><strong>Crédito</strong><span>Va al cupo del empleado</span></span>
-                                    <span class="paytype-check"><i class="icon dripicons-checkmark"></i></span>
+                                    <span class="paytype-check"></span>
                                 </button>
                                 <button type="button" class="paytype-btn btn-tipo-pago-combo contado" data-tipo="contado">
                                     <span class="paytype-ico"><i class="icon dripicons-card"></i></span>
-                                    <span class="paytype-text"><strong>Contado</strong><span>Sin datos del cliente</span></span>
-                                    <span class="paytype-check"><i class="icon dripicons-checkmark"></i></span>
+                                    <span class="paytype-text"><strong>Contado</strong><span>Pago inmediato</span></span>
+                                    <span class="paytype-check"></span>
                                 </button>
                             </div>
 
