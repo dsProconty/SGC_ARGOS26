@@ -26,7 +26,12 @@ $rMarcasCombo = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca
 
         <!-- ===== LISTA DE COMBOS ===== -->
         <div class="card mb-4">
-            <h5 class="card-header"><i class="icon dripicons-tags"></i> Combos</h5>
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="icon dripicons-tags"></i> Combos</span>
+                <button class="btn btn-sm btn-outline-success" id="btn_exportar_combos" style="display:none;" title="Exportar a Excel">
+                    <i class="icon dripicons-download"></i> Exportar Excel
+                </button>
+            </h5>
             <div class="card-body p-0">
                 <div id="combos_loading" class="text-center p-5 text-muted">
                     <span class="spinner-border spinner-border-sm"></span>
@@ -56,7 +61,12 @@ $rMarcasCombo = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca
 
         <!-- ===== REPORTE DE MOVIMIENTOS ===== -->
         <div class="card">
-            <h5 class="card-header"><i class="icon dripicons-to-do"></i> Movimientos</h5>
+            <h5 class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="icon dripicons-to-do"></i> Movimientos</span>
+                <button class="btn btn-sm btn-outline-success" id="btn_exportar_mov" style="display:none;" title="Exportar a Excel">
+                    <i class="icon dripicons-download"></i> Exportar Excel
+                </button>
+            </h5>
             <div class="card-body">
                 <div class="row align-items-end mb-3">
                     <div class="col-md-3">
@@ -173,6 +183,7 @@ $rMarcasCombo = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca
 $(document).ready(function () {
 
     var combos_cache = [];
+    var mov_actuales = [];
 
     cargarCombos();
     $('#mov_inicio').val('<?= date('Y-m-01') ?>');
@@ -181,7 +192,7 @@ $(document).ready(function () {
 
     function cargarCombos() {
         $('#combos_loading').show();
-        $('#combos_vacio, #combos_tabla_wrap').hide();
+        $('#combos_vacio, #combos_tabla_wrap, #btn_exportar_combos').hide();
         $.getJSON('ajax/combos/combos.php', { action: 'list' }, function (resp) {
             $('#combos_loading').hide();
             if (!resp.success || resp.data.length === 0) {
@@ -191,7 +202,7 @@ $(document).ready(function () {
             combos_cache = resp.data;
             renderCombos(resp.data);
             renderSelectCombos(resp.data);
-            $('#combos_tabla_wrap').show();
+            $('#combos_tabla_wrap, #btn_exportar_combos').show();
         });
     }
 
@@ -307,7 +318,7 @@ $(document).ready(function () {
         var fin    = $('#mov_fin').val();
         if (!inicio || !fin) return;
 
-        $('#mov_vacio, #mov_tabla_wrap').hide();
+        $('#mov_vacio, #mov_tabla_wrap, #btn_exportar_mov').hide();
         $('#mov_loading').show();
 
         var data = { action: 'movimientos', fecha_inicio: inicio, fecha_fin: fin };
@@ -320,8 +331,9 @@ $(document).ready(function () {
                 $('#mov_vacio').show();
                 return;
             }
+            mov_actuales = resp.data;
             renderMovimientos(resp.data);
-            $('#mov_tabla_wrap').show();
+            $('#mov_tabla_wrap, #btn_exportar_mov').show();
         });
     }
 
@@ -351,9 +363,58 @@ $(document).ready(function () {
         $('#tbody_mov').html(html);
     }
 
+    // ------------------------------------------------------------
+    // Exportar a Excel (mismo patrón que Historial de Ventas)
+    // ------------------------------------------------------------
+    $('#btn_exportar_combos').on('click', function () {
+        if (!combos_cache.length) return;
+        var filas = combos_cache.map(function (c) {
+            return {
+                'Nombre':      c.ce_nombre,
+                'Descripción': c.ce_descripcion || '',
+                'Código':      c.ce_codigo,
+                'Franquicia':  c.mar_descripcion,
+                'Valor ($)':   Number(parseFloat(c.ce_valor).toFixed(2)),
+                'Vence':       c.ce_fecha_caducidad,
+                'Estado':      c.ce_estado === 'vigente' ? 'Vigente' : 'Vencido',
+                'Usos':        parseInt(c.total_usos, 10) || 0
+            };
+        });
+        var wb = new ExcelJS.Workbook();
+        ArgosExport.rowsToSheet(wb, filas, 'Combos');
+        ArgosExport.download(wb, 'combos_especiales_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    });
+
+    $('#btn_exportar_mov').on('click', function () {
+        if (!mov_actuales.length) return;
+        var filas = mov_actuales.map(function (m) {
+            var monto = (parseFloat(m.con_monto_convenio) || 0) + (parseFloat(m.con_monto_externo) || 0);
+            return {
+                'N° Venta':      '#' + m.con_id,
+                'Fecha':         m.con_fecha,
+                'Hora':          m.con_hora,
+                'Combo':         m.ce_nombre,
+                'Código':        m.ce_codigo,
+                'Tipo de pago':  m.per_nombre ? 'Crédito' : 'Contado',
+                'Empleado':      m.per_nombre || '',
+                'Cédula':        m.per_documento || '',
+                'Empresa':       m.cli_descripcion || '',
+                'Cajero':        m.cajero_nombre || '',
+                'Local':         m.local_nombre || '',
+                'Monto ($)':     Number(monto.toFixed(2)),
+                'Estado':        m.con_estado === 'anulado' ? 'Anulada' : 'Registrada'
+            };
+        });
+        var wb = new ExcelJS.Workbook();
+        ArgosExport.rowsToSheet(wb, filas, 'Movimientos');
+        ArgosExport.download(wb, 'combos_movimientos_' + $('#mov_inicio').val() + '_a_' + $('#mov_fin').val() + '.xlsx');
+    });
+
     function htmlEsc(str) {
         if (!str) return '';
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 });
 </script>
+<script src="assets/vendor/exceljs/exceljs.min.js"></script>
+<script src="js/export_theme.js"></script>
