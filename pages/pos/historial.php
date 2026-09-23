@@ -49,9 +49,9 @@ $hoy           = date('Y-m-d');
                         <select id="f_local" class="form-control">
                             <option value="">Todos los locales</option>
                             <?php
-                            $rLoc = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id ORDER BY m.mar_descripcion, l.loc_direccion");
+                            $rLoc = mysqli_query($mysqli, "SELECT l.loc_id, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_nombre, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id ORDER BY m.mar_descripcion, COALESCE(l.loc_nombre, l.loc_direccion)");
                             while ($loc = mysqli_fetch_assoc($rLoc)) {
-                                echo '<option value="' . $loc['loc_id'] . '">' . htmlspecialchars($loc['mar_descripcion'] . ' – ' . $loc['loc_direccion']) . '</option>';
+                                echo '<option value="' . $loc['loc_id'] . '">' . htmlspecialchars($loc['mar_descripcion'] . ' – ' . $loc['loc_nombre']) . '</option>';
                             }
                             ?>
                         </select>

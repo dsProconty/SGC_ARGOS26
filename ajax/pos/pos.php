@@ -549,7 +549,7 @@ switch ($action) {
                          p.per_nombre, p.per_documento,
                          cl.cli_descripcion,
                          u.name_user AS cajero,
-                         l.loc_direccion,
+                         COALESCE(l.loc_nombre, l.loc_direccion) AS loc_direccion,
                          ce.ce_nombre AS combo_nombre, ce.ce_codigo AS combo_codigo
                   FROM consumo c
                   LEFT JOIN personal p  ON c.per_id = p.per_id
@@ -648,7 +648,7 @@ switch ($action) {
                          p.per_nombre, p.per_documento,
                          COALESCE(cl.cli_descripcion, clgc.cli_descripcion) AS cli_descripcion,
                          u.name_user AS cajero_nombre,
-                         l.loc_direccion AS local_nombre,
+                         COALESCE(l.loc_nombre, l.loc_direccion) AS local_nombre,
                          (SELECT COUNT(*) FROM consumo_movimiento_local cml WHERE cml.con_id = c.con_id) AS con_veces_movida
                   FROM consumo c
                   LEFT JOIN personal p  ON c.per_id = p.per_id
@@ -825,10 +825,10 @@ switch ($action) {
         }
 
         $stmt = $mysqli->prepare(
-            "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion
+            "SELECT l.loc_id, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_direccion, m.mar_descripcion
              FROM local l JOIN marca m ON l.mar_id = m.mar_id
              WHERE l.mar_id = ? AND l.loc_activo = 1 AND l.loc_id != ?
-             ORDER BY l.loc_direccion ASC"
+             ORDER BY COALESCE(l.loc_nombre, l.loc_direccion) ASC"
         );
         $stmt->bind_param('ii', $marOrigen, $con['loc_id']);
         $stmt->execute();
@@ -950,7 +950,8 @@ switch ($action) {
         $con_id = (int)($_GET['con_id'] ?? 0);
         $stmt = $mysqli->prepare(
             "SELECT cml.cml_motivo, cml.cml_fecha, u.name_user,
-                    lo.loc_direccion AS local_origen, ld.loc_direccion AS local_destino
+                    COALESCE(lo.loc_nombre, lo.loc_direccion) AS local_origen,
+                    COALESCE(ld.loc_nombre, ld.loc_direccion) AS local_destino
              FROM consumo_movimiento_local cml
              JOIN usuario u ON cml.id_user = u.id_user
              JOIN local lo ON cml.loc_id_origen = lo.loc_id

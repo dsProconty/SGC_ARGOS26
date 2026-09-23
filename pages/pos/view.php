@@ -110,9 +110,9 @@
                         <?php
                             require_once 'config/database.php';
                             $loc_id = (int)$_SESSION['loc_id'];
-                            $rLoc = mysqli_query($mysqli, "SELECT l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id");
+                            $rLoc = mysqli_query($mysqli, "SELECT COALESCE(l.loc_nombre, l.loc_direccion) AS loc_nombre, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id");
                             if ($rowLoc = mysqli_fetch_assoc($rLoc)) {
-                                echo htmlspecialchars($rowLoc['mar_descripcion'] . ' – ' . $rowLoc['loc_direccion']);
+                                echo htmlspecialchars($rowLoc['mar_descripcion'] . ' – ' . $rowLoc['loc_nombre']);
                             }
                         ?>
                     </span>
@@ -334,12 +334,12 @@
                             <select id="local_selector" class="form-control form-control-lg">
                                 <option value="">Seleccione un local...</option>
                                 <?php
-                                $rLocales = mysqli_query($mysqli, "SELECT l.loc_id, l.loc_direccion, m.mar_descripcion
+                                $rLocales = mysqli_query($mysqli, "SELECT l.loc_id, COALESCE(l.loc_nombre, l.loc_direccion) AS loc_nombre, m.mar_descripcion
                                                                     FROM local l JOIN marca m ON l.mar_id = m.mar_id
                                                                     WHERE l.loc_activo = 1
-                                                                    ORDER BY m.mar_descripcion ASC, l.loc_direccion ASC");
+                                                                    ORDER BY m.mar_descripcion ASC, COALESCE(l.loc_nombre, l.loc_direccion) ASC");
                                 while ($rowLocSel = mysqli_fetch_assoc($rLocales)) {
-                                    $labelSel = htmlspecialchars($rowLocSel['mar_descripcion'] . ' — ' . $rowLocSel['loc_direccion']);
+                                    $labelSel = htmlspecialchars($rowLocSel['mar_descripcion'] . ' — ' . $rowLocSel['loc_nombre']);
                                     echo '<option value="' . (int)$rowLocSel['loc_id'] . '">' . $labelSel . '</option>';
                                 }
                                 ?>
@@ -891,9 +891,9 @@ $(document).ready(function () {
         $loc_label  = 'N/A';
         if ($loc_id_ses) {
             require_once 'config/database.php';
-            $rL = mysqli_query($mysqli, "SELECT l.loc_direccion, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id_ses LIMIT 1");
+            $rL = mysqli_query($mysqli, "SELECT COALESCE(l.loc_nombre, l.loc_direccion) AS loc_nombre, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id_ses LIMIT 1");
             if ($rL && $rowL = mysqli_fetch_assoc($rL)) {
-                $loc_label = htmlspecialchars($rowL['mar_descripcion'] . ' – ' . $rowL['loc_direccion']);
+                $loc_label = htmlspecialchars($rowL['mar_descripcion'] . ' – ' . $rowL['loc_nombre']);
             }
         }
         ?>

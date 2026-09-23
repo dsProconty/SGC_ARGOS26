@@ -137,7 +137,7 @@ switch ($action) {
                          p.per_nombre, p.per_documento,
                          cl.cli_descripcion,
                          u.name_user AS cajero_nombre,
-                         l.loc_direccion AS local_nombre
+                         COALESCE(l.loc_nombre, l.loc_direccion) AS local_nombre
                   FROM consumo c
                   JOIN combo_especial ce ON c.con_combo_id = ce.ce_id
                   LEFT JOIN personal p  ON c.per_id = p.per_id
