@@ -36,7 +36,7 @@ switch ($action) {
                     c.cli_tipo_beneficio, c.cli_valor_beneficio,
                     c.cli_tipo_cartera, c.cli_dia_corte,
                     COALESCE(c.cli_tipo_cliente, 'Sin definir') AS cli_tipo_cliente,
-                    (SELECT COUNT(*) FROM personal p WHERE p.cli_id = c.cli_id) AS total_personal,
+                    (SELECT COUNT(*) FROM personal p WHERE p.cli_id = c.cli_id AND p.per_estado != 'archivado') AS total_personal,
                     (SELECT COUNT(*) FROM estado_cuenta ec WHERE ec.cli_id = c.cli_id) AS total_ec
              FROM cliente c $sql_where
              ORDER BY c.cli_descripcion ASC"
@@ -218,7 +218,7 @@ switch ($action) {
         $stmt = $mysqli->prepare(
             "SELECT per_id, per_nombre, per_documento, per_numero_tarjeta,
                     per_correo, per_estado, per_cupo_asignado, per_cupo_disponible
-             FROM personal WHERE cli_id = ? AND per_estado != 'archivado' ORDER BY per_nombre ASC"
+             FROM personal WHERE cli_id = ? ORDER BY per_nombre ASC"
         );
         $stmt->bind_param('i', $cli_id);
         $stmt->execute();

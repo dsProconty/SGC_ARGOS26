@@ -15,6 +15,165 @@ mismo commit que el resto de los cambios. No se salta nunca, incluso para
 cambios triviales — es la única forma de que la marca de versión sirva como
 señal confiable de que el deploy ocurrió.
 
+## Recordatorio obligatorio: al pasar a producción real
+
+Mientras el proyecto esté en preproducción, el envío real de correos de
+Estado de Cuenta queda bloqueado por el interruptor `configuracion.cfg_clave
+= 'modo_preproduccion'` (ver `services/estado_cuenta_service.php` →
+`ec_modo_preproduccion()`), y el cron de HostPapa
+(`cron/enviar_estados_cuenta.php`, cPanel > Cron Jobs) puede estar
+deshabilitado.
+
+**Cuando el usuario confirme que ya van a operar con datos y correos reales
+de producción (no más pruebas/preproducción), SIEMPRE recordarle, sin que
+tenga que pedirlo:**
+1. Volver a habilitar el cron en cPanel si lo habían deshabilitado.
+2. `UPDATE configuracion SET cfg_valor='0' WHERE cfg_clave='modo_preproduccion';`
+   en la base real — mientras siga en `1`, ningún camino de envío (botón
+   manual, cron, piggyback en `content.php`) manda un correo real, sin
+   importar qué tan bien configurado esté el SMTP.
+
+## Migración desde el sistema viejo (Joomla/Argos) — estado y plan
+
+Se está migrando datos reales desde un dump viejo (Joomla + extensión
+"Argos", ~150MB, tablas `gvony_ads_*`) hacia el esquema nuevo, por
+prioridades, depurando duplicados y basura en cada paso — no es un dump
+directo. Bases de trabajo locales (XAMPP, no versionadas): `sgc_argos_viejo`
+(dump viejo importado tal cual, para consultarlo) y `sgc_argos_prioridad1`
+(espejo de lo ya migrado a producción, para probar scripts antes de
+correrlos ahí). Los `.sql` generados para cada tanda viven en
+`_dump_viejo/` (no versionado — son para correr manualmente por phpMyAdmin
+contra la base real de HostPapa, no para pushear).
+
+**Prioridad 1 — YA HECHO Y EN PRODUCCIÓN:**
+- `marca`, `local`, `cliente` (187 convenios `published=1` de la base
+  vieja), `personal` migrados y deduplicados (la base vieja tenía masiva
+  duplicación por re-cargas de nómina sin control de duplicados — ver
+  historial de esta conversación para el detalle del hallazgo).
+- Decisión del cliente: no se maneja más un estado "inactivo" visible —
+  solo `activo` y `bloqueado`. Los antiguos `personal` inactivos sin
+  historial de consumo viejo se eliminaron definitivamente; los que sí
+  tenían historial (1.876 personas, ~$8.201 en consumos viejos) se
+  conservan con `per_estado = 'archivado'` — invisibles en toda la app
+  (Personal, POS, Portal Empresa, Reportes) pero presentes en la BD para
+  no romper la suma de futuros estados de cuenta históricos por convenio.
+  Ver filtros `AND per_estado != 'archivado'` en `ajax/clientes/clientes.php`,
+  `ajax/pos/pos.php`, `ajax/portal_empresa/portal_empresa.php`,
+  `pages/reportes/excel.php`.
+- Tabs Activos/Bloqueados con contador en el tab Personal de la ficha del
+  cliente, filtrando en el navegador sobre los datos ya cargados.
+
+**Prioridad 2 — HECHA Y VERIFICADA EN PRODUCCIÓN (9 de septiembre de 2026):**
+- Se migró **todo** el rango 2016-2026 sin recortar (decisión del cliente,
+  el volumen resultante es chico, ver depuración abajo).
+- Histórico de consumos/autorizaciones (`gvony_ads_company_card_authorization`,
+  125.730 filas viejas) → tabla `consumo`: **95.212 filas, $2.330.871,99**.
+  Depuración real (no es igual a la de `personal`): solo 26 duplicados
+  exactos; `cancel_state` NO significa "anulado" (significa "ya pasó por
+  un cierre mensual viejo", se migra igual); las anulaciones reales
+  (`reverse_tran=1`, monto negativo) se migran ambos lados del par, se
+  cancelan solos al sumar. `per_id` resuelto por cédula en 2 pasadas
+  (tarjeta actual, y para el resto, historial completo de tarjetas
+  reemitidas en `card_detail`) — **importante**: en el script final el
+  `per_id` de cada fila se resuelve con una subconsulta por `per_documento`
+  en el momento de importar, nunca como número fijo — el auto_increment de
+  `personal` avanza distinto en cada entorno (local vs. producción real
+  con actividad propia), un `per_id` fijo calculado en local rompe en
+  producción. Mismo cuidado aplica a cualquier futuro script que necesite
+  referenciar filas por su id autogenerado en otra base.
+- Al armar esta migración se descubrió que el chequeo original de
+  Prioridad 1 (¿quién archivar vs. eliminar?) solo miraba la tarjeta MÁS
+  RECIENTE de cada persona, no su historial completo — **5.919 personas
+  se habían eliminado por error** (tenían consumo real en una tarjeta
+  anterior reemitida). Se corrigieron reinsertándolas como `archivado`.
+  Total archivados: **7.795** (1.876 originales + 5.919 recuperados).
+- Gift cards emitidas en el sistema viejo (`gvony_ads_giftcard`) →
+  `codigo_gift_card`: **30.621 códigos** (excluidos 156 placeholders
+  basura tipo `----||||`/`0` y 6 duplicados). Estado (`cgc_estado`)
+  calculado por saldo real, no por el campo viejo `consumo` (no era
+  confiable). 52 lotes sintéticos (agrupados por marca+fecha) atribuidos a
+  una cuenta dedicada `sistemamigracion` ("Sistema Migración"), creada
+  bloqueada — la tabla vieja no tiene ningún campo de responsable/usuario.
+  `activo`=4.840 ($148.968,13), `vencido`=13.269 ($122.440,38),
+  `consumido`=12.512 ($0).
+- Scripts en `_dump_viejo/`: `04_correccion_archivados_faltantes.sql`,
+  `05_migrar_giftcards.sql`, `06_migrar_consumos.sql` (todos ya corridos).
+- Cierres de cuenta históricos (`gvony_ads_company_account_close`) → NO
+  migrados, no calzan 1:1 con el `estado_cuenta` nuevo, sin definir con
+  el cliente si migran igual como referencia.
+
+**Correcciones post-migración (24 de septiembre de 2026), detectadas por el
+sponsor de Argos al notar personal real de convenios activos escondido:**
+- El chequeo original de Prioridad 1 que determinaba `activo`/`bloqueado`
+  en la migración tenía más de un problema, además del ya documentado
+  arriba (5.919 eliminados por error). Casos reales encontrados:
+  - **747 personas** cuya última acción real en el sistema viejo
+    (`gvony_ads_company_card_block`, `type_reg='B'`) era "Bloqueado", no
+    "inactivo" — quedaron `archivado` (invisibles) en vez de `bloqueado`
+    (visibles). Corregido con `_dump_viejo/07_correccion_bloqueados_mal_archivados.sql`.
+  - **216 personas** con una transacción real en el sistema viejo durante
+    2025 o 2026 (hasta 6 meses antes del corte de migración) que igual
+    quedaron `archivado` sin razón identificable en ningún campo del dump
+    viejo (tarjeta publicada, empresa activa, sin bloqueo). Corregidas a
+    `activo` con `_dump_viejo/08_correccion_archivados_con_actividad_reciente.sql`.
+    Caso disparador: convenio ARGOS PUBLICIDAD S.C.C. (`cli_id=99`), donde
+    los 14 empleados habían quedado `archivado`/sin revisar.
+  - **482 casos** con última acción "R" (observación siempre "CIERRE") se
+    evaluaron y se dejaron como `archivado` — parece un cierre real de
+    tarjeta/convenio, no un error de clasificación.
+  - **43 casos** con última acción "A" (reactivado) siguen `archivado` sin
+    revisar — pendiente, es la anomalía más sospechosa que queda sin tocar.
+  - El resto de los archivados sin actividad desde 2023 o antes (~6.831)
+    se dejó como está — no se hizo bulk-reclasificación, ver tab
+    "Archivados" abajo.
+- **Nueva pestaña "Archivados"** en el tab Personal de la ficha del
+  cliente (`pages/clientes/view.php`, junto a Activos/Bloqueados), con
+  botón "Reactivar" por persona (pasa a `activo`, usa el mismo endpoint
+  `personal_cambiar_estado` y el mismo modal de confirmación que
+  Bloquear/Activar). Decisión explícita del cliente: en vez de seguir
+  hacienda scripts SQL para cada corte de recencia, cualquier archivado
+  ahora se puede revisar y reactivar manualmente desde la UI si se
+  confirma que sigue siendo una persona real y activa. El endpoint
+  `personal_list` dejó de excluir `archivado` (antes lo excluía); el
+  contador de la pestaña "Personal" y el contador "N emp." del listado de
+  convenios (`ajax/clientes/clientes.php`, `total_personal`) siguen
+  contando solo activo+bloqueado, no archivado.
+
+**Descartado / pendiente de confirmar con el cliente, no urgente:**
+`gvony_ads_discount_card` (sin actividad desde 2021), `credit_businesscard`,
+`clients_order`/`product*` (e-commerce viejo, sin equivalente en el
+esquema nuevo), `gvony_ads_users` (data de prueba, no real).
+Falta también resolver: `cliente` nuevo no tiene columna RUC (la vieja sí),
+y `cli_tipo_cartera` no tiene de dónde migrarse.
+
+## Corte de datos: 2026-09-09 — todo lo migrado es real, todo lo posterior es prueba
+
+El **9 de septiembre de 2026** se dio por completa y verificada la migración
+del sistema viejo (Prioridad 1 + Prioridad 2, ver sección de abajo): 187
+convenios, ~25.582 `personal` (activo + archivado), 95.212 `consumo`
+históricos, 30.621 `codigo_gift_card`. Esos son datos **reales** del
+cliente y no se deben tocar, mezclar con pruebas, ni usar como base para
+generar más datos ficticios.
+
+**A partir de esa fecha, cualquier registro nuevo que se cree en la base
+real (`cliente`, `personal`, `consumo`, `giftcard_solicitud`, `usuario`,
+etc.) mientras el sistema siga en preproducción debe ser obviamente
+**dummy/de prueba** — nombres, cédulas, montos y convenios que no
+correspondan a personas o empresas reales, y que se puedan identificar a
+simple vista como ficticios (ej. "EMPRESA DE PRUEBA QA", cédulas tipo
+`0000000001`).** No crear registros de prueba que parezcan reales o que
+puedan confundirse con datos migrados.
+
+**Por qué:** cuando se pase a producción real, va a hacer falta poder
+diferenciar sin ambigüedad "esto vino de la migración" de "esto se creó
+mientras probábamos" — para poder limpiar todo lo segundo antes del
+lanzamiento real sin arriesgar borrar datos migrados por error. Si Claude
+crea datos de prueba en la base real como parte de una tarea (cuentas de
+prueba desechables, empleados de prueba para QA, etc.), debe dejarlos
+marcados de forma obviamente ficticia por este mismo motivo, no solo
+borrarlos al final de la sesión — si algo queda sin borrar por error, tiene
+que notarse igual que es basura de prueba.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

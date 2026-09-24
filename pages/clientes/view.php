@@ -241,6 +241,11 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                                     Bloqueados <span class="badge badge-light ml-1" id="badge_personal_bloqueado">0</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-estado="archivado" onclick="filtrarPersonalPorEstado(this,'archivado'); return false;">
+                                    Archivados <span class="badge badge-light ml-1" id="badge_personal_archivado">0</span>
+                                </a>
+                            </li>
                         </ul>
                         <button class="btn btn-sm btn-outline-secondary" onclick="abrirModalCargaMasiva()">
                             <i class="icon dripicons-upload"></i> Carga Masiva
@@ -1069,7 +1074,7 @@ function cargarTabPersonal() {
         if (!res.success) return;
 
         _personalLista = res.data;
-        $('#badge_personal').text(res.data.length);
+        $('#badge_personal').text(res.data.filter(function (p) { return p.per_estado !== 'archivado'; }).length);
         renderTablaPersonal();
 
         $('#tabla_personal_wrapper').show();
@@ -1089,18 +1094,24 @@ function filtrarPersonalPorEstado(el, estado) {
 function renderTablaPersonal() {
     var activos    = _personalLista.filter(function (p) { return p.per_estado === 'activo'; });
     var bloqueados = _personalLista.filter(function (p) { return p.per_estado === 'bloqueado'; });
+    var archivados = _personalLista.filter(function (p) { return p.per_estado === 'archivado'; });
     $('#badge_personal_activo').text(activos.length);
     $('#badge_personal_bloqueado').text(bloqueados.length);
+    $('#badge_personal_archivado').text(archivados.length);
 
-    var visibles = _personalFiltroEstado === 'bloqueado' ? bloqueados : activos;
+    var visibles = activos;
+    if (_personalFiltroEstado === 'bloqueado') visibles = bloqueados;
+    if (_personalFiltroEstado === 'archivado') visibles = archivados;
 
     _personalData = {};
     var html = '';
     $.each(visibles, function(i, p) {
         _personalData[p.per_id] = p;
-        var estadoBadge = {activo:'success', bloqueado:'danger', inactivo:'secondary'}[p.per_estado] || 'secondary';
-        var esBloqueado = p.per_estado === 'bloqueado';
-        html += '<tr' + (esBloqueado ? ' class="table-danger"' : '') + '>'
+        var estadoBadge = {activo:'success', bloqueado:'danger', archivado:'secondary', inactivo:'secondary'}[p.per_estado] || 'secondary';
+        var esBloqueado  = p.per_estado === 'bloqueado';
+        var esArchivado  = p.per_estado === 'archivado';
+        var filaClass = esBloqueado ? ' class="table-danger"' : (esArchivado ? ' class="table-secondary"' : '');
+        html += '<tr' + filaClass + '>'
             + '<td>' + (i+1) + '</td>'
             + '<td>' + p.per_nombre + '</td>'
             + '<td>' + (p.per_documento || '—') + '</td>'
@@ -1111,8 +1122,11 @@ function renderTablaPersonal() {
             + '<td class="text-nowrap">'
               + '<button class="btn btn-primary btn-sm mr-1" onclick="editarEmpleado('+p.per_id+')" title="Editar">'
               + '<i class="icon dripicons-document-edit"></i></button>'
-              + '<button class="btn btn-sm ' + (esBloqueado ? 'btn-success' : 'btn-danger') + ' mr-1" onclick="bloquearEmpleado('+p.per_id+')" title="'+(esBloqueado ? 'Activar' : 'Bloquear')+'">'
-              + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock') + '"></i></button>'
+              + (esArchivado
+                ? '<button class="btn btn-sm btn-success mr-1" onclick="reactivarEmpleado('+p.per_id+')" title="Reactivar">'
+                  + '<i class="icon dripicons-lock-open"></i></button>'
+                : '<button class="btn btn-sm ' + (esBloqueado ? 'btn-success' : 'btn-danger') + ' mr-1" onclick="bloquearEmpleado('+p.per_id+')" title="'+(esBloqueado ? 'Activar' : 'Bloquear')+'">'
+                  + '<i class="icon ' + (esBloqueado ? 'dripicons-lock-open' : 'dripicons-lock') + '"></i></button>')
               + '<button class="btn btn-outline-secondary btn-sm" onclick="verAuditoria('+p.per_id+')" title="Auditoría">'
               + '<i class="icon dripicons-clock"></i></button>'
             + '</td>'
@@ -1538,6 +1552,18 @@ $('#btn_guardar_empleado').on('click', function() {
         $('#alerta_empleado').html('<div class="alert alert-danger mb-0">Error de conexión</div>');
     });
 });
+
+function reactivarEmpleado(per_id) {
+    var p = _personalData[per_id];
+    if (!p) return;
+
+    $('#ce_titulo').text('Reactivar Empleado');
+    $('#ce_mensaje').text('¿Seguro que deseas reactivar a ' + p.per_nombre + '? Volverá a estar visible como activo.');
+    $('#ce_per_id').val(per_id);
+    $('#ce_nuevo_estado').val('activo');
+    $('#btn_confirmar_estado').removeClass('btn-danger btn-success').addClass('btn-success');
+    $('#modalConfirmarEstado').modal('show');
+}
 
 function bloquearEmpleado(per_id) {
     var p = _personalData[per_id];
