@@ -126,6 +126,18 @@ sponsor de Argos al notar personal real de convenios activos escondido:**
   - El resto de los archivados sin actividad desde 2023 o antes (~6.831)
     se dejó como está — no se hizo bulk-reclasificación, ver tab
     "Archivados" abajo.
+  - Se detectaron además **23 convenios con el 100% de su personal
+    archivado** (0 visibles). De esos, 20 (~1.507 personas) no tienen
+    actividad desde 2023 o antes — probablemente cierres reales. 3
+    convenios (ARCACONTINENTAL, SINDICATO HOSPITAL EUGENIO ESPEJO,
+    GARLANDS — 44 personas) sí tienen compras reales en 2024, un poco por
+    debajo del corte de 2025 usado arriba. **Decisión explícita del
+    cliente: NO reactivarlos.** Criterio: prefiere que alguien archivado
+    se acerque a comprar y no pueda (se resuelve al momento reactivándolo
+    manualmente) a reactivar de más y que la persona consuma sin que haya
+    forma de cobrarle al convenio después. Ante esta duda (activar de más
+    vs. dejar archivado de más), el default del cliente es **quedarse
+    archivado** — aplicar el mismo criterio si aparecen casos similares.
 - **Nueva pestaña "Archivados"** en el tab Personal de la ficha del
   cliente (`pages/clientes/view.php`, junto a Activos/Bloqueados), con
   botón "Reactivar" por persona (pasa a `activo`, usa el mismo endpoint
