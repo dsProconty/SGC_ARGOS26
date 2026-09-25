@@ -234,6 +234,21 @@ archivo:
   `pages/reportes/excel.php` (usa el % de IVA configurado del sistema, no
   uno fijo).
 
+**`ADD COLUMN IF NOT EXISTS` no es válido en el MySQL/MariaDB de
+producción (error 1064) — nunca usarlo.** Ya se había descubierto una vez
+en julio (commits `e1319a6`/`a6a4ba4`, `usuario.session_version` y
+`pago.pag_estado`) y volvió a aparecer en `ajax/gestiones/gestiones.php` y
+`ajax/users/users.php` (7 sitios) porque la migración "perezosa" ahí
+copiaba el mismo patrón. Para cualquier columna que deba crearse sola en
+el primer request que la necesite, usar
+`agregarColumnaSiNoExiste($mysqli, $tabla, $columna, $definicionSql)` de
+`helpers/db_helpers.php` — chequea `information_schema` en vez de
+depender de la sintaxis `IF NOT EXISTS`. Importante: en local (PHP más
+nuevo) mysqli lanza excepción ante un "Duplicate column name", mientras
+que en producción (PHP < 7.1) `mysqli_report` está OFF y la falla queda
+silenciosa — un ALTER TABLE repetido sin este helper puede pasar
+desapercibido en producción pero tumbar la página entera en local.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

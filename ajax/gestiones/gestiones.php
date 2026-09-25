@@ -1,6 +1,7 @@
 <?php
 require_once "../../config/database.php";
 require_once "../../helpers/session_helpers.php";
+require_once "../../helpers/db_helpers.php";
 session_start();
 date_default_timezone_set('America/Guayaquil');
 $action = $_GET['action'];
@@ -124,10 +125,10 @@ switch ($action) {
             <?php
                 break;
             case 'cobrada':
-                // Migración automática
-                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
-                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
-                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
+                // Migración automática (ver helpers/db_helpers.php).
+                agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_estado', "VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+                agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_fecha_confirmacion', "DATETIME NULL");
+                agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_confirmado_por', "VARCHAR(100) NULL");
 
                 // Resumen financiero: cobrado confirmado vs pendiente de confirmación
                 $qResumen = "SELECT
@@ -378,7 +379,7 @@ switch ($action) {
                 break;
             case 'pendiente_confirmacion':
                 // Migración automática: crear columna si no existe
-                $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+                agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_estado', "VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
                 // US-B: 'financiero' se mantiene por compatibilidad, pero el
                 // permiso granular gestiones.confirmar_pago es la forma de
                 // delegar esto sin crear un perfil aparte.
@@ -502,7 +503,7 @@ switch ($action) {
             } else {
                 $id_pago = 1;
             }
-            $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_estado VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+            agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_estado', "VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
             $queryPago = "INSERT into pago(pag_id,pag_monto,pag_fecha,pag_observacion,pag_estado)values('$id_pago','$monto','$fecha_actual','$observacion','pendiente')";
             $resPago = mysqli_query($mysqli, $queryPago) or die('error pago:' . mysqli_error($mysqli));
         }
@@ -757,8 +758,8 @@ switch ($action) {
         $pag_id = (int)($_POST['pag_id'] ?? 0);
         $car_id = (int)($_POST['car_id'] ?? 0);
         if (!$pag_id || !$car_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
-        $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_fecha_confirmacion DATETIME NULL");
-        $mysqli->query("ALTER TABLE pago ADD COLUMN IF NOT EXISTS pag_confirmado_por VARCHAR(100) NULL");
+        agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_fecha_confirmacion', "DATETIME NULL");
+        agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_confirmado_por', "VARCHAR(100) NULL");
         $fechaConf  = date('Y-m-d H:i:s');
         $confirmador = mysqli_real_escape_string($mysqli, $_SESSION['name_user'] ?? 'Financiero');
         $mysqli->query("UPDATE pago SET pag_estado = 'confirmado', pag_fecha_confirmacion = '$fechaConf', pag_confirmado_por = '$confirmador' WHERE pag_id = $pag_id");

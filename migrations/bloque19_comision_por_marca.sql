@@ -5,6 +5,16 @@
 -- (Liquidación)" — pages/reportes/excel.php, case 'ventas por locales
 -- liquidacion'.
 
-ALTER TABLE marca ADD COLUMN IF NOT EXISTS mar_comision DECIMAL(5,2) NOT NULL DEFAULT 12.50;
+-- ADD COLUMN IF NOT EXISTS no lo soporta la versión de MySQL de
+-- producción (sintaxis más nueva) — se verifica a mano contra
+-- information_schema para que el script sea idempotente igual.
+SET @col_existe = (SELECT COUNT(1) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marca' AND COLUMN_NAME = 'mar_comision');
+SET @ddl_marca = IF(@col_existe = 0,
+  'ALTER TABLE marca ADD COLUMN mar_comision DECIMAL(5,2) NOT NULL DEFAULT 12.50',
+  'SELECT 1');
+PREPARE stmt_marca FROM @ddl_marca;
+EXECUTE stmt_marca;
+DEALLOCATE PREPARE stmt_marca;
 
 UPDATE marca SET mar_comision = 10.00 WHERE mar_descripcion = 'Vaco y Vaca';

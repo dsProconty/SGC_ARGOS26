@@ -1,6 +1,7 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once "../../config/database.php";
+require_once "../../helpers/db_helpers.php";
 
 $action = $_GET['action'] ?? '';
 
@@ -166,8 +167,8 @@ switch ($action) {
             break;
         }
 
-        // Asegurar que la columna session_version existe (migración automática)
-        $mysqli->query("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS session_version INT NOT NULL DEFAULT 0");
+        // Asegurar que la columna session_version existe (ver helpers/db_helpers.php).
+        agregarColumnaSiNoExiste($mysqli, 'usuario', 'session_version', "INT NOT NULL DEFAULT 0");
 
         $stmt = $mysqli->prepare("UPDATE usuario SET loc_id = ?, session_version = session_version + 1 WHERE id_user = ?");
         $stmt->bind_param('ii', $loc_id, $id_user);
