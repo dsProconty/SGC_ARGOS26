@@ -221,6 +221,15 @@ archivo:
   que Diego/Elbany decidan cuáles migrar y con qué rol.
 - Tabla `usuario` en Usuarios ahora separa **Marca** de **Asignación**
   (antes venían combinadas en una sola celda) — `ajax/users/users.php`.
+- `usuario` nunca tuvo columna de cédula/documento — nadie podía buscar a
+  un cajero por cédula (caso real: MERCY ALAY, doc `0922100698`, migrada
+  como `maalay01` pero invisible al buscar por su cédula). Se agregó
+  `usuario.documento` (`migrations/bloque20_documento_usuario.sql`) y se
+  rellenó para 1.154 de las 1.387 cuentas migradas con
+  `_dump_viejo/10_backfill_documento_cajeros.sql` (las otras 233 no
+  traían cédula en el sistema viejo, quedan `NULL`). La columna
+  "Documento" ya es visible en la tabla y el buscador de DataTables la
+  encuentra solo, sin cambios adicionales de JS.
 
 **Otros dos hallazgos de la misma reunión, ya corregidos:**
 - `ajax/gestiones/gestiones.php` interpolaba `$_GET`/`$_POST` sin escapar

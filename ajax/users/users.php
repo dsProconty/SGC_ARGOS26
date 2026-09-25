@@ -23,6 +23,7 @@ switch ($action) {
                 <tr>
                     <th>No.</th>
                     <th>Usuario</th>
+                    <th>Documento</th>
                     <th>Nombre</th>
                     <th>Perfil</th>
                     <th>Marca</th>
@@ -75,12 +76,8 @@ switch ($action) {
                     <tr>
                         <td><?php echo $no; ?></td>
                         <td><?php echo htmlspecialchars($row['username']); ?></td>
-                        <td>
-                            <?php echo htmlspecialchars($row['name_user']); ?>
-                            <?php if ($usernameEsCedula): ?>
-                                <br><small class="text-muted">Cédula: <?php echo htmlspecialchars($row['username']); ?></small>
-                            <?php endif; ?>
-                        </td>
+                        <td><?php echo $row['documento'] ? htmlspecialchars($row['documento']) : ($usernameEsCedula ? htmlspecialchars($row['username']) : '<span class="text-muted">—</span>'); ?></td>
+                        <td><?php echo htmlspecialchars($row['name_user']); ?></td>
                         <td><span class="badge badge-<?php echo $color; ?>"><?php echo htmlspecialchars($row['perfil_nombre'] ?? $label); ?></span></td>
                         <td><?php echo $marcaCol; ?></td>
                         <td><?php echo $asignacion; ?></td>
