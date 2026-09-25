@@ -1476,6 +1476,8 @@ switch ($tipo) {
             echo "<table><tr><td>Debe seleccionar marca, año y mes.</td></tr></table>";
             break;
         }
+        $qComision = mysqli_query($mysqli, "SELECT mar_comision FROM marca WHERE mar_id = $marca");
+        $comisionPct = (float)(mysqli_fetch_assoc($qComision)['mar_comision'] ?? 12.5);
     ?>
         <table border="1" class="table table-bordered">
             <tr><td colspan="2" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('VENTAS POR LOCALES (LIQUIDACION) - ' . $mes . '/' . $anio) ?></td></tr>
@@ -1526,6 +1528,30 @@ switch ($tipo) {
                 <tr>
                     <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL FACT</td>
                     <td><strong><?php echo number_format($totalVenta, 2) ?></strong></td>
+                </tr>
+                <?php
+                $cfgIva = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'iva_porcentaje' LIMIT 1"));
+                $ivaPct = $cfgIva ? (float)$cfgIva['cfg_valor'] : 15.0;
+                $subtotalSinIva = $totalVenta - $totalIva;
+                $comisionArgos = $subtotalSinIva * $comisionPct / 100;
+                $ivaComision = $comisionArgos * $ivaPct / 100;
+                $totalFacturaMarca = $comisionArgos + $ivaComision;
+                ?>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">% COMISIÓN ARGOS</td>
+                    <td><strong><?php echo number_format($comisionPct, 2) ?>%</strong></td>
+                </tr>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">COMISIÓN ARGOS</td>
+                    <td><strong><?php echo number_format($comisionArgos, 2) ?></strong></td>
+                </tr>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">IVA COMISIÓN</td>
+                    <td><strong><?php echo number_format($ivaComision, 2) ?></strong></td>
+                </tr>
+                <tr>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL FACTURA A LA MARCA</td>
+                    <td><strong><?php echo number_format($totalFacturaMarca, 2) ?></strong></td>
                 </tr>
             <?php endif; ?>
         </table>

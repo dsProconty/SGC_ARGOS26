@@ -24,6 +24,7 @@ switch ($action) {
                     <th>Usuario</th>
                     <th>Nombre</th>
                     <th>Perfil</th>
+                    <th>Marca</th>
                     <th>Asignación</th>
                     <th>Estado</th>
                     <th>Acciones</th>
@@ -57,13 +58,16 @@ switch ($action) {
                     $usernameEsCedula = (bool)preg_match('/^\d{9,10}$/', $row['username']);
 
                     if ($esEmpresaFila && $row['cli_descripcion']) {
+                        $marcaCol   = '<span class="text-muted">—</span>';
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
                     } elseif ($esCajeroFila && $row['loc_direccion']) {
-                        $marca = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong> — ' : '';
-                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . $marca . htmlspecialchars($row['loc_direccion']) . '</small>';
+                        $marcaCol   = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong>' : '<span class="text-muted">—</span>';
+                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($row['loc_direccion']) . '</small>';
                     } elseif ($esCajeroFila) {
+                        $marcaCol   = '<span class="text-muted">—</span>';
                         $asignacion = '<small class="text-muted">Sin local asignado</small>';
                     } else {
+                        $marcaCol   = '<span class="text-muted">—</span>';
                         $asignacion = '<span class="text-muted">—</span>';
                     }
                     ?>
@@ -77,6 +81,7 @@ switch ($action) {
                             <?php endif; ?>
                         </td>
                         <td><span class="badge badge-<?php echo $color; ?>"><?php echo htmlspecialchars($row['perfil_nombre'] ?? $label); ?></span></td>
+                        <td><?php echo $marcaCol; ?></td>
                         <td><?php echo $asignacion; ?></td>
                         <td>
                             <?php if ($row['status'] === 'activo'): ?>

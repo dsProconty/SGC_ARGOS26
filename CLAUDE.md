@@ -186,6 +186,54 @@ marcados de forma obviamente ficticia por este mismo motivo, no solo
 borrarlos al final de la sesión — si algo queda sin borrar por error, tiene
 que notarse igual que es basura de prueba.
 
+## Prioridad 3 — Usuarios (cajeros/supervisores por local), en curso
+
+Reunión del sponsor (25 de septiembre de 2026, Elbany) reveló más pendientes
+además de personal/consumos, ya resueltos por separado en este mismo
+archivo:
+
+- **Login soporta dos formatos de contraseña** (`login-check.php`): las
+  cuentas nuevas siguen en MD5 sin sal (comportamiento de siempre); las
+  migradas del sistema viejo guardan su hash bcrypt original (`$2y$`/`$2a$`/
+  `$2b$`) tal cual, sin resetear nada — se detecta el formato por el
+  prefijo del hash guardado y se valida con `password_verify()` en ese
+  caso. Así cada persona migrada entra con la misma clave de siempre. Los
+  usuarios reales del sistema viejo NO están en `gvony_ads_users` (esa
+  tiene 1 fila de prueba) — están en `gvony_users`, la tabla nativa de
+  Joomla extendida con columnas propias (`local_id`, `documentNumber`,
+  etc.). `gvony_users.local_id` mapea 1:1 exacto a `local.loc_id` ya
+  migrado (verificado), a diferencia de `personal.per_id` que no es
+  portable.
+- `_dump_viejo/09_migrar_usuarios_cajeros.sql`: 1.387 cuentas de
+  cajero/supervisor por local (`local_id` presente en el dump viejo),
+  preservando el hash de contraseña tal cual y el estado `block` (1.239
+  activo / 148 bloqueado) — sin filtrar por recencia de acceso, a
+  diferencia de `personal`: una cuenta de login dormida no tiene el mismo
+  riesgo (cobranza) que un empleado oculto, así que no hace falta
+  inventar un criterio de actividad aquí. Todas nacen con
+  `permisos_acceso='Cajero'`; el sistema viejo no distingue cajero de
+  supervisor en un campo propio (está mezclado en el nombre de la
+  cuenta) — se decidió no adivinar por texto, Elbany asciende a los
+  supervisores puntuales desde Perfiles y Permisos después.
+- **134 cuentas de staff interno de Argos y "control de ventas" por
+  marca** (sin `local_id`) quedaron fuera de ese script a propósito —
+  entregadas en `_dump_viejo/09b_usuarios_staff_para_revisar.csv` para
+  que Diego/Elbany decidan cuáles migrar y con qué rol.
+- Tabla `usuario` en Usuarios ahora separa **Marca** de **Asignación**
+  (antes venían combinadas en una sola celda) — `ajax/users/users.php`.
+
+**Otros dos hallazgos de la misma reunión, ya corregidos:**
+- `ajax/gestiones/gestiones.php` interpolaba `$_GET`/`$_POST` sin escapar
+  en varios `case` (inyección SQL real) — corregido casteando a `(int)`
+  los IDs y con `mysqli_real_escape_string()` los strings, sin cambiar el
+  comportamiento.
+- El reporte "Ventas por Locales (Liquidación)" no calculaba la comisión
+  de Argos (el sistema viejo sí). Se agregó `marca.mar_comision` (default
+  12.5%, "Vaco y Vaca" en 10% — `migrations/bloque19_comision_por_marca.sql`)
+  y las filas de Comisión/IVA Comisión/Total Factura a la Marca en
+  `pages/reportes/excel.php` (usa el % de IVA configurado del sistema, no
+  uno fijo).
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

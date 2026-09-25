@@ -8,7 +8,7 @@ $action = $_GET['action'];
 switch ($action) {
     case 'list':
         $case = $_GET['case'];
-        $cartera = $_GET['cartera'];
+        $cartera = mysqli_real_escape_string($mysqli, $_GET['cartera'] ?? '');
 
         switch ($case) {
             case 'pendiente':
@@ -444,9 +444,9 @@ switch ($action) {
 
         $array = array();
 
-        $id_car = $_GET['id'];
+        $id_car = (int)($_GET['id'] ?? 0);
 
-        $query = "SELECT cli.*,car.car_fecha_inicio,car.car_fecha_fin 
+        $query = "SELECT cli.*,car.car_fecha_inicio,car.car_fecha_fin
         from cliente cli, cartera car where car.cli_id = cli.cli_id and car.car_id = '$id_car'";
 
         $result = mysqli_query($mysqli, $query);
@@ -471,21 +471,21 @@ switch ($action) {
         $estado = 'pendiente';
         $fecha_actual = date('Y-m-d H:i:s');
 
-        $car_id = $_GET['id_car'];
-        $tipo_gestion = $_POST['tipo_gestion'];
-        $tipo_contacto = $_POST['tipo_contacto'];
-        $respuesta = $_POST['respuesta'];
-        $numero_contacto = $_POST['numero_contacto'] ?? '';
-        $email_contacto  = $_POST['email_contacto']  ?? '';
-        $observacion_gestion = $_POST['observacion_gestion'];
-        $us_id = $_SESSION['id_user'];
+        $car_id = (int)($_GET['id_car'] ?? 0);
+        $tipo_gestion = mysqli_real_escape_string($mysqli, $_POST['tipo_gestion'] ?? '');
+        $tipo_contacto = mysqli_real_escape_string($mysqli, $_POST['tipo_contacto'] ?? '');
+        $respuesta = mysqli_real_escape_string($mysqli, $_POST['respuesta'] ?? '');
+        $numero_contacto = mysqli_real_escape_string($mysqli, $_POST['numero_contacto'] ?? '');
+        $email_contacto  = mysqli_real_escape_string($mysqli, $_POST['email_contacto']  ?? '');
+        $observacion_gestion = mysqli_real_escape_string($mysqli, $_POST['observacion_gestion'] ?? '');
+        $us_id = (int)$_SESSION['id_user'];
         if ($respuesta == 'pago') {
-            $monto = $_POST['monto'];
-            $observacion = $_POST['observacion'];
+            $monto = (float)($_POST['monto'] ?? 0);
+            $observacion = mysqli_real_escape_string($mysqli, $_POST['observacion'] ?? '');
             $estado = 'pendiente_confirmacion';
         } else if ($respuesta == 'compromiso') {
-            $monto_compromiso = $_POST['monto_compromiso'];
-            $fecha_compromiso = $_POST['fecha_compromiso'];
+            $monto_compromiso = (float)($_POST['monto_compromiso'] ?? 0);
+            $fecha_compromiso = mysqli_real_escape_string($mysqli, $_POST['fecha_compromiso'] ?? '');
             $estado = 'compromiso';
         } else if($respuesta == 'notificacion'){
             $estado = 'notificacion';
@@ -563,10 +563,10 @@ switch ($action) {
 
         break;
     case 'total':
-        $id_cliente = $_GET['id'];
-        $id_cartera = $_GET['id_cartera'];
-        $fecha_ini = $_GET['fecha_inicio'];
-        $fecha_fin = $_GET['fecha_fin'];
+        $id_cliente = (int)($_GET['id'] ?? 0);
+        $id_cartera = (int)($_GET['id_cartera'] ?? 0);
+        $fecha_ini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fecha_fin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
 
         $queryPagos = "SELECT sum(pag_monto) as monto_pagado from cartera c, gestion g,pago p where c.car_id = g.car_id and g.pag_id = p.pag_id and c.car_id = '$id_cartera'";
 
@@ -589,9 +589,9 @@ switch ($action) {
         break;
 
     case 'consumos':
-        $id_cliente = $_GET['id'];
-        $fecha_ini = $_GET['fecha_inicio'];
-        $fecha_fin = $_GET['fecha_fin'];
+        $id_cliente = (int)($_GET['id'] ?? 0);
+        $fecha_ini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
+        $fecha_fin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
 
         if ($fecha_ini != '') {
             $query = "SELECT con.*,p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
@@ -650,7 +650,7 @@ switch ($action) {
     <?php
         break;
     case 'observacion':
-        $id = $_GET['id'];
+        $id = (int)($_GET['id'] ?? 0);
         $queryObservacion = "SELECT ges_observacion FROM gestion where ges_id = '$id'";
         $res = mysqli_query($mysqli, $queryObservacion);
 
@@ -659,7 +659,7 @@ switch ($action) {
         echo $row['ges_observacion'];
         break;
     case 'gestiones':
-        $id_cartera  = $_GET['id_cartera'];
+        $id_cartera  = (int)($_GET['id_cartera'] ?? 0);
         $query = "SELECT * from cartera c,gestion g,usuario u 
         where c.car_id = g.car_id and c.car_id = '$id_cartera' 
         and g.us_id = u.id_user
@@ -705,7 +705,7 @@ switch ($action) {
     <?php
         break;
     case 'pagos':
-        $id_cartera  = $_GET['id_cartera'];
+        $id_cartera  = (int)($_GET['id_cartera'] ?? 0);
         $query = "SELECT * from cartera c,gestion g,usuario u,pago p 
         where c.car_id = g.car_id and c.car_id = '$id_cartera' 
         and g.us_id = u.id_user and g.pag_id = p.pag_id
