@@ -231,6 +231,19 @@ archivo:
   "Documento" ya es visible en la tabla y el buscador de DataTables la
   encuentra solo, sin cambios adicionales de JS.
 
+- **"Reporte Pendiente Empresas" nunca va a mostrar meses anteriores al
+  actual, y no es un bug ni un bloqueo de preproducción** (Diego lo
+  explicó mal en vivo durante la reunión). Ese reporte lee de `cartera`,
+  que `services/load_data.php` (`case 'carga_cartera'`) reescribe en
+  cada login como un snapshot rotativo de deuda por antigüedad (30/60/90/
+  90+ días) con `car_fecha_ingreso` siempre fechado "hoy" — nunca se
+  acumula histórico ahí. Se agregó un reporte nuevo, **"Consumo Mensual
+  por Empresa"** (`tipo=consumo mensual empresas`, en `pages/reportes/
+  excel.php`, `pages/reportes/view.php` y `shared/sidebar.php`), que sí
+  lee directo de `consumo` y por lo tanto sí muestra los meses viejos
+  reales. Cualquier pedido futuro de "por qué este reporte no muestra
+  meses anteriores" revisar primero si lee de `cartera` o de `consumo`.
+
 **Otros dos hallazgos de la misma reunión, ya corregidos:**
 - `ajax/gestiones/gestiones.php` interpolaba `$_GET`/`$_POST` sin escapar
   en varios `case` (inyección SQL real) — corregido casteando a `(int)`

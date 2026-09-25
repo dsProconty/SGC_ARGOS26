@@ -944,6 +944,71 @@ switch ($tipo) {
     <?php
         break;
 
+    case 'consumo mensual empresas':
+        $cliente = (int)($_GET['cliente'] ?? 0);
+        $anio = (int)($_GET['anio'] ?? 0);
+        if ($anio <= 0) {
+            echo "<table><tr><td>Debe seleccionar un año.</td></tr></table>";
+            break;
+        }
+    ?>
+        <table border="1" class="table table-bordered">
+            <tr><td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('CONSUMO MENSUAL POR EMPRESA ' . $anio) ?></td></tr>
+            <tr>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
+                <?php
+                $meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+                foreach ($meses as $mesLabel) echo '<td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">' . $mesLabel . '</td>';
+                ?>
+                <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL</td>
+            </tr>
+            <?php
+            // A diferencia de "pendiente empresas" (case de arriba), que lee de
+            // `cartera` -- un snapshot rotativo del saldo actual, siempre fechado
+            // "hoy" (ver services/load_data.php > carga_cartera) y por eso nunca
+            // muestra meses anteriores -- este reporte lee directo de `consumo`,
+            // el historial real migrado, así que sí refleja los meses viejos.
+            $whereCli = $cliente > 0 ? "AND cli.cli_id = $cliente" : "";
+            $queryClientes = "SELECT cli_id, cli_descripcion FROM cliente cli WHERE 1=1 $whereCli ORDER BY cli_descripcion ASC";
+            $resClientes = mysqli_query($mysqli, $queryClientes);
+
+            $queryValores = "SELECT p.cli_id, MONTH(con.con_fecha) AS mes, SUM(con.con_valor_total) AS valor
+                             FROM consumo con
+                             JOIN personal p ON con.per_id = p.per_id
+                             WHERE YEAR(con.con_fecha) = $anio
+                             GROUP BY p.cli_id, mes";
+            $resValores = mysqli_query($mysqli, $queryValores);
+            $valores = [];
+            while ($v = mysqli_fetch_assoc($resValores)) {
+                $valores[$v['cli_id']][(int)$v['mes']] = (float)$v['valor'];
+            }
+
+            $totalGeneral = 0;
+            $hay_datos = false;
+            while ($cli = mysqli_fetch_assoc($resClientes)) {
+                $hay_datos = true;
+                $totalEmpresa = 0;
+                echo '<tr><td>' . utf8_decode($cli['cli_descripcion']) . '</td>';
+                for ($m = 1; $m <= 12; $m++) {
+                    $v = $valores[$cli['cli_id']][$m] ?? 0;
+                    $totalEmpresa += $v;
+                    echo '<td>' . number_format($v, 2) . '</td>';
+                }
+                $totalGeneral += $totalEmpresa;
+                echo '<td><strong>' . number_format($totalEmpresa, 2) . '</strong></td></tr>';
+            }
+            if (!$hay_datos): ?>
+                <tr><td colspan="14">No hay clientes registrados.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="13" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL CONSUMIDO</td>
+                    <td><strong><?php echo number_format($totalGeneral, 2) ?></strong></td>
+                </tr>
+            <?php endif; ?>
+        </table>
+    <?php
+        break;
+
     case 'ranking de locales':
         $marca = (int)($_GET['marca'] ?? 0);
         $fechaini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');

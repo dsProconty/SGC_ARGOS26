@@ -599,6 +599,46 @@ $tipo = $_GET['tipo'];
                                 </div>
                             <?php
                                 break;
+                            case 'consumo mensual empresas':
+                            ?>
+                                <div class="row">
+                                    <div class="col-sm-8 offset-sm-2">
+                                        <form action="./pages/reportes/excel.php">
+                                            <input type="hidden" name="tipo" id="tipo" value="<?php echo $tipo; ?>">
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <label for="">Cliente</label>
+                                                    <select name="cliente" id="cliente" class="form-control">
+                                                        <option value="">— Todos —</option>
+                                                        <?php
+                                                        $resCli = mysqli_query($mysqli, "SELECT cli_id, cli_descripcion FROM cliente ORDER BY cli_descripcion ASC");
+                                                        while ($c = mysqli_fetch_assoc($resCli)):
+                                                        ?>
+                                                            <option value="<?php echo (int)$c['cli_id']; ?>"><?php echo htmlspecialchars($c['cli_descripcion']); ?></option>
+                                                        <?php endwhile; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label for="">Año</label>
+                                                    <select name="anio" id="anio" class="form-control" required>
+                                                        <option value="">— Seleccione —</option>
+                                                        <?php for ($y = (int)date('Y'); $y >= 2018; $y--): ?>
+                                                            <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
+                                                        <?php endfor; ?>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-sm-6">
+                                                    <br>
+                                                    <button type="submit" class="btn btn-info"><i class="icon dripicons-cloud-download" style="color:white"></i>Descargar</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php
+                                break;
                             case 'ranking de locales':
                             ?>
                                 <div class="row">

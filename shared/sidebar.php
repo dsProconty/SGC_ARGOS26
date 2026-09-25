@@ -81,6 +81,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                 $tiposReportesNuevos = [
                     'transacciones por local', 'total ventas', 'registro cobranza', 'ventas locales',
                     'cobranza pendiente por empresa', 'cobranza pendiente por mes', 'pendiente empresas',
+                    'consumo mensual empresas',
                     'ranking de locales', 'detalle de tarjetas', 'detalle de tarjetas por cliente',
                     'giftpoint', 'giftpoint transacciones', 'reporte gifcards', 'registro pagos gift',
                     'comision mensual empresas', 'detalle cobranza ventas', 'ventas por locales liquidacion',
@@ -120,6 +121,7 @@ $home_link = $has('dashboard') ? '?module=dashboard' : '?module=' . ($modulos_us
                         <li><a href="?module=reportes&tipo=cobranza pendiente por empresa"><span>Cobranza Pendiente por Empresa</span></a></li>
                         <li><a href="?module=reportes&tipo=cobranza pendiente por mes"><span>Cobranza Pendiente por Mes</span></a></li>
                         <li><a href="?module=reportes&tipo=pendiente empresas"><span>Reporte Pendiente Empresas</span></a></li>
+                        <li><a href="?module=reportes&tipo=consumo mensual empresas"><span>Consumo Mensual por Empresa</span></a></li>
                         <li><a href="?module=reportes&tipo=ranking de locales"><span>Ranking de Locales</span></a></li>
                         <li><a href="?module=reportes&tipo=detalle de tarjetas"><span>Detalle de Tarjetas</span></a></li>
                         <li><a href="?module=reportes&tipo=detalle de tarjetas por cliente"><span>Detalle de Tarjetas por Cliente</span></a></li>
