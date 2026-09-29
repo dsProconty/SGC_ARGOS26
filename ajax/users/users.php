@@ -7,7 +7,7 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'list':
-        $query = "SELECT u.*, c.cli_descripcion, l.loc_direccion, m.mar_descripcion,
+        $query = "SELECT u.*, c.cli_descripcion, l.loc_nombre, l.loc_direccion, m.mar_descripcion,
                          COALESCE(p.per_nombre, u.permisos_acceso) AS perfil_nombre
                   FROM usuario u
                   LEFT JOIN cliente c ON u.cli_id = c.cli_id
@@ -62,9 +62,10 @@ switch ($action) {
                     if ($esEmpresaFila && $row['cli_descripcion']) {
                         $marcaCol   = '<span class="text-muted">—</span>';
                         $asignacion = '<small><i class="icon dripicons-briefcase"></i> ' . htmlspecialchars($row['cli_descripcion']) . '</small>';
-                    } elseif ($esCajeroFila && $row['loc_direccion']) {
-                        $marcaCol   = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong>' : '<span class="text-muted">—</span>';
-                        $asignacion = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($row['loc_direccion']) . '</small>';
+                    } elseif ($esCajeroFila && ($row['loc_nombre'] || $row['loc_direccion'])) {
+                        $marcaCol    = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong>' : '<span class="text-muted">—</span>';
+                        $nombreLocal = $row['loc_nombre'] ?: $row['loc_direccion'];
+                        $asignacion  = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($nombreLocal) . '</small>';
                     } elseif ($esCajeroFila) {
                         $marcaCol   = '<span class="text-muted">—</span>';
                         $asignacion = '<small class="text-muted">Sin local asignado</small>';
