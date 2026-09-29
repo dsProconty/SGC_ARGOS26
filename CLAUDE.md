@@ -271,6 +271,19 @@ que en producción (PHP < 7.1) `mysqli_report` está OFF y la falla queda
 silenciosa — un ALTER TABLE repetido sin este helper puede pasar
 desapercibido en producción pero tumbar la página entera en local.
 
+**Dos gotchas de QA (Nico, 29 de septiembre de 2026):**
+- `pages/reportes/excel.php` — todo literal con tilde/ñ que se imprima en un
+  reporte debe ir envuelto en `utf8_decode('...')` (el resto del archivo ya
+  lo hace); sin eso Excel muestra `COMISIÃ“N`. Las filas de comisión de
+  "Ventas por Locales (Liquidación)" se habían escrito sin él.
+- `main.php` tiene un `MutationObserver` que borra `.modal-backdrop`
+  "huérfanos". Su espera era 50ms, menos que la animación de Bootstrap 4
+  (inserta el backdrop primero, marca el modal `.show` ~150-300ms después),
+  así que borraba backdrops legítimos y los popups quedaban sin fondo oscuro
+  ni `body.modal-open` (caso visible: Editar en Perfiles y Permisos). Ahora
+  espera 500ms. Si vuelve a pasar en otro modal, sospechar de este observer
+  antes que del modal.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

@@ -113,7 +113,10 @@ if (isset($_SESSION['id_user'])) {
 		_limpiarBackdropHuerfano();
 	});
 
-	// MutationObserver: si alguien agrega un .modal-backdrop sin abrir un modal real, lo borra
+	// MutationObserver: si alguien agrega un .modal-backdrop sin abrir un modal real, lo borra.
+	// La espera (500ms) debe superar la animación de Bootstrap 4: inserta el backdrop primero y
+	// recién después marca el modal como .show/display:block. Con 50ms borraba backdrops legítimos
+	// y los popups quedaban sin fondo oscuro ni body.modal-open (ej. Editar en Perfiles y Permisos).
 	var _backdropObserver = new MutationObserver(function(mutations) {
 		mutations.forEach(function(m) {
 			m.addedNodes.forEach(function(node) {
@@ -126,7 +129,7 @@ if (isset($_SESSION['id_user'])) {
 							document.body.style.overflow = '';
 							document.body.style.paddingRight = '';
 						}
-					}, 50);
+					}, 500);
 				}
 			});
 		});

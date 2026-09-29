@@ -1603,19 +1603,19 @@ switch ($tipo) {
                 $totalFacturaMarca = $comisionArgos + $ivaComision;
                 ?>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">% COMISIÓN ARGOS</td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('% COMISIÓN ARGOS') ?></td>
                     <td><strong><?php echo number_format($comisionPct, 2) ?>%</strong></td>
                 </tr>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">COMISIÓN ARGOS</td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COMISIÓN ARGOS') ?></td>
                     <td><strong><?php echo number_format($comisionArgos, 2) ?></strong></td>
                 </tr>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">IVA COMISIÓN</td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('IVA COMISIÓN') ?></td>
                     <td><strong><?php echo number_format($ivaComision, 2) ?></strong></td>
                 </tr>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">TOTAL FACTURA A LA MARCA</td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TOTAL FACTURA A LA MARCA') ?></td>
                     <td><strong><?php echo number_format($totalFacturaMarca, 2) ?></strong></td>
                 </tr>
             <?php endif; ?>
