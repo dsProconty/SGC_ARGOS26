@@ -512,11 +512,7 @@
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body" id="voucher_content"></div>
-            <div class="modal-footer flex-wrap">
-                <div class="w-100 d-flex align-items-center mb-2">
-                    <label class="mb-0 mr-2" for="voucher_impresora" style="font-size:12px;">Impresora</label>
-                    <select id="voucher_impresora" class="form-control form-control-sm" style="flex:1;"></select>
-                </div>
+            <div class="modal-footer">
                 <button class="btn btn-primary" id="btn_imprimir_voucher">
                     <i class="icon dripicons-print"></i> Imprimir
                 </button>
@@ -1035,7 +1031,7 @@ $(document).ready(function () {
             + '<tr><td>IVA (' + IVA_PCT + '%)</td><td class="text-right">$' + parseFloat(d.con_iva || 0).toFixed(2) + '</td></tr>'
             + '<tr><td><strong>TOTAL</strong></td><td class="text-right"><strong>$' + parseFloat(d.con_valor_total).toFixed(2) + '</strong></td></tr>'
             + '</table><hr>'
-            + '<div class="mt-3" style="font-size:10px;"><p class="mb-1">Firma: ___________________________</p><p class="mb-1">N° Cédula: ___________________________</p></div>'
+            + '<div class="mt-3" style="font-size:10px;"><p class="mb-1">Firma: ______________________</p><p class="mb-1">N° Cédula: ______________________</p></div>'
             + '<div class="text-center mt-2" style="font-size:9px;">El comprobante firmado constituye respaldo legal del consumo</div>'
             + '</div>';
         $('#voucher_content').html(html);

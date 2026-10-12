@@ -290,11 +290,15 @@ impresoras de ticket, Epson **TM-T88VII** (térmica, 80 mm) y Epson
 blanco y negro). Toda la impresión vive en `js/voucher_print.js`
 (`voucherImprimir()`), compartida por el POS (`pages/pos/view.php`) y la
 reimpresión de `pages/pos/historial.php` (antes tenía su propia versión
-vieja, sin tamaño de página). Un selector "Impresora" en el modal del
-voucher elige el perfil (ancho de página/impreso y fuente) y se guarda por
-equipo en `localStorage` (`sgc_voucher_impresora`, default T88). Para
-agregar otra impresora basta una entrada nueva en `VOUCHER_PERFILES`.
-No está probado contra las impresoras físicas, solo el HTML/CSS generado.
+vieja, sin tamaño de página). Es **un solo layout de 60 mm** que entra en
+las dos impresoras, sin fijar tamaño de `@page` (usa el papel del driver);
+el modal del voucher NO lleva selector de impresora (Diego lo descartó).
+Validado solo en pantalla: se renderizó el voucher real con datos de peor
+caso (empresa/empleado de 70+ caracteres) en iframes de 63.5 y 72 mm sin
+desbordes. Las etiquetas (primera columna) no deben partirse
+(`td:first-child { white-space: nowrap }`) y las rayas de firma están
+acortadas para no pasarse de ~35 columnas. Pendiente: prueba física en
+ambas impresoras.
 
 ## Infraestructura del repo (para no repetir investigación)
 
