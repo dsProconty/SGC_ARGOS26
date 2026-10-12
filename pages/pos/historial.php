@@ -164,6 +164,7 @@ $hoy           = date('Y-m-d');
     </section>
 </div>
 
+<script src="js/voucher_print.js"></script>
 <!-- MODAL VOUCHER -->
 <div class="modal fade" id="modal_voucher" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-sm" role="document">
@@ -173,7 +174,11 @@ $hoy           = date('Y-m-d');
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body" id="voucher_content"></div>
-            <div class="modal-footer">
+            <div class="modal-footer flex-wrap">
+                <div class="w-100 d-flex align-items-center mb-2">
+                    <label class="mb-0 mr-2" for="voucher_impresora" style="font-size:12px;">Impresora</label>
+                    <select id="voucher_impresora" class="form-control form-control-sm" style="flex:1;"></select>
+                </div>
                 <button class="btn btn-primary" id="btn_imprimir_voucher">
                     <i class="icon dripicons-print"></i> Imprimir
                 </button>
@@ -650,19 +655,7 @@ $(document).ready(function () {
     }
 
     $('#btn_imprimir_voucher').on('click', function () {
-        var contenido = document.getElementById('voucher_print').innerHTML;
-        var ventana = window.open('', '_blank', 'width=400,height=600');
-        ventana.document.write('<html><head><title>Voucher SGC</title>');
-        ventana.document.write('<link rel="stylesheet" href="css/bootstrap.min.css">');
-        ventana.document.write('</head><body>');
-        ventana.document.write(contenido);
-        // H-B2B-02: cerrar recién cuando el diálogo de impresión se cierra
-        // (evento afterprint), no justo después de llamar a print() — en
-        // varios navegadores print() ya no bloquea el JS, así que cerrar de
-        // inmediato hacía que la ventana se cerrara sola casi al instante.
-        ventana.document.write('<script>window.onafterprint = function () { window.close(); }; window.print();<\/script>');
-        ventana.document.write('</body></html>');
-        ventana.document.close();
+        voucherImprimir(document.getElementById('voucher_print').innerHTML);
     });
 
     // PV-02: Exportar historial a Excel respetando el filtro activo

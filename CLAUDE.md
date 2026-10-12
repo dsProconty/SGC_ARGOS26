@@ -284,6 +284,18 @@ desapercibido en producción pero tumbar la página entera en local.
   espera 500ms. Si vuelve a pasar en otro modal, sospechar de este observer
   antes que del modal.
 
+**Impresión de vouchers (12 de octubre de 2026):** los locales usan dos
+impresoras de ticket, Epson **TM-T88VII** (térmica, 80 mm) y Epson
+**TM-U220** (matricial de impacto, 76 mm, ~63 mm imprimibles, solo
+blanco y negro). Toda la impresión vive en `js/voucher_print.js`
+(`voucherImprimir()`), compartida por el POS (`pages/pos/view.php`) y la
+reimpresión de `pages/pos/historial.php` (antes tenía su propia versión
+vieja, sin tamaño de página). Un selector "Impresora" en el modal del
+voucher elige el perfil (ancho de página/impreso y fuente) y se guarda por
+equipo en `localStorage` (`sgc_voucher_impresora`, default T88). Para
+agregar otra impresora basta una entrada nueva en `VOUCHER_PERFILES`.
+No está probado contra las impresoras físicas, solo el HTML/CSS generado.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

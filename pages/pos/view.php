@@ -502,6 +502,7 @@
     </div>
 </div>
 
+<script src="js/voucher_print.js"></script>
 <!-- ===== MODAL VOUCHER ===== -->
 <div class="modal fade" id="modal_voucher" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-sm" role="document">
@@ -511,7 +512,11 @@
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body" id="voucher_content"></div>
-            <div class="modal-footer">
+            <div class="modal-footer flex-wrap">
+                <div class="w-100 d-flex align-items-center mb-2">
+                    <label class="mb-0 mr-2" for="voucher_impresora" style="font-size:12px;">Impresora</label>
+                    <select id="voucher_impresora" class="form-control form-control-sm" style="flex:1;"></select>
+                </div>
                 <button class="btn btn-primary" id="btn_imprimir_voucher">
                     <i class="icon dripicons-print"></i> Imprimir
                 </button>
@@ -1038,49 +1043,7 @@ $(document).ready(function () {
     }
 
     $('#btn_imprimir_voucher').on('click', function () {
-        var contenido = document.getElementById('voucher_print').innerHTML;
-        var ventana = window.open('', '_blank', 'width=400,height=600');
-        // Ancho de rollo térmico: cambiar ambos valores para 58mm (ej. "58mm" / "50mm").
-        var anchoPagina  = '80mm';
-        var anchoImpreso = '72mm';
-        // Estilos propios, sin depender de bootstrap.css externo: cargar ese
-        // archivo completo en una ventana en blanco es lento/frágil (ruta
-        // relativa desde about:blank) y dejaba la vista de impresión colgada
-        // esperando a que cargara (H-016). Además bootstrap.css está pensado
-        // para pantallas anchas, no para un ticket térmico angosto.
-        var estilos = '<style>'
-            + '@page { size: ' + anchoPagina + ' auto; margin: 0; }'
-            + '* { box-sizing: border-box; }'
-            + 'html, body { margin: 0; padding: 0; }'
-            + 'body { width: ' + anchoImpreso + '; margin: 0 auto; padding: 2mm 4mm; font-family: "Courier New", monospace; font-size: 11px; color: #000; }'
-            + 'table { width: 100%; border-collapse: collapse; }'
-            + 'td { padding: 1px 0; vertical-align: top; }'
-            + 'hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }'
-            + '.text-right { text-align: right; }'
-            + '.text-center { text-align: center; }'
-            + '.mb-0 { margin-bottom: 0; } .mb-1 { margin-bottom: 2px; } .mb-2 { margin-bottom: 4px; } .mb-3 { margin-bottom: 6px; }'
-            + '.mt-2 { margin-top: 4px; } .mt-3 { margin-top: 6px; }'
-            + 'strong, .font-weight-bold { font-weight: bold; }'
-            + 'small { font-size: 9px; }'
-            + '.badge { display: inline-block; padding: 2px 6px; border: 1px solid #000; border-radius: 3px; font-size: 10px; }'
-            + 'code { font-family: "Courier New", monospace; }'
-            + '</style>';
-        // H-B2B-02: en varios navegadores window.print() ya no bloquea la
-        // ejecución de JS mientras el diálogo de impresión está abierto —
-        // con window.close() justo después (en el mismo onload), la ventana
-        // se cerraba sola casi al instante, antes de que el diálogo llegara
-        // a verse. Cerrar recién cuando el navegador avisa que el diálogo de
-        // impresión se cerró (evento afterprint), sea que se imprimió o se
-        // canceló, en vez de cerrar a ciegas apenas se llama a print().
-        var scriptImprimir = '<script>'
-            + 'window.onafterprint = function () { window.close(); };'
-            + 'window.focus();'
-            + 'window.print();'
-            + '<\/script>';
-        ventana.document.open();
-        ventana.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Voucher SGC</title>' + estilos
-            + '</head><body>' + contenido + scriptImprimir + '</body></html>');
-        ventana.document.close();
+        voucherImprimir(document.getElementById('voucher_print').innerHTML);
     });
 
     $('#btn_nueva').on('click', function () { ocultarVenta(); $('#cedula_input').val('').focus(); });
