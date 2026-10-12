@@ -4,6 +4,7 @@ session_start();
 
 
 require_once "../../config/database.php";
+require_once "../../helpers/db_helpers.php";
 
 
 if (empty($_SESSION['username']) && empty($_SESSION['password'])){
@@ -18,6 +19,9 @@ else {
 			$username    = mysqli_real_escape_string($mysqli, trim($_POST['username']));
 			$password    = md5(mysqli_real_escape_string($mysqli, trim($_POST['password'])));
 			$name_user   = mysqli_real_escape_string($mysqli, trim($_POST['name_user']));
+			agregarColumnaSiNoExiste($mysqli, 'usuario', 'documento', 'VARCHAR(20) NULL');
+			$documento_t = mysqli_real_escape_string($mysqli, trim($_POST['documento'] ?? ''));
+			$documento_val = $documento_t !== '' ? "'$documento_t'" : 'NULL';
 			$per_id_form = (int)($_POST['per_id'] ?? 0);
 			$cli_id_val  = !empty($_POST['cli_id']) ? (int)$_POST['cli_id'] : 'NULL';
 			$loc_id_val  = !empty($_POST['loc_id']) ? (int)$_POST['loc_id'] : 'NULL';
@@ -27,8 +31,8 @@ else {
 			$pr_row = $pr_res ? mysqli_fetch_assoc($pr_res) : null;
 			$permisos_acceso = $pr_row ? mysqli_real_escape_string($mysqli, $pr_row['per_nombre']) : '';
 
-            $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,permisos_acceso,per_id,cli_id,loc_id)
-                                            VALUES('$username','$password','$name_user','$permisos_acceso',$per_id_form,$cli_id_val,$loc_id_val)");
+            $query = mysqli_query($mysqli, "INSERT INTO usuario(username,password,name_user,documento,permisos_acceso,per_id,cli_id,loc_id)
+                                            VALUES('$username','$password','$name_user',$documento_val,'$permisos_acceso',$per_id_form,$cli_id_val,$loc_id_val)");
 
             if ($query) {
                 header("location: ../../main.php?module=usuarios&alert=1");
@@ -48,6 +52,9 @@ else {
 				$name_user   = mysqli_real_escape_string($mysqli, trim($_POST['name_user']));
 				$email       = mysqli_real_escape_string($mysqli, trim($_POST['email']));
 				$telefono    = mysqli_real_escape_string($mysqli, trim($_POST['telefono']));
+				agregarColumnaSiNoExiste($mysqli, 'usuario', 'documento', 'VARCHAR(20) NULL');
+				$documento_t = mysqli_real_escape_string($mysqli, trim($_POST['documento'] ?? ''));
+				$documento_val = $documento_t !== '' ? "'$documento_t'" : 'NULL';
 				$per_id_form = (int)($_POST['per_id'] ?? 0);
 				$cli_id_val  = !empty($_POST['cli_id']) ? (int)$_POST['cli_id'] : 'NULL';
 				$loc_id_val  = !empty($_POST['loc_id']) ? (int)$_POST['loc_id'] : 'NULL';
@@ -77,6 +84,7 @@ else {
                                                                   name_user='$name_user',
                                                                   email='$email',
                                                                   telefono='$telefono',
+                                                                  documento=$documento_val,
                                                                   permisos_acceso='$permisos_acceso',
                                                                   per_id=$per_id_form,
                                                                   cli_id=$cli_id_val,
@@ -98,6 +106,7 @@ else {
                                                                   password='$password',
                                                                   email='$email',
                                                                   telefono='$telefono',
+                                                                  documento=$documento_val,
                                                                   permisos_acceso='$permisos_acceso',
                                                                   per_id=$per_id_form,
                                                                   cli_id=$cli_id_val,
@@ -124,6 +133,7 @@ else {
 			                                                                  name_user='$name_user',
 			                                                                  email='$email',
 			                                                                  telefono='$telefono',
+			                                                                  documento=$documento_val,
 			                                                                  foto='$name_file',
 			                                                                  permisos_acceso='$permisos_acceso',
 			                                                                  per_id=$per_id_form,
@@ -163,6 +173,7 @@ else {
 			                                                                  password='$password',
 			                                                                  email='$email',
 			                                                                  telefono='$telefono',
+			                                                                  documento=$documento_val,
 			                                                                  foto='$name_file',
 			                                                                  permisos_acceso='$permisos_acceso',
 			                                                                  per_id=$per_id_form,

@@ -622,32 +622,14 @@ $(document).ready(function () {
         });
     });
 
+    // % de IVA configurado (mismo origen que el POS) para el renglón de IVA del voucher.
+    var IVA_PCT = 15;
+    $.getJSON('ajax/pos/pos.php?action=get_config', function (r) {
+        if (r.success) IVA_PCT = r.iva_porcentaje;
+    });
+
     function renderVoucher(d, reimprimir) {
-        var reimpresionBadge = reimprimir ? '<div class="text-center"><span class="badge badge-warning">REIMPRESIÓN</span><br><small>' + new Date().toLocaleString() + '</small></div><hr>' : '';
-        var html = '<div id="voucher_print" style="font-family:monospace;font-size:12px;padding:10px;">'
-            + reimpresionBadge
-            + '<div class="text-center mb-2"><strong>SGC ARGOS</strong><br><strong>COMPROBANTE DE CONSUMO</strong></div><hr>'
-            + '<table class="table table-sm table-borderless" style="font-size:11px;">'
-            + '<tr><td><strong>N° Comprobante</strong></td><td class="text-right">#' + d.con_id + '</td></tr>'
-            + '<tr><td><strong>Fecha</strong></td><td class="text-right">' + d.con_fecha + '</td></tr>'
-            + '<tr><td><strong>Hora</strong></td><td class="text-right">' + d.con_hora + '</td></tr>'
-            + '<tr><td><strong>Local</strong></td><td class="text-right">' + (d.loc_direccion || 'N/A') + '</td></tr>'
-            + '<tr><td><strong>Cajero</strong></td><td class="text-right">' + (d.cajero || 'N/A') + '</td></tr>'
-            + '</table><hr>'
-            + '<table class="table table-sm table-borderless" style="font-size:11px;">'
-            + '<tr><td><strong>Empleado</strong></td><td class="text-right">' + d.per_nombre + '</td></tr>'
-            + '<tr><td><strong>Cédula</strong></td><td class="text-right">' + d.per_documento + '</td></tr>'
-            + '<tr><td><strong>Empresa</strong></td><td class="text-right">' + d.cli_descripcion + '</td></tr>'
-            + '</table><hr>'
-            + '<table class="table table-sm table-borderless" style="font-size:11px;">'
-            + '<tr><td>Cargo convenio</td><td class="text-right">$' + parseFloat(d.con_monto_convenio).toFixed(2) + '</td></tr>'
-            + (parseFloat(d.con_monto_externo) > 0 ? '<tr><td>Pago externo</td><td class="text-right">$' + parseFloat(d.con_monto_externo).toFixed(2) + '</td></tr>' : '')
-            + '<tr><td><strong>TOTAL</strong></td><td class="text-right"><strong>$' + parseFloat(d.con_valor_total).toFixed(2) + '</strong></td></tr>'
-            + '</table><hr>'
-            + '<div class="mt-3" style="font-size:10px;"><p class="mb-1">Firma empleado: __________________</p><p class="mb-1">N° Cédula: ______________________</p></div>'
-            + '<div class="text-center mt-2" style="font-size:9px;">El comprobante firmado constituye respaldo legal del consumo</div>'
-            + '</div>';
-        $('#voucher_content').html(html);
+        $('#voucher_content').html(voucherHtml(d, reimprimir, IVA_PCT));
     }
 
     $('#btn_imprimir_voucher').on('click', function () {

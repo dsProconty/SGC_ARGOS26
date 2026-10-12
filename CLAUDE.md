@@ -155,8 +155,8 @@ sponsor de Argos al notar personal real de convenios activos escondido:**
 `gvony_ads_discount_card` (sin actividad desde 2021), `credit_businesscard`,
 `clients_order`/`product*` (e-commerce viejo, sin equivalente en el
 esquema nuevo), `gvony_ads_users` (data de prueba, no real).
-Falta también resolver: `cliente` nuevo no tiene columna RUC (la vieja sí),
-y `cli_tipo_cartera` no tiene de dónde migrarse.
+Falta también resolver: `cli_tipo_cartera` no tiene de dónde migrarse.
+(El RUC ya está resuelto: ver "Tanda del 12 de octubre" más abajo.)
 
 ## Corte de datos: 2026-09-09 — todo lo migrado es real, todo lo posterior es prueba
 
@@ -299,6 +299,36 @@ desbordes. Las etiquetas (primera columna) no deben partirse
 (`td:first-child { white-space: nowrap }`) y las rayas de firma están
 acortadas para no pasarse de ~35 columnas. Pendiente: prueba física en
 ambas impresoras.
+
+**Tanda del 12 de octubre de 2026:**
+- **RUC en `cliente`** (`cliente.cli_ruc VARCHAR(20)`,
+  `migrations/bloque22_ruc_cliente.sql`). `cli_id` coincide 1:1 con
+  `gvony_ads_company.id` (187/187 por id y nombre). `_dump_viejo/11_backfill_ruc_clientes.sql`
+  migra solo valores limpios: **169** (162 RUC de 13 dígitos + 7 cédulas de
+  10), tras quitar espacios y un `_` sobrante. **13 quedaron fuera** y están
+  en `_dump_viejo/11b_ruc_para_revisar.csv` (`-`, `DELLTEX`, `111111111111111111`,
+  `1234567890009`, `1111111111113`, `..._old`, y valores de 12 y 14 dígitos);
+  5 convenios no tenían RUC en el sistema viejo. Hay RUC repetidos a propósito
+  (las 4 empresas Argos comparten `1792932297001`). El campo se edita en
+  Clientes (modal + ficha) y el servidor exige 13 dígitos (o 10 si es
+  cédula), solo números.
+- **Formulario de usuarios** ahora captura `usuario.documento`
+  (`pages/user/form_user.php` + `proses.php`, alta y edición). Editar sin
+  escribir contraseña NO toca el hash (importante: las cuentas migradas
+  tienen bcrypt).
+- **Textos rotos en Perfiles** (`n├│mina`, `m├│dulo`, `d├¡a`): estaban
+  guardados así en la base real (ya venían en el export del 3-sep-2026 y en
+  `database/setup.sql`), no era un problema de pantalla. UTF-8 leído como
+  CP437/CP850 y guardado de nuevo. `migrations/bloque21_fix_perfil_textos.sql`
+  lo repara (ASCII puro con `UNHEX`, idempotente); `database/setup.sql` ya
+  está corregido para que una reinstalación no lo reintroduzca. Los datos
+  migrados (nombres con ñ/tildes) están bien en UTF-8; lo que se ve como `�`
+  en la consola de Windows es solo cómo la consola dibuja los bytes.
+- **Voucher**: el contenido del ticket se arma en un único lugar,
+  `voucherHtml()` de `js/voucher_print.js`, usado por el POS y por la
+  reimpresión de `pages/pos/historial.php`. Antes el Historial tenía una
+  copia vieja sin IVA/combo/gift card que mostraba "null" en ventas con gift
+  card.
 
 ## Infraestructura del repo (para no repetir investigación)
 

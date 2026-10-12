@@ -185,6 +185,7 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                             <h6 class="text-muted mb-3">Datos de contacto</h6>
                             <table class="table table-sm table-borderless">
                                 <tr><th class="text-muted font-weight-normal" style="width:40%">N° Convenio</th><td id="inf_convenio"></td></tr>
+                                <tr><th class="text-muted font-weight-normal">RUC</th><td id="inf_ruc"></td></tr>
                                 <tr><th class="text-muted font-weight-normal">Ciudad</th><td id="inf_ciudad"></td></tr>
                                 <tr><th class="text-muted font-weight-normal">Contacto</th><td id="inf_contacto"></td></tr>
                                 <tr><th class="text-muted font-weight-normal">Email principal</th><td id="inf_email"></td></tr>
@@ -358,16 +359,22 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                     <input type="hidden" id="cli_id" name="cli_id">
 
                     <div class="row">
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <div class="form-group">
                                 <label>Empresa / Cliente <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="cli_descripcion" name="cli_descripcion" required autocomplete="off" placeholder="Ej: EMPRESA XYZ S.A.">
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="form-group">
                                 <label>N° Convenio</label>
                                 <input type="text" class="form-control" id="cli_numero_convenio" name="cli_numero_convenio" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>RUC</label>
+                                <input type="text" class="form-control" id="cli_ruc" name="cli_ruc" autocomplete="off" maxlength="13" inputmode="numeric" pattern="([0-9]{10}|[0-9]{13})" title="13 dígitos (o 10 si es cédula)" placeholder="13 dígitos">
                             </div>
                         </div>
                     </div>
@@ -984,6 +991,7 @@ function verDetalle(id) {
 
         // Tab Info
         $('#inf_convenio').text(d.cli_numero_convenio || '—');
+        $('#inf_ruc').text(d.cli_ruc || '—');
         $('#inf_ciudad').text(d.cli_ciudad || '—');
         $('#inf_contacto').text(d.cli_contacto || '—');
         $('#inf_email').html(d.cli_email ? '<a href="mailto:'+d.cli_email+'">'+d.cli_email+'</a>' : '—');
@@ -1355,6 +1363,7 @@ function editarCliente(id) {
         $('#cli_id').val(d.cli_id);
         $('#cli_descripcion').val(d.cli_descripcion);
         $('#cli_numero_convenio').val(d.cli_numero_convenio||'');
+        $('#cli_ruc').val(d.cli_ruc||'');
         $('#cli_ciudad').val(d.cli_ciudad||'');
         $('#cli_contacto').val(d.cli_contacto||'');
         $('#cli_email').val(d.cli_email||'');

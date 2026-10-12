@@ -54,6 +54,14 @@
                                         </div>
 
                                         <div class="form-group">
+                                            <label class="col-sm-2 control-label">Documento (cédula)</label>
+                                            <div class="col-sm-5">
+                                                <input type="text" class="form-control" name="documento" autocomplete="off" maxlength="20">
+                                                <small class="text-muted">Opcional. Permite buscar al usuario por cédula en la lista.</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
                                             <label class="col-sm-2 control-label">Perfil de acceso <span class="text-danger">*</span></label>
                                             <div class="col-sm-5">
                                                 <select class="form-control" name="per_id" id="new_per_id" required>
@@ -114,7 +122,7 @@
                         } else {
                             if (isset($_GET['id'])) {
 
-                                $query = mysqli_query($mysqli, "SELECT u.*, p.per_nombre FROM usuario u LEFT JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user='$_GET[id]'")
+                                $query = mysqli_query($mysqli, "SELECT u.*, p.per_nombre FROM usuario u LEFT JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user='" . (int)$_GET['id'] . "'")
                                     or die('error: ' . mysqli_error($mysqli));
                                 $data  = mysqli_fetch_assoc($query);
 
@@ -148,6 +156,14 @@
                                             <label class="col-sm-2 control-label">Nombre</label>
                                             <div class="col-sm-5">
                                                 <input type="text" class="form-control" name="name_user" autocomplete="off" value="<?php echo $data['name_user']; ?>" required>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="col-sm-2 control-label">Documento (cédula)</label>
+                                            <div class="col-sm-5">
+                                                <input type="text" class="form-control" name="documento" autocomplete="off" maxlength="20" value="<?php echo htmlspecialchars($data['documento'] ?? ''); ?>">
+                                                <small class="text-muted">Opcional. Permite buscar al usuario por cédula en la lista.</small>
                                             </div>
                                         </div>
 

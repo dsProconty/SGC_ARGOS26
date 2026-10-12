@@ -5,6 +5,7 @@ require_once "../../config/database.php";
 require_once "../../helpers/cupo_marca_helpers.php";
 require_once "../../services/giftcard_solicitud.php";
 require_once "../../helpers/session_helpers.php";
+require_once "../../helpers/db_helpers.php";
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -86,15 +87,21 @@ switch ($action) {
         if (empty($desc)) { echo json_encode(['success' => false, 'mensaje' => 'El nombre es requerido']); break; }
 
         $modo_cupo = ($_POST['cli_modo_cupo'] ?? 'global') === 'marca' ? 'marca' : 'global';
+        agregarColumnaSiNoExiste($mysqli, 'cliente', 'cli_ruc', 'VARCHAR(20) NULL');
 
         $stmt = $mysqli->prepare(
             "INSERT INTO cliente
-             (cli_descripcion, cli_numero_convenio, cli_ciudad, cli_contacto,
+             (cli_descripcion, cli_numero_convenio, cli_ruc, cli_ciudad, cli_contacto,
               cli_email, cli_email2, cli_telefono, cli_telefono2, cli_dia_corte,
               cli_tipo_beneficio, cli_valor_beneficio, cli_tipo_cartera, cli_comision, cli_tipo_cliente, cli_modo_cupo)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         );
         $conv  = trim($_POST['cli_numero_convenio'] ?? '') ?: null;
+        $ruc   = trim($_POST['cli_ruc'] ?? '') ?: null;
+        if ($ruc !== null && !preg_match('/^([0-9]{10}|[0-9]{13})$/', $ruc)) {
+            echo json_encode(['success' => false, 'mensaje' => 'El RUC debe tener 13 dígitos (o 10 si es cédula), solo números']);
+            break;
+        }
         $ciu   = trim($_POST['cli_ciudad']   ?? '') ?: null;
         $cont  = trim($_POST['cli_contacto'] ?? '') ?: null;
         $em1   = trim($_POST['cli_email']    ?? '') ?: null;
@@ -108,7 +115,7 @@ switch ($action) {
         $com   = !empty($_POST['cli_comision']) ? (float)$_POST['cli_comision'] : 0.00;
         $tcli  = trim($_POST['cli_tipo_cliente'] ?? '') ?: null;
 
-        $stmt->bind_param('ssssssssssdsdss', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $modo_cupo);
+        $stmt->bind_param('sssssssssssdsdss', $desc, $conv, $ruc, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $modo_cupo);
         if (!$stmt->execute()) {
             echo json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
             break;
@@ -131,6 +138,11 @@ switch ($action) {
         if (!$id || empty($desc)) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
 
         $conv = trim($_POST['cli_numero_convenio'] ?? '') ?: null;
+        $ruc  = trim($_POST['cli_ruc'] ?? '') ?: null;
+        if ($ruc !== null && !preg_match('/^([0-9]{10}|[0-9]{13})$/', $ruc)) {
+            echo json_encode(['success' => false, 'mensaje' => 'El RUC debe tener 13 dígitos (o 10 si es cédula), solo números']);
+            break;
+        }
         $ciu  = trim($_POST['cli_ciudad']   ?? '') ?: null;
         $cont = trim($_POST['cli_contacto'] ?? '') ?: null;
         $em1  = trim($_POST['cli_email']    ?? '') ?: null;
@@ -145,14 +157,15 @@ switch ($action) {
         $tcli = trim($_POST['cli_tipo_cliente'] ?? '') ?: null;
         $modo_cupo = ($_POST['cli_modo_cupo'] ?? 'global') === 'marca' ? 'marca' : 'global';
 
+        agregarColumnaSiNoExiste($mysqli, 'cliente', 'cli_ruc', 'VARCHAR(20) NULL');
         $stmt = $mysqli->prepare(
             "UPDATE cliente SET
-              cli_descripcion=?, cli_numero_convenio=?, cli_ciudad=?, cli_contacto=?,
+              cli_descripcion=?, cli_numero_convenio=?, cli_ruc=?, cli_ciudad=?, cli_contacto=?,
               cli_email=?, cli_email2=?, cli_telefono=?, cli_telefono2=?, cli_dia_corte=?,
               cli_tipo_beneficio=?, cli_valor_beneficio=?, cli_tipo_cartera=?, cli_comision=?, cli_tipo_cliente=?, cli_modo_cupo=?
              WHERE cli_id=?"
         );
-        $stmt->bind_param('ssssssssssdsdssi', $desc, $conv, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $modo_cupo, $id);
+        $stmt->bind_param('sssssssssssdsdssi', $desc, $conv, $ruc, $ciu, $cont, $em1, $em2, $tel1, $tel2, $dia, $tben, $vben, $tcar, $com, $tcli, $modo_cupo, $id);
         if (!$stmt->execute()) {
             echo json_encode(['success' => false, 'mensaje' => 'Error: ' . $mysqli->error]);
             break;
