@@ -330,6 +330,13 @@ ambas impresoras.
   copia vieja sin IVA/combo/gift card que mostraba "null" en ventas con gift
   card.
 
+**La base de producción es MySQL 8.x (no MariaDB)** — lo confirma el aviso
+`#3719 'utf8' is currently an alias for UTF8MB3` que phpMyAdmin mostró al
+correr `bloque21`. Por eso `ADD COLUMN IF NOT EXISTS` no existe ahí (es de
+MariaDB). En scripts SQL usar `utf8mb4` (no `utf8`) en `CONVERT(... USING ...)`
+para no llenar la pantalla de avisos. El local sí es MariaDB 10.4, así que
+algo que corre en local puede fallar en producción por sintaxis.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
