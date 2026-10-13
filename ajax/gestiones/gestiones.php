@@ -210,7 +210,7 @@ switch ($action) {
                             FROM pago p
                             JOIN gestion g ON p.pag_id = g.pag_id
                             JOIN cartera c ON g.car_id = c.car_id
-                            WHERE c.car_id = '$row[car_id]'
+                            WHERE c.car_id = '$row[car_id]' AND p.pag_estado != 'rechazado'
                             GROUP BY c.car_id, p.pag_estado, p.pag_fecha_confirmacion, p.pag_confirmado_por
                             ORDER BY p.pag_id DESC LIMIT 1";
 
@@ -569,7 +569,11 @@ switch ($action) {
         $fecha_ini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
         $fecha_fin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
 
-        $queryPagos = "SELECT sum(pag_monto) as monto_pagado from cartera c, gestion g,pago p where c.car_id = g.car_id and g.pag_id = p.pag_id and c.car_id = '$id_cartera'";
+        // Un pago RECHAZADO no reduce la deuda: al rechazarlo la cartera vuelve a Pendiente, y si se
+        // seguía restando, "Total deuda" salía en $0 (o menor) y el formulario no dejaba registrar el
+        // pago de reemplazo ("No se puede pagar un monto mayor a la deuda"). Pendientes y confirmados sí cuentan.
+        agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_estado', "VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
+        $queryPagos = "SELECT sum(pag_monto) as monto_pagado from cartera c, gestion g,pago p where c.car_id = g.car_id and g.pag_id = p.pag_id and c.car_id = '$id_cartera' and p.pag_estado != 'rechazado'";
 
         if ($fecha_ini != '') {
             $queryTotal = "SELECT sum(con.con_valor_total) as 'valor_pagar' 

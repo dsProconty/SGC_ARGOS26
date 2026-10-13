@@ -43,7 +43,18 @@ else {
 		$_SESSION['cli_id']          = $data['cli_id'];
 		$_SESSION['session_version'] = isset($data['session_version']) ? (int)$data['session_version'] : 0;
 		
-		header("Location: services/load_data.php?action=carga_data");
+		// Destino según el rol. (Antes pasaba por services/load_data.php?action=carga_data, que consultaba el
+		// webservice del sistema viejo ibrisystemas.com — ya no existe — y recién después redirigía.)
+		$rol = strtolower($data['permisos_acceso'] ?? '');
+		if ($rol === 'operador') {
+			header("Location: main.php?module=gestiones&cartera=30");
+		} elseif ($rol === 'cajero') {
+			header("Location: main.php?module=pos");
+		} elseif ($rol === 'empresa_cliente') {
+			header("Location: main.php?module=portal_empresa");
+		} else {
+			header("Location: main.php?module=dashboard");
+		}
 	}
 	else {
 		echo "<script language=Javascript> location.href=\"index.php?alert=1\"; </script>"; 

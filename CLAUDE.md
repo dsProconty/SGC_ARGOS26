@@ -421,6 +421,24 @@ cargaron con `_dump_viejo/13e_parche_cedulas_con_espacios.sql`, que compara con 
 verificación "ensayado en local = 0 diferencias" no basta: comparar contados contra producción
 (`13d_comprobar_diferencias_por_convenio.sql` lo hace por convenio y solo muestra las diferencias).
 
+**Cobranza / cartera (13 de octubre de 2026).**
+- **Se eliminó la carga desde el webservice del sistema viejo** (`ibrisystemas.com`, ya no existe). Antes cada
+  login pasaba por `services/load_data.php?action=carga_data`, que consultaba ese servicio y podía crear
+  clientes, marcas, locales, personas y consumos (probable origen de las marcas basura 17/18/19 en producción).
+  Ahora `login-check.php` redirige directo según el rol (`operador` → Gestiones cartera 30, `cajero` → POS,
+  `empresa_cliente` → Portal Empresa, el resto → Dashboard; comparación sin distinguir mayúsculas, antes un
+  `Cajero` migrado caía en el Dashboard) y `services/load_data.php` quedó solo con `carga_cartera`.
+- **`cartera` se alimenta con `services/load_data.php?action=carga_cartera`** (nada en el código la ejecuta: se
+  abre la URL o la llama un cron del cPanel, por confirmar). Suma `consumo` por convenio en ventanas de 30/60/90
+  días según `cli_dia_corte` (inicio inclusivo, fin exclusivo) y solo escribe si hay consumos en la ventana. Al
+  actualizar una cartera existente la devuelve a `sin_gestion`. No tiene control de sesión.
+- **Bug "deuda en $0 adentro, $400 afuera"**: la lista muestra `cartera.cli_valor_pagar` (total de la ventana);
+  adentro `action=total` le resta los pagos, y restaba TAMBIÉN los rechazados (al rechazar, la cartera vuelve a
+  Pendiente pero el pago rechazado seguía restando → deuda 0 y no dejaba registrar el pago de reemplazo). Ahora
+  `ajax/gestiones/gestiones.php` ignora `pag_estado='rechazado'` en `total` y en las columnas de pagado/saldo de
+  la lista; pendientes y confirmados sí restan. En local con PHP 8 `carga_cartera` revienta si algún convenio
+  tiene `cli_dia_corte` vacío (en producción, PHP < 7.1, solo da aviso).
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
