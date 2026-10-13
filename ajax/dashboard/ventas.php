@@ -26,7 +26,7 @@ switch ($action) {
         $fechaFinSemana = date("Y-m-d", $tiempoDeFinDeSemana);
 
         $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
-        where c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
+        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
         and c.con_fecha >= '$fechaInicioSemana' and c.con_fecha <= '$fechaFinSemana'";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -43,7 +43,7 @@ switch ($action) {
             : "m.mar_descripcion = '$marca'";
 
         $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
-        where c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
+        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
         and extract(month from c.con_fecha) = extract(month from (select now())) and extract(year from c.con_fecha) = extract(year from (select now()))";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -60,7 +60,7 @@ switch ($action) {
             : "m.mar_descripcion = '$marca'";
 
         $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
-            where c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
+            where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
             and extract(year from c.con_fecha) = extract(year from (select now()))";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -116,7 +116,7 @@ switch ($action) {
         break;
     case 'top_ten_clientes':
         $query = "SELECT cl.cli_descripcion, sum(c.con_valor_total) as total,max(c.con_fecha) as ultimo_consumo 
-         from consumo c,cliente cl,personal p where c.per_id = p.per_id and p.cli_id = cl.cli_id 
+         from consumo c,cliente cl,personal p where c.con_estado NOT IN ('anulado','rechazado') AND c.per_id = p.per_id and p.cli_id = cl.cli_id 
          and extract(month from c.con_fecha) = extract(month from (select now())) 
          and extract(year from c.con_fecha) = extract(year from (select now()))
          group by cl.cli_id order by total desc limit 10";

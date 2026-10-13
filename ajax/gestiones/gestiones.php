@@ -577,11 +577,11 @@ switch ($action) {
 
         if ($fecha_ini != '') {
             $queryTotal = "SELECT sum(con.con_valor_total) as 'valor_pagar' 
-            from consumo con, personal p,cliente c where con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
+            from consumo con, personal p,cliente c where con.con_estado NOT IN ('anulado','rechazado') AND con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
             and con.con_fecha >= '$fecha_ini' and con.con_fecha < '$fecha_fin'";
         } else {
             $queryTotal = "SELECT sum(con.con_valor_total) as 'valor_pagar' 
-            from consumo con, personal p,cliente c where con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
+            from consumo con, personal p,cliente c where con.con_estado NOT IN ('anulado','rechazado') AND con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
             and  con.con_fecha < '$fecha_fin'";
         }
 
@@ -601,12 +601,12 @@ switch ($action) {
         if ($fecha_ini != '') {
             $query = "SELECT con.*,p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
             from consumo con, personal p,cliente c,local l,marca m 
-            where con.loc_id = l.loc_id and l.mar_id = m.mar_id and 
+            where con.con_estado NOT IN ('anulado','rechazado') AND con.loc_id = l.loc_id and l.mar_id = m.mar_id and 
             con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente' and con.con_fecha >= '$fecha_ini' and con.con_fecha< '$fecha_fin'";
         } else {
             $query = "SELECT con.*,p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
             from consumo con, personal p,cliente c,local l,marca m 
-            where con.loc_id = l.loc_id and l.mar_id = m.mar_id and 
+            where con.con_estado NOT IN ('anulado','rechazado') AND con.loc_id = l.loc_id and l.mar_id = m.mar_id and 
             con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente' and con.con_fecha< '$fecha_fin'";
         }
 

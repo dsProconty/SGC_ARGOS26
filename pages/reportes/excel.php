@@ -42,7 +42,7 @@ switch ($tipo) {
                 FROM consumo c
                 JOIN local l ON c.loc_id = l.loc_id
                 JOIN marca m ON l.mar_id = m.mar_id
-                WHERE c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
+                WHERE c.con_estado NOT IN ('anulado','rechazado') AND c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
                 GROUP BY l.loc_id, m.mar_id
                 ORDER BY m.mar_descripcion, l.loc_direccion";
             }else{
@@ -50,7 +50,7 @@ switch ($tipo) {
                 FROM consumo c
                 JOIN local l ON c.loc_id = l.loc_id
                 JOIN marca m ON l.mar_id = m.mar_id
-                WHERE c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
+                WHERE c.con_estado NOT IN ('anulado','rechazado') AND c.con_fecha >= '$fechaini' AND DATE(c.con_fecha) <= '$fechafin'
                 AND m.mar_descripcion = '$marca'
                 GROUP BY l.loc_id
                 ORDER BY l.loc_direccion";
@@ -348,7 +348,7 @@ switch ($tipo) {
 
             $query = "SELECT cli.cli_descripcion,max(c.con_fecha)as con_fecha,sum(c.con_valor_total) as con_valor_total,m.mar_descripcion
             from consumo c,personal p,cliente cli,local l,marca m 
-            where cli.cli_id = p.cli_id and c.per_id = p.per_id
+            where c.con_estado NOT IN ('anulado','rechazado') AND cli.cli_id = p.cli_id and c.per_id = p.per_id
             and c.loc_id = l.loc_id and m.mar_id = l.mar_id
             and c.con_fecha >= '$fechaini' and c.con_fecha <= '$fechafin'
             group by cli.cli_id order by con_valor_total desc";
@@ -390,7 +390,7 @@ switch ($tipo) {
 
             $query = "SELECT cli.cli_descripcion,max(c.con_fecha)as con_fecha,m.mar_descripcion
             from consumo c,personal p,cliente cli,local l,marca m 
-            where cli.cli_id = p.cli_id and c.per_id = p.per_id
+            where c.con_estado NOT IN ('anulado','rechazado') AND cli.cli_id = p.cli_id and c.per_id = p.per_id
             and c.loc_id = l.loc_id and m.mar_id = l.mar_id
             and c.con_fecha >= '$fechaini' and c.con_fecha <= '$fechafin'
             group by cli.cli_id order by con_valor_total desc";
@@ -493,13 +493,13 @@ switch ($tipo) {
 
             if($marca == 'TODOS'){
                 $query = "SELECT cli.cli_descripcion, p.per_nombre, c.con_fecha,c.con_hora, c.con_valor_total from consumo c,local l,marca m,personal p,cliente cli
-                where c.loc_id = l.loc_id and l.mar_id = m.mar_id and c.per_id = p.per_id and p.cli_id = cli.cli_id
+                where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and c.per_id = p.per_id and p.cli_id = cli.cli_id
                 and extract(month from c.con_fecha) = extract(month from (select now())) 
                 and extract(year from c.con_fecha) = extract(year from (select now())) 
                 order by con_fecha,cli_descripcion desc";
             }else{
                 $query = "SELECT cli.cli_descripcion, p.per_nombre, c.con_fecha,c.con_hora, c.con_valor_total from consumo c,local l,marca m,personal p,cliente cli
-                where c.loc_id = l.loc_id and l.mar_id = m.mar_id and c.per_id = p.per_id and p.cli_id = cli.cli_id
+                where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and c.per_id = p.per_id and p.cli_id = cli.cli_id
                 and m.mar_descripcion = '$marca' and extract(month from c.con_fecha) = extract(month from (select now())) 
                 and extract(year from c.con_fecha) = extract(year from (select now())) order by con_fecha,cli_descripcion desc";
             }
@@ -589,7 +589,7 @@ switch ($tipo) {
                       LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
                       LEFT JOIN cliente clgc ON lgc.cli_id = clgc.cli_id
                       JOIN local l ON con.loc_id = l.loc_id
-                      WHERE $whereSql
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND $whereSql
                       ORDER BY con.con_fecha DESC, con.con_hora DESC";
             $result = mysqli_query($mysqli, $query);
             $hay_datos = false;
@@ -642,7 +642,7 @@ switch ($tipo) {
                              SUM(con.con_valor_total - con.con_iva) AS neto
                       FROM consumo con
                       JOIN local l ON con.loc_id = l.loc_id
-                      WHERE l.mar_id = $marca
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND l.mar_id = $marca
                       GROUP BY YEAR(con.con_fecha), MONTH(con.con_fecha)
                       ORDER BY anio ASC, mes ASC";
             $result = mysqli_query($mysqli, $query);
@@ -749,7 +749,7 @@ switch ($tipo) {
                              SUM(con.con_valor_total) AS bruto, SUM(con.con_valor_total - con.con_iva) AS neto
                       FROM consumo con
                       JOIN local l ON con.loc_id = l.loc_id
-                      WHERE $whereSql
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND $whereSql
                       GROUP BY provincia, l.loc_id
                       ORDER BY provincia ASC, loc_label ASC";
             $result = mysqli_query($mysqli, $query);
@@ -975,7 +975,7 @@ switch ($tipo) {
             $queryValores = "SELECT p.cli_id, MONTH(con.con_fecha) AS mes, SUM(con.con_valor_total) AS valor
                              FROM consumo con
                              JOIN personal p ON con.per_id = p.per_id
-                             WHERE YEAR(con.con_fecha) = $anio
+                             WHERE con.con_estado NOT IN ('anulado','rechazado') AND YEAR(con.con_fecha) = $anio
                              GROUP BY p.cli_id, mes";
             $resValores = mysqli_query($mysqli, $queryValores);
             $valores = [];
@@ -1035,7 +1035,7 @@ switch ($tipo) {
                              SUM(con.con_valor_total) AS bruto, SUM(con.con_valor_total - con.con_iva) AS neto
                       FROM consumo con
                       JOIN local l ON con.loc_id = l.loc_id
-                      WHERE $whereSql
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND $whereSql
                       GROUP BY l.loc_id
                       ORDER BY bruto DESC";
             $result = mysqli_query($mysqli, $query);
@@ -1209,7 +1209,7 @@ switch ($tipo) {
                       FROM consumo con
                       LEFT JOIN personal per ON con.per_id = per.per_id
                       LEFT JOIN local l ON con.loc_id = l.loc_id
-                      WHERE con.con_giftcard_codigo = '$codigo'
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND con.con_giftcard_codigo = '$codigo'
                       ORDER BY con.con_fecha DESC, con.con_hora DESC";
             $result = mysqli_query($mysqli, $query);
             $hay_datos = false;
@@ -1380,7 +1380,7 @@ switch ($tipo) {
                       LEFT JOIN codigo_gift_card cgc ON con.con_giftcard_codigo = cgc.cgc_codigo
                       LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
                       JOIN cliente cli ON cli.cli_id = COALESCE(per.cli_id, lgc.cli_id)
-                      WHERE l.mar_id = $marca
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND l.mar_id = $marca
                         AND YEAR(con.con_fecha) = $anio
                         AND MONTH(con.con_fecha) = $mes
                       GROUP BY cli.cli_id
@@ -1447,7 +1447,7 @@ switch ($tipo) {
                         JOIN personal per ON con.per_id = per.per_id
                         JOIN cliente cli ON per.cli_id = cli.cli_id
                         JOIN local l ON con.loc_id = l.loc_id
-                        WHERE l.mar_id = $marca
+                        WHERE con.con_estado NOT IN ('anulado','rechazado') AND l.mar_id = $marca
                           AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
                           AND con.con_monto_giftcard = 0
                         GROUP BY cli.cli_id
@@ -1492,7 +1492,7 @@ switch ($tipo) {
                           LEFT JOIN codigo_gift_card cgc ON con.con_giftcard_codigo = cgc.cgc_codigo
                           LEFT JOIN lote_gift_card lgc ON cgc.lgc_id = lgc.lgc_id
                           JOIN cliente cli ON cli.cli_id = COALESCE(per.cli_id, lgc.cli_id)
-                          WHERE l.mar_id = $marca
+                          WHERE con.con_estado NOT IN ('anulado','rechazado') AND l.mar_id = $marca
                             AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
                             AND con.con_monto_giftcard > 0
                           GROUP BY cli.cli_id
@@ -1554,7 +1554,7 @@ switch ($tipo) {
             $query = "SELECT COALESCE(l.loc_nombre, l.loc_direccion) AS loc_label, SUM(con.con_valor_total) AS valor
                       FROM consumo con
                       JOIN local l ON con.loc_id = l.loc_id
-                      WHERE l.mar_id = $marca
+                      WHERE con.con_estado NOT IN ('anulado','rechazado') AND l.mar_id = $marca
                         AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes
                       GROUP BY l.loc_id
                       ORDER BY loc_label ASC";
@@ -1575,7 +1575,7 @@ switch ($tipo) {
             if (!$hay_datos): ?>
                 <tr><td colspan="2">No hay ventas registradas para esta marca en el período.</td></tr>
             <?php else:
-                $q_iva = mysqli_query($mysqli, "SELECT SUM(con.con_iva) AS iva FROM consumo con JOIN local l ON con.loc_id = l.loc_id WHERE l.mar_id = $marca AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes");
+                $q_iva = mysqli_query($mysqli, "SELECT SUM(con.con_iva) AS iva FROM consumo con JOIN local l ON con.loc_id = l.loc_id WHERE con.con_estado NOT IN ('anulado','rechazado') AND l.mar_id = $marca AND YEAR(con.con_fecha) = $anio AND MONTH(con.con_fecha) = $mes");
                 $totalIva = (float)mysqli_fetch_assoc($q_iva)['iva'];
             ?>
                 <tr>

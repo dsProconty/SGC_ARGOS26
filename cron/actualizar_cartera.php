@@ -20,7 +20,7 @@ if (php_sapi_name() !== 'cli') {
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../services/cartera_service.php';
 
-$r = cartera_actualizar($mysqli);
+$r = cartera_actualizar($mysqli, 'cron');
 
 echo date('Y-m-d H:i:s') . " - Cartera actualizada: {$r['convenios']} convenios, {$r['creada']} creadas, "
    . "{$r['ciclo_nuevo']} con ciclo nuevo, {$r['refrescada']} refrescadas, {$r['sin_consumos']} sin consumos en la ventana.\n";

@@ -443,6 +443,19 @@ verificación "ensayado en local = 0 diferencias" no basta: comparar contados co
   la lista; pendientes y confirmados sí restan. Un `cli_dia_corte` vacío o no numérico se toma como 1
   (antes reventaba en PHP 8 local).
 
+**Ventas anuladas ya no se cobran (14 de octubre de 2026).** El POS anula una venta SOLO cambiando
+`consumo.con_estado` a `'anulado'` (no crea fila negativa; solo las anulaciones migradas del sistema viejo son pares
+con monto negativo que se cancelan al sumar), y ninguna suma de dinero filtraba el estado, así que las anuladas
+(y las `rechazado`) se facturaban en el estado de cuenta, la cartera, Cobranza, los reportes y el dashboard. Ahora
+todas esas consultas llevan `con.con_estado NOT IN ('anulado','rechazado')`: `services/estado_cuenta_service.php`
+(5), `services/cartera_service.php`, `ajax/gestiones/gestiones.php` (`total` y `consumos`), `ajax/dashboard/estadisticas.php`
+(13), `ajax/dashboard/ventas.php` (4) y `pages/reportes/excel.php` (17). Probado con una venta anulada y una
+rechazada: cartera, deuda de adentro, detalle de consumos y estado de cuenta suman solo la válida. **Toda consulta
+NUEVA que sume `consumo` debe llevar el mismo filtro.** Las listas que muestran el estado (pestaña Consumos de
+Clientes, Portal Empresa, Historial del POS) siguen mostrando las anuladas con su etiqueta, a propósito.
+La cartera guarda `configuracion.cartera_ultima_corrida` (fecha/hora y origen `cron`|`manual`) y Gestiones la muestra
+bajo el título: así se comprueba que el cron de cPanel (`cron/actualizar_cartera.php`) realmente corre.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

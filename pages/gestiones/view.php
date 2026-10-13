@@ -36,6 +36,16 @@ switch ($cartera) {
                             <li class="breadcrumb-item active" aria-current="page">Gestiones</li>
                         </ol>
                     </nav>
+                    <?php
+                    // Última vez que se actualizó la cartera (cron diario o disparo manual del Super Admin)
+                    $ultCartera = '';
+                    if (isset($mysqli)) {
+                        $rUc = mysqli_query($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'cartera_ultima_corrida'");
+                        $rowUc = $rUc ? mysqli_fetch_assoc($rUc) : null;
+                        $ultCartera = $rowUc ? $rowUc['cfg_valor'] : '';
+                    }
+                    ?>
+                    <small class="text-muted d-block mt-1">Cartera actualizada: <?php echo $ultCartera !== '' ? htmlspecialchars($ultCartera) : 'aún no se ha actualizado'; ?></small>
                 </div>
             </div>
             <!-- PAGE TABS -->

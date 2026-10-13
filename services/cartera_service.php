@@ -25,7 +25,7 @@ if (!function_exists('cartera_suma_consumos')) {
         $sql = "SELECT SUM(con.con_valor_total) AS monto_total
                 FROM consumo con
                 JOIN personal p ON con.per_id = p.per_id
-                WHERE p.cli_id = $cli_id AND con.con_fecha < '" . mysqli_real_escape_string($mysqli, $fin) . "'";
+                WHERE con.con_estado NOT IN ('anulado','rechazado') AND p.cli_id = $cli_id AND con.con_fecha < '" . mysqli_real_escape_string($mysqli, $fin) . "'";
         if ($ini !== null) {
             $sql .= " AND con.con_fecha >= '" . mysqli_real_escape_string($mysqli, $ini) . "'";
         }
@@ -76,7 +76,9 @@ if (!function_exists('cartera_actualizar_tipo')) {
 
 if (!function_exists('cartera_actualizar')) {
     // Recorre todos los convenios. Devuelve array('convenios' => n, 'creada' => n, 'ciclo_nuevo' => n, 'refrescada' => n, 'sin_consumos' => n)
-    function cartera_actualizar($mysqli) {
+    // $origen ('cron' | 'manual') solo se guarda en la marca de última corrida (configuracion.cartera_ultima_corrida),
+    // que se muestra en Gestiones para poder comprobar que el cron está corriendo.
+    function cartera_actualizar($mysqli, $origen = 'manual') {
         $resumen = array('convenios' => 0, 'creada' => 0, 'ciclo_nuevo' => 0, 'refrescada' => 0, 'sin_consumos' => 0);
         $hoy = date('Y-m-d');
         $y = (int)date('Y');
@@ -107,6 +109,11 @@ if (!function_exists('cartera_actualizar')) {
             $r = cartera_actualizar_tipo($mysqli, $cli['cli_id'], 91, null, $fecha90Ini, $hoy);
             $resumen[$r]++;
         }
+
+        $marca = mysqli_real_escape_string($mysqli, date('Y-m-d H:i:s') . ' (' . ($origen === 'cron' ? 'cron' : 'manual') . ')');
+        mysqli_query($mysqli, "INSERT INTO configuracion (cfg_clave, cfg_valor, cfg_descripcion)
+                               VALUES ('cartera_ultima_corrida', '$marca', 'Última vez que se actualizó la cartera de Cobranza')
+                               ON DUPLICATE KEY UPDATE cfg_valor = VALUES(cfg_valor)");
         return $resumen;
     }
 }

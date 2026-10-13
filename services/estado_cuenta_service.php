@@ -22,7 +22,7 @@ if (!function_exists('ec_generar_estado_cuenta')) {
         $q_total = "SELECT COALESCE(SUM(con.con_valor_total), 0) AS total
                     FROM consumo con
                     JOIN personal p ON con.per_id = p.per_id
-                    WHERE p.cli_id = $cli_id
+                    WHERE con.con_estado NOT IN ('anulado','rechazado') AND p.cli_id = $cli_id
                       AND con.con_fecha BETWEEN '$periodo_inicio' AND '$periodo_fin'";
         $r_total = mysqli_query($mysqli, $q_total);
         $total   = (float)mysqli_fetch_assoc($r_total)['total'];
@@ -85,7 +85,7 @@ if (!function_exists('ec_obtener_detalle')) {
                   JOIN personal p ON con.per_id = p.per_id
                   LEFT JOIN local l ON con.loc_id = l.loc_id
                   LEFT JOIN marca m ON l.mar_id = m.mar_id
-                  WHERE p.cli_id = $cli_id
+                  WHERE con.con_estado NOT IN ('anulado','rechazado') AND p.cli_id = $cli_id
                     AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'";
         $r_det = mysqli_query($mysqli, $q_det);
 
@@ -136,7 +136,7 @@ if (!function_exists('ec_obtener_detalle')) {
                      JOIN personal per ON con.per_id = per.per_id
                      LEFT JOIN local l ON con.loc_id = l.loc_id
                      LEFT JOIN marca m ON l.mar_id = m.mar_id
-                     WHERE per.cli_id = $cli_id
+                     WHERE con.con_estado NOT IN ('anulado','rechazado') AND per.cli_id = $cli_id
                        AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
                      ORDER BY mar_descripcion ASC";
         $r_marcas = mysqli_query($mysqli, $q_marcas);
@@ -151,7 +151,7 @@ if (!function_exists('ec_obtener_detalle')) {
                     JOIN personal per ON con.per_id = per.per_id
                     LEFT JOIN local l ON con.loc_id = l.loc_id
                     LEFT JOIN marca m ON l.mar_id = m.mar_id
-                    WHERE per.cli_id = $cli_id
+                    WHERE con.con_estado NOT IN ('anulado','rechazado') AND per.cli_id = $cli_id
                       AND con.con_fecha BETWEEN '$p_ini' AND '$p_fin'
                     GROUP BY per.per_id, COALESCE(m.mar_id, 0)
                     ORDER BY per.per_nombre ASC";
@@ -164,7 +164,7 @@ if (!function_exists('ec_obtener_detalle')) {
         $q_saldo = "SELECT per.per_id, SUM(con.con_valor_total) AS saldo_acumulado
                     FROM consumo con
                     JOIN personal per ON con.per_id = per.per_id
-                    WHERE per.cli_id = $cli_id
+                    WHERE con.con_estado NOT IN ('anulado','rechazado') AND per.cli_id = $cli_id
                     GROUP BY per.per_id";
         $r_saldo = mysqli_query($mysqli, $q_saldo);
         $saldos  = array();
