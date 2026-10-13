@@ -37,6 +37,22 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                 </div>
             </div>
         </div>
+
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <h5 class="card-header"><i class="icon dripicons-reload"></i> Cobranza — Cartera</h5>
+                    <div class="card-body">
+                        <p class="mb-2">Última actualización: <strong id="cartera_ultima">…</strong></p>
+                        <p class="text-muted small">La cartera de Cobranza (30, 60, 90 y +90 días) se actualiza sola todos los días a las 5:30 (cron). Usa este botón si el cron no corrió, o en una emergencia. Recalcula con los consumos actuales y <strong>no cambia el estado de gestión</strong> (pendiente, cobrada, compromiso) de las carteras que siguen en el mismo ciclo.</p>
+                        <div id="alerta_cartera" class="mb-3" style="display:none;"></div>
+                        <button type="button" class="btn btn-primary" id="btn_actualizar_cartera">
+                            <i class="icon dripicons-reload"></i> Actualizar cartera ahora
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 </div>
 
@@ -102,6 +118,41 @@ $(document).ready(function () {
             error: function() { mostrarAlerta('danger', 'Error de conexión'); },
             complete: function() {
                 btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar');
+            }
+        });
+    });
+
+    // ── Cartera de Cobranza ──────────────────────────────────────────────
+    function cargarUltimaCartera() {
+        $.getJSON('ajax/configuracion/configuracion.php?action=cartera_estado', function(r) {
+            $('#cartera_ultima').text(r.success && r.ultima ? r.ultima : 'aún no se ha actualizado');
+        });
+    }
+    cargarUltimaCartera();
+
+    $('#btn_actualizar_cartera').on('click', function() {
+        var btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Actualizando… no cierres esta página');
+        $('#alerta_cartera').hide();
+        $.ajax({
+            url: 'ajax/configuracion/configuracion.php',
+            type: 'POST',
+            data: { action: 'actualizar_cartera' },
+            dataType: 'json',
+            success: function(r) {
+                if (!r.success) {
+                    $('#alerta_cartera').html('<div class="alert alert-danger mb-0">' + (r.mensaje || 'No se pudo actualizar la cartera') + '</div>').show();
+                    return;
+                }
+                var x = r.resumen;
+                $('#cartera_ultima').text(r.ultima);
+                $('#alerta_cartera').html('<div class="alert alert-success mb-0">Cartera actualizada: ' + x.convenios + ' convenios, ' + x.creada + ' creadas, ' + x.ciclo_nuevo + ' con ciclo nuevo, ' + x.refrescada + ' refrescadas, ' + x.sin_consumos + ' sin consumos en la ventana.</div>').show();
+            },
+            error: function() {
+                $('#alerta_cartera').html('<div class="alert alert-danger mb-0">Error de conexión o la actualización tardó demasiado. Revisa la fecha de última actualización y vuelve a intentar.</div>').show();
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="icon dripicons-reload"></i> Actualizar cartera ahora');
             }
         });
     });

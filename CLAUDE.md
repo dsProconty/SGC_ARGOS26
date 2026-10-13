@@ -453,6 +453,9 @@ todas esas consultas llevan `con.con_estado NOT IN ('anulado','rechazado')`: `se
 rechazada: cartera, deuda de adentro, detalle de consumos y estado de cuenta suman solo la válida. **Toda consulta
 NUEVA que sume `consumo` debe llevar el mismo filtro.** Las listas que muestran el estado (pestaña Consumos de
 Clientes, Portal Empresa, Historial del POS) siguen mostrando las anuladas con su etiqueta, a propósito.
+**Botón manual:** Configuración > tarjeta "Cobranza — Cartera" > "Actualizar cartera ahora" (solo Super Admin;
+`ajax/configuracion/configuracion.php?action=actualizar_cartera`, POST) para cuando el cron no corra o haya una emergencia. Usa la
+misma rutina y un candado `GET_LOCK('sgc_cartera_actualizar')` para que cron y botón no corran a la vez.
 La cartera guarda `configuracion.cartera_ultima_corrida` (fecha/hora y origen `cron`|`manual`) y Gestiones la muestra
 bajo el título: así se comprueba que el cron de cPanel (`cron/actualizar_cartera.php`) realmente corre.
 

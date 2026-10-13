@@ -20,6 +20,11 @@ switch ($action) {
         }
         $r = cartera_actualizar($mysqli);
         header('Content-Type: text/plain; charset=utf-8');
+        if ($r === null) {
+            echo "Ya hay una actualización de cartera en curso.
+";
+            break;
+        }
         echo "Cartera actualizada: {$r['convenios']} convenios, {$r['creada']} creadas, "
            . "{$r['ciclo_nuevo']} con ciclo nuevo, {$r['refrescada']} refrescadas, {$r['sin_consumos']} sin consumos en la ventana.\n";
         break;

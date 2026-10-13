@@ -78,7 +78,14 @@ if (!function_exists('cartera_actualizar')) {
     // Recorre todos los convenios. Devuelve array('convenios' => n, 'creada' => n, 'ciclo_nuevo' => n, 'refrescada' => n, 'sin_consumos' => n)
     // $origen ('cron' | 'manual') solo se guarda en la marca de última corrida (configuracion.cartera_ultima_corrida),
     // que se muestra en Gestiones para poder comprobar que el cron está corriendo.
+    // Devuelve null si YA hay otra actualización corriendo (cron y botón manual al mismo tiempo: sin este candado
+    // las dos podían insertar la misma cartera dos veces).
     function cartera_actualizar($mysqli, $origen = 'manual') {
+        $lk    = mysqli_query($mysqli, "SELECT GET_LOCK('sgc_cartera_actualizar', 0) AS ok");
+        $lkRow = $lk ? mysqli_fetch_assoc($lk) : null;
+        if (!$lkRow || (int)$lkRow['ok'] !== 1) {
+            return null;
+        }
         $resumen = array('convenios' => 0, 'creada' => 0, 'ciclo_nuevo' => 0, 'refrescada' => 0, 'sin_consumos' => 0);
         $hoy = date('Y-m-d');
         $y = (int)date('Y');
@@ -114,6 +121,7 @@ if (!function_exists('cartera_actualizar')) {
         mysqli_query($mysqli, "INSERT INTO configuracion (cfg_clave, cfg_valor, cfg_descripcion)
                                VALUES ('cartera_ultima_corrida', '$marca', 'Última vez que se actualizó la cartera de Cobranza')
                                ON DUPLICATE KEY UPDATE cfg_valor = VALUES(cfg_valor)");
+        mysqli_query($mysqli, "SELECT RELEASE_LOCK('sgc_cartera_actualizar')");
         return $resumen;
     }
 }
