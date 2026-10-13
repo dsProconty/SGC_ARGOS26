@@ -267,6 +267,53 @@ switch ($action) {
         ]);
         break;
 
+    // ── Consumos de una persona en UNA marca (detalle dentro del modal "Cupo por marca") ──
+    case 'personal_consumos_marca':
+        header('Content-Type: application/json');
+        $cli_id = (int)($_GET['cli_id'] ?? 0);
+        $per_id = (int)($_GET['per_id'] ?? 0);
+        $mar_id = (int)($_GET['mar_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT per_id FROM personal WHERE per_id = ? AND cli_id = ? LIMIT 1");
+        $stmt->bind_param('ii', $per_id, $cli_id);
+        $stmt->execute();
+        if (!$stmt->get_result()->fetch_assoc()) {
+            echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
+            break;
+        }
+        // La marca de un consumo es la marca de su local (local.mar_id), igual que en el POS.
+        $stmt = $mysqli->prepare(
+            "SELECT c.con_id, DATE_FORMAT(c.con_fecha, '%d/%m/%Y') AS fecha, TIME_FORMAT(c.con_hora, '%H:%i') AS hora,
+                    COALESCE(l.loc_nombre, l.loc_direccion, '—') AS local_nombre,
+                    c.con_valor_total, c.con_monto_convenio, c.con_estado, c.con_descripcion
+             FROM consumo c JOIN local l ON c.loc_id = l.loc_id
+             WHERE c.per_id = ? AND l.mar_id = ?
+             ORDER BY c.con_fecha DESC, c.con_hora DESC, c.con_id DESC
+             LIMIT 200"
+        );
+        $stmt->bind_param('ii', $per_id, $mar_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $consumos = [];
+        while ($r = $res->fetch_assoc()) $consumos[] = $r;
+
+        // Total consumido contra el convenio, sin contar ventas anuladas ni rechazadas.
+        $stmt = $mysqli->prepare(
+            "SELECT COALESCE(SUM(c.con_monto_convenio), 0) AS total, COUNT(*) AS n
+             FROM consumo c JOIN local l ON c.loc_id = l.loc_id
+             WHERE c.per_id = ? AND l.mar_id = ? AND c.con_estado NOT IN ('anulado', 'rechazado')"
+        );
+        $stmt->bind_param('ii', $per_id, $mar_id);
+        $stmt->execute();
+        $tot = $stmt->get_result()->fetch_assoc();
+
+        echo json_encode([
+            'success'  => true,
+            'consumos' => $consumos,
+            'total'    => (float)$tot['total'],
+            'cantidad' => (int)$tot['n'],
+        ]);
+        break;
+
     // ── Bloquear / activar marcas de UNA persona (nivel persona y marca) ───────
     case 'personal_marcas_estado':
         header('Content-Type: application/json');
@@ -909,10 +956,12 @@ switch ($action) {
             "SELECT c.con_id, c.con_fecha, c.con_hora, p.per_nombre,
                     c.con_numero_tarjeta, c.con_valor_total, c.con_monto_convenio,
                     c.con_monto_externo, c.con_estado,
-                    COALESCE(l.loc_nombre, l.loc_direccion, '—') AS local_nombre
+                    COALESCE(l.loc_nombre, l.loc_direccion, '—') AS local_nombre,
+                    COALESCE(m.mar_descripcion, '—') AS marca_nombre
              FROM consumo c
              JOIN personal p ON c.per_id = p.per_id
              LEFT JOIN local l ON c.loc_id = l.loc_id
+             LEFT JOIN marca m ON l.mar_id = m.mar_id
              WHERE p.cli_id = ?
              ORDER BY c.con_fecha DESC, c.con_hora DESC
              LIMIT 300"
