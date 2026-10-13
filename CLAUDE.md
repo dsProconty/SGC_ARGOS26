@@ -389,6 +389,38 @@ clasifica los convenios A/B/C/D solo como ayuda: es inferencia, no dato del sist
   que el candado existente). Auditoría: `personal_trazabilidad` (persona) y la tabla nueva
   `cliente_trazabilidad` (convenio y marcas del convenio), visible como "Historial reciente" en el modal.
 
+**Cupo por marca para el resto de convenios (13 de octubre de 2026) — HECHO en producción.**
+Mismo método del piloto (ARGOS PUBLICIDAD, ya en producción y validado por Elbany), aplicado a los
+convenios multi-marca restantes: `_dump_viejo/13_cupo_marca_resto_parte{1..5}_de_5.sql` (generados por
+un script PHP desde `sgc_argos_viejo`; tablas de trabajo `tmp_personal_migrado` y `tmp_tarjeta_ult`
+en esa base). **124 convenios, 268.578 filas persona×marca**, repartidas en 5 partes (~2-3 MB, un
+convenio nunca se parte entre archivos); cada parte pasa sus convenios a `cli_modo_cupo='marca'` al
+final. Saldo = cupo; no tocan `per_estado`, cupos globales ni consumos; usan `INSERT IGNORE` (no pisan
+filas existentes, se pueden repetir). Los convenios de una sola marca (todos inactivos) se quedan
+`global`. Excluido `cli_id=99` (piloto, tiene estados y consumos propios). Ensayado en el espejo:
+las 5 partes cargan exactamente las filas esperadas y la comparación contra el viejo da **0
+diferencias** en cupo, estado y tarjeta; repetir una parte no duplica. Rollback:
+`13z_rollback_modo_global.sql` (vuelve los convenios a global, las filas quedan sin efecto).
+**Estado: YA CORRIDO EN PRODUCCIÓN (13-oct-2026)**: las 5 partes + el parche 13e; la comprobación por convenio
+(`13d`) dio 0 diferencias, 268.739 filas, 125 convenios en modo marca. **Decisión de Diego: las 128 personas activas
+cuyas tarjetas viejas están TODAS bloqueadas se dejan así** (`13b_activos_con_todas_las_tarjetas_bloqueadas.csv`):
+quedan bloqueadas en todas las marcas, igual que en el viejo; si alguna debe comprar, se activa desde el modal
+"Cupo por marca" de Clientes > Personal.
+Para revisar con Elbany (ya resuelto arriba): `13b_activos_con_todas_las_tarjetas_bloqueadas.csv` (128 personas activas
+cuyas tarjetas viejas están TODAS bloqueadas — quedarán bloqueadas en todas las marcas, igual que en
+el viejo) y `13c_tarjetas_con_marca_inexistente.csv` (6 tarjetas de ARGOS EMPRESARIAL con
+`mark_id=0`, sin marca: no se migran). El convenio 45 (UNILEVER, 751 personas) tiene todos los
+cupos en 0 en el viejo y ya en el global: no cambia nada y no recibe topes.
+
+**Gotcha: espacios al final en cédulas + MySQL 8 (13 de octubre de 2026).** Algunas cédulas en el
+viejo y en `personal.per_documento` traen un espacio al final (`'1793079628001 '`). MariaDB local (colación
+PAD SPACE) los ignora al comparar; el MySQL 8 de producción NO. Al cargar el cupo por marca en producción
+(partes `13_cupo_marca_resto_*`) 4 filas persona×marca no entraron por eso (convenios 53, 58 y 116); se
+cargaron con `_dump_viejo/13e_parche_cedulas_con_espacios.sql`, que compara con `TRIM()` de los dos lados.
+**Todo script nuevo que cruce personas por cédula entre local y producción debe usar `TRIM()`**, y una
+verificación "ensayado en local = 0 diferencias" no basta: comparar contados contra producción
+(`13d_comprobar_diferencias_por_convenio.sql` lo hace por convenio y solo muestra las diferencias).
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
