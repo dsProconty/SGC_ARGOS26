@@ -125,20 +125,70 @@ if (!function_exists('cupoMarcaDeLocal')) {
     }
 }
 
+if (!function_exists('cupoAsegurarColumnasEstado')) {
+    // pcm_estado / pcm_tarjeta (migrations/bloque23): estado y tarjeta de la persona
+    // en cada marca, como en el sistema viejo. Se crean solas la primera vez que
+    // se necesitan, para que un deploy no dependa de haber corrido el .sql antes.
+    function cupoAsegurarColumnasEstado($mysqli) {
+        static $hecho = false;
+        if ($hecho) {
+            return;
+        }
+        $hecho = true;
+        require_once __DIR__ . '/db_helpers.php';
+        agregarColumnaSiNoExiste($mysqli, 'personal_cupo_marca', 'pcm_estado', "VARCHAR(10) NOT NULL DEFAULT 'activo'");
+        agregarColumnaSiNoExiste($mysqli, 'personal_cupo_marca', 'pcm_tarjeta', 'VARCHAR(20) NULL');
+    }
+}
+
 if (!function_exists('cupoEmpleadoEnMarca')) {
-    // array('asignado'=>x,'disponible'=>y) de un empleado en una marca.
+    // array('asignado'=>x,'disponible'=>y,'estado'=>'activo'|'bloqueado') de un empleado en una marca.
     // Sin fila => cupo 0 implícito (regla de negocio confirmada con cliente).
     function cupoEmpleadoEnMarca($mysqli, $per_id, $mar_id) {
+        cupoAsegurarColumnasEstado($mysqli);
         $per_id = (int)$per_id;
         $mar_id = (int)$mar_id;
-        $stmt = $mysqli->prepare("SELECT pcm_asignado, pcm_disponible FROM personal_cupo_marca WHERE per_id = ? AND mar_id = ?");
+        $stmt = $mysqli->prepare("SELECT pcm_asignado, pcm_disponible, pcm_estado FROM personal_cupo_marca WHERE per_id = ? AND mar_id = ?");
         $stmt->bind_param('ii', $per_id, $mar_id);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
         if (!$row) {
-            return array('asignado' => 0.0, 'disponible' => 0.0);
+            return array('asignado' => 0.0, 'disponible' => 0.0, 'estado' => 'activo');
         }
-        return array('asignado' => (float)$row['pcm_asignado'], 'disponible' => (float)$row['pcm_disponible']);
+        return array(
+            'asignado'   => (float)$row['pcm_asignado'],
+            'disponible' => (float)$row['pcm_disponible'],
+            'estado'     => ($row['pcm_estado'] === 'bloqueado') ? 'bloqueado' : 'activo',
+        );
+    }
+}
+
+if (!function_exists('cupoEmpleadoDetalleMarcas')) {
+    // Filas para el modal "Cupo por marca" de Clientes > Personal: una por cada
+    // marca donde la persona tiene tarjeta (marca, tarjeta, estado, cupo, saldo).
+    function cupoEmpleadoDetalleMarcas($mysqli, $per_id) {
+        cupoAsegurarColumnasEstado($mysqli);
+        $per_id = (int)$per_id;
+        $out = array();
+        $stmt = $mysqli->prepare(
+            "SELECT m.mar_id, m.mar_descripcion, p.pcm_tarjeta, p.pcm_estado, p.pcm_asignado, p.pcm_disponible
+             FROM personal_cupo_marca p JOIN marca m ON m.mar_id = p.mar_id
+             WHERE p.per_id = ? ORDER BY m.mar_descripcion ASC"
+        );
+        $stmt->bind_param('i', $per_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $out[] = array(
+                'mar_id'          => (int)$row['mar_id'],
+                'mar_descripcion' => $row['mar_descripcion'],
+                'tarjeta'         => $row['pcm_tarjeta'],
+                'estado'          => ($row['pcm_estado'] === 'bloqueado') ? 'bloqueado' : 'activo',
+                'asignado'        => (float)$row['pcm_asignado'],
+                'disponible'      => (float)$row['pcm_disponible'],
+            );
+        }
+        return $out;
     }
 }
 

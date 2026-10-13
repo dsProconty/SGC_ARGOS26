@@ -125,6 +125,10 @@ switch ($action) {
                         $data['marca_no_resuelta']   = true;
                     } else {
                         $cupoMarca = cupoEmpleadoEnMarca($mysqli, $data['per_id'], $mar_id_actual);
+                        if ($cupoMarca['estado'] === 'bloqueado') {
+                            echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de esta persona se encuentra bloqueada en esta marca. Por favor contactar con ' . trim($data['cli_descripcion']) . '.']);
+                            break;
+                        }
                         $data['per_cupo_asignado']   = $cupoMarca['asignado'];
                         $data['per_cupo_disponible'] = $cupoMarca['disponible'];
                     }
@@ -443,6 +447,10 @@ switch ($action) {
                 break;
             }
             $cupoMarcaEmp = cupoEmpleadoEnMarca($mysqli, $per_id, $mar_id_venta);
+            if ($cupoMarcaEmp['estado'] === 'bloqueado') {
+                echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de esta persona se encuentra bloqueada en esta marca']);
+                break;
+            }
             if ($monto_convenio > $cupoMarcaEmp['disponible']) {
                 echo json_encode(['success' => false, 'mensaje' => 'El monto supera el cupo disponible en esta marca ($' . number_format($cupoMarcaEmp['disponible'], 2) . ')']);
                 break;

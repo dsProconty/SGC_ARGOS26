@@ -312,6 +312,12 @@ ambas impresoras.
   (las 4 empresas Argos comparten `1792932297001`). El campo se edita en
   Clientes (modal + ficha) y el servidor exige 13 dígitos (o 10 si es
   cédula), solo números.
+  **Decisión (12-oct-2026, Diego/Elbany): esos 18 convenios se quedan con
+  `cli_ruc` vacío, no se persigue el dato.** Elbany: sin RUC = convenios muy
+  viejos/inactivos en el sistema viejo, sin trabajo vigente. (Dato: 11 tienen
+  `company_state=0` y última compra 2017-2023; 7 siguen en `company_state=1`
+  pero sin compras desde 2018-2023, entre ellos ADEM con 443 activos.) Si el
+  RUC falta, se carga a mano desde Editar cliente cuando algún convenio lo pida.
 - **Formulario de usuarios** ahora captura `usuario.documento`
   (`pages/user/form_user.php` + `proses.php`, alta y edición). Editar sin
   escribir contraseña NO toca el hash (importante: las cuentas migradas
@@ -336,6 +342,36 @@ correr `bloque21`. Por eso `ADD COLUMN IF NOT EXISTS` no existe ahí (es de
 MariaDB). En scripts SQL usar `utf8mb4` (no `utf8`) en `CONVERT(... USING ...)`
 para no llenar la pantalla de avisos. El local sí es MariaDB 10.4, así que
 algo que corre en local puede fallar en producción por sintaxis.
+
+**Cupo por marca "igual al sistema viejo" (13 de octubre de 2026) — PILOTO en curso.**
+Hallazgo del sponsor (Elbany): en el sistema viejo cada persona tiene UNA TARJETA POR
+MARCA (`gvony_ads_company_card_detail` → `gvony_ads_company_card.mark`), cada una con su
+propio número, cupo (`card_value`), estado (`card_state`: 1 = ACTIVA, 0 = BLOQUEADA,
+verificado contra la pantalla vieja) y saldo. La migración había colapsado eso en un solo
+cupo global (los 187 convenios quedaron `cli_modo_cupo=global`, `personal_cupo_marca`
+vacía). En la base vieja: 138 de 170 convenios con tarjetas son multi-marca y ~37.400
+personas tienen tarjeta en más de una marca. **El sistema viejo NO tiene campo "global o por
+marca" por convenio** — todo era por tarjeta —, así que copiar tarjeta por tarjeta reproduce
+el comportamiento sin que nadie decida el modo; el modo `marca` ya cubre convenios "mixtos"
+(montos distintos por persona), no hace falta un tercer modo. (`_dump_viejo/convenios_modo_cupo.xlsx`
+clasifica los convenios A/B/C/D solo como ayuda: es inferencia, no dato del sistema viejo.)
+- `migrations/bloque23_cupo_marca_estado_tarjeta.sql`: `personal_cupo_marca.pcm_estado`
+  (activo|bloqueado) y `pcm_tarjeta`. El código las crea solo si faltan
+  (`cupoAsegurarColumnasEstado()` en `helpers/cupo_marca_helpers.php`).
+- POS (`ajax/pos/pos.php`, `buscar` y `registrar`): una marca con `pcm_estado=bloqueado`
+  no deja cobrar (la persona puede estar activa en otra marca).
+- Clientes > Personal: si el convenio es modo `marca`, las columnas de cupo muestran "por marca /
+  Ver detalle" y hay un botón que abre el modal "Cupo por marca" (marca, tarjeta enmascarada,
+  estado, cupo, saldo — `personal_cupo_marca` endpoint `personal_cupo_marca`).
+- Datos: `_dump_viejo/12_piloto_cupo_marca_argos.sql` (ARGOS PUBLICIDAD, `cli_id=99`; 298
+  tarjetas, 161 aplican a las 14 personas migradas), generado con un script que toma la tarjeta
+  MÁS RECIENTE (mayor `id`) por persona+marca, resuelve la persona por `per_documento` y la marca
+  por nombre (no por id), pone el tope del convenio por marca = mayor cupo de esa marca, y deja
+  **saldo = cupo** (opción acordada: el consumo nuevo se descuenta desde cero; pendiente
+  confirmar con el sponsor si el cupo se renueva por corte). No toca `per_estado`. Idempotente.
+  Ensayado en el espejo y en una copia de la BD de la app: coincide 1 a 1 con la captura de Elbany
+  (14 marcas, solo Pizza Hut ACTIVA, cupos 120/50/50/30/100...). Falta: correrlo en producción
+  y, si Elbany valida, repetirlo para el resto de convenios multi-marca.
 
 ## Infraestructura del repo (para no repetir investigación)
 

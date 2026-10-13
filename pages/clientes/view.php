@@ -584,6 +584,23 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
 </div>
 
 <!-- ══════════════════════════════════════════════════
+     MODAL — CUPO POR MARCA DE UN EMPLEADO (convenios en modo "marca")
+     Equivale a la pantalla del sistema viejo: una fila por tarjeta/marca
+     con tarjeta, estado, cupo y saldo.
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalCupoMarca" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-view-list"></i> Cupo por marca — <span id="cm_nombre_empleado"></span> <small class="text-muted" id="cm_documento_empleado"></small></h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" id="cupo_marca_body" style="max-height:65vh; overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
      MODAL — CONFIRMAR BLOQUEAR/ACTIVAR EMPLEADO (CL-E)
      Reemplaza confirm() nativo: Chrome lo puede silenciar sin avisar
      después de varios diálogos ("Prevent this page from creating
@@ -1069,6 +1086,7 @@ function cambiarTab(el, tab) {
 }
 
 // — Personal ──────────────────────────────────────────────────────────────────
+var _personalModoCupo = 'global'; // modo de cupo del convenio: 'global' | 'marca'
 var _personalLista = [];          // ultimo fetch completo (activos + bloqueados), sin filtrar
 var _personalFiltroEstado = 'activo'; // tab actualmente seleccionado
 
@@ -1082,6 +1100,7 @@ function cargarTabPersonal() {
         if (!res.success) return;
 
         _personalLista = res.data;
+        _personalModoCupo = res.modo_cupo || 'global';
         $('#badge_personal').text(res.data.filter(function (p) { return p.per_estado !== 'archivado'; }).length);
         renderTablaPersonal();
 
@@ -1113,6 +1132,7 @@ function renderTablaPersonal() {
 
     _personalData = {};
     var html = '';
+    var porMarca = (_personalModoCupo === 'marca');
     $.each(visibles, function(i, p) {
         _personalData[p.per_id] = p;
         var estadoBadge = {activo:'success', bloqueado:'danger', archivado:'secondary', inactivo:'secondary'}[p.per_estado] || 'secondary';
@@ -1125,9 +1145,16 @@ function renderTablaPersonal() {
             + '<td>' + (p.per_documento || '—') + '</td>'
             + '<td><code>' + (p.per_numero_tarjeta || '—') + '</code></td>'
             + '<td><span class="badge badge-'+estadoBadge+'">'+p.per_estado+'</span></td>'
-            + '<td class="text-right">$ ' + parseFloat(p.per_cupo_asignado||0).toFixed(2) + '</td>'
-            + '<td class="text-right">$ ' + parseFloat(p.per_cupo_disponible||0).toFixed(2) + '</td>'
+            + (porMarca
+                ? '<td class="text-right text-muted">por marca</td>'
+                  + '<td class="text-right"><a href="#" onclick="verCupoMarca('+p.per_id+'); return false;">Ver detalle</a></td>'
+                : '<td class="text-right">$ ' + parseFloat(p.per_cupo_asignado||0).toFixed(2) + '</td>'
+                  + '<td class="text-right">$ ' + parseFloat(p.per_cupo_disponible||0).toFixed(2) + '</td>')
             + '<td class="text-nowrap">'
+              + (porMarca
+                ? '<button class="btn btn-outline-info btn-sm mr-1" onclick="verCupoMarca('+p.per_id+')" title="Cupo por marca">'
+                  + '<i class="icon dripicons-view-list"></i></button>'
+                : '')
               + '<button class="btn btn-primary btn-sm mr-1" onclick="editarEmpleado('+p.per_id+')" title="Editar">'
               + '<i class="icon dripicons-document-edit"></i></button>'
               + (esArchivado
@@ -1613,6 +1640,54 @@ $('#btn_confirmar_estado').on('click', function () {
         $('#alerta_personal').html('<div class="alert alert-danger py-2 mb-2">Error de conexión</div>');
     });
 });
+
+// ══════════════════════════════════════════════
+// CUPO POR MARCA DE UN EMPLEADO (convenios en modo "marca")
+// ══════════════════════════════════════════════
+function _escHtml(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Tarjeta enmascarada como en el sistema viejo: XXXXXXXXXXX4770
+function _tarjetaEnmascarada(t) {
+    if (!t) return '—';
+    t = String(t);
+    if (t.length <= 4) return _escHtml(t);
+    return new Array(t.length - 3).join('X') + _escHtml(t.slice(-4));
+}
+
+function verCupoMarca(per_id) {
+    var p = _personalData[per_id];
+    $('#cm_nombre_empleado').text(p ? p.per_nombre : '');
+    $('#cm_documento_empleado').text(p && p.per_documento ? '(' + p.per_documento + ')' : '');
+    $('#cupo_marca_body').html('<div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div>');
+    $('#modalCupoMarca').modal('show');
+
+    $.getJSON('ajax/clientes/clientes.php?action=personal_cupo_marca&cli_id=' + _cliId + '&per_id=' + per_id, function(res) {
+        if (!res.success) {
+            $('#cupo_marca_body').html('<p class="text-danger text-center mb-0">' + _escHtml(res.mensaje || 'No se pudo cargar el cupo por marca.') + '</p>');
+            return;
+        }
+        if (!res.marcas.length) {
+            $('#cupo_marca_body').html('<p class="text-muted text-center mb-0">Esta persona no tiene cupo asignado en ninguna marca.</p>');
+            return;
+        }
+        var html = '<table class="table table-sm table-striped mb-0"><thead><tr>'
+            + '<th>Marca</th><th>Tarjeta</th><th>Estado</th><th class="text-right">Cupo</th><th class="text-right">Saldo</th>'
+            + '</tr></thead><tbody>';
+        res.marcas.forEach(function(m) {
+            var bloqueada = m.estado === 'bloqueado';
+            html += '<tr>'
+                + '<td>' + _escHtml(m.mar_descripcion) + '</td>'
+                + '<td><code>' + _tarjetaEnmascarada(m.tarjeta) + '</code></td>'
+                + '<td><strong class="' + (bloqueada ? 'text-danger' : 'text-primary') + '">' + (bloqueada ? 'BLOQUEADA' : 'ACTIVA') + '</strong></td>'
+                + '<td class="text-right">' + parseFloat(m.asignado).toFixed(2) + '</td>'
+                + '<td class="text-right">' + parseFloat(m.disponible).toFixed(2) + '</td>'
+                + '</tr>';
+        });
+        $('#cupo_marca_body').html(html + '</tbody></table>');
+    });
+}
 
 // ══════════════════════════════════════════════
 // CL-F: AUDITORÍA DE EMPLEADO

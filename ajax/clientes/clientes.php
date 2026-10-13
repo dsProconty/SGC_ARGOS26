@@ -238,7 +238,29 @@ switch ($action) {
         $res = $stmt->get_result();
         $data = [];
         while ($r = $res->fetch_assoc()) $data[] = $r;
-        echo json_encode(['success' => true, 'data' => $data]);
+        $modoPersonal = cupoObtenerModo($mysqli, $cli_id);
+        echo json_encode(['success' => true, 'data' => $data, 'modo_cupo' => $modoPersonal['modo']]);
+        break;
+
+    // ── Cupo por marca de una persona (modal de Clientes > Personal) ───────────
+    case 'personal_cupo_marca':
+        header('Content-Type: application/json');
+        $cli_id = (int)($_GET['cli_id'] ?? 0);
+        $per_id = (int)($_GET['per_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT per_nombre, per_documento FROM personal WHERE per_id = ? AND cli_id = ? LIMIT 1");
+        $stmt->bind_param('ii', $per_id, $cli_id);
+        $stmt->execute();
+        $per = $stmt->get_result()->fetch_assoc();
+        if (!$per) {
+            echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
+            break;
+        }
+        echo json_encode([
+            'success'  => true,
+            'nombre'   => $per['per_nombre'],
+            'documento' => $per['per_documento'],
+            'marcas'   => cupoEmpleadoDetalleMarcas($mysqli, $per_id),
+        ]);
         break;
 
     // ── CL-E: EDITAR EMPLEADO (desde la ficha del cliente, Super Admin) ────────
