@@ -149,7 +149,21 @@ $('#form_gestion').submit(function (e) {
                     if ($('#tipo_gestion').val() == 'telefonica' && $('#numero_contacto').val() == '') {
                         alert('El numero de contacto es requerido')
                     } else {
-                        if (parseFloat($('#monto').val()) > parseFloat($('#total_deuda').val())) {
+                        // H-019: comparar redondeado a centavos, no el float crudo — la
+                        // deuda se recalcula en el servidor (suma de consumos menos pagos)
+                        // y puede llegar como 49.999999999997 aunque en pantalla se vea
+                        // "50.00" igual al monto ingresado, bloqueando un pago que en
+                        // realidad es exacto. También se exige un monto > 0: antes un
+                        // pago de $0 pasaba la validación igual y movía la cartera a
+                        // "pendiente_confirmacion" (visible en la pestaña Cobrada).
+                        // Solo aplica si la respuesta es "pago": en compromiso, no contactado,
+                        // notificación, etc. el campo monto está vacío y no debe bloquear el guardado.
+                        var esPago = $('#respuesta').val() == 'pago';
+                        var montoPago = Math.round(parseFloat($('#monto').val()) * 100) / 100;
+                        var totalDeuda = Math.round(parseFloat($('#total_deuda').val()) * 100) / 100;
+                        if (esPago && (!montoPago || montoPago <= 0)) {
+                            alert('Ingrese un monto de pago válido, mayor a 0')
+                        } else if (esPago && montoPago > totalDeuda) {
                             alert('No se puede pagar un monto mayor a la deuda')
                         } else {
                             var data = $(this).serialize();

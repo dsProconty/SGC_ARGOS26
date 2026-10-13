@@ -9,6 +9,9 @@ $(document).ready(function () {
     // dashboard; se refresca sola cada 60s para reflejar pagos nuevos sin
     // depender de que alguien recargue la página.
     setInterval(load_pagos, 60000)
+    // H-001: "Top Ten Mejores Clientes" tenía el mismo problema — solo
+    // cargaba una vez al abrir el dashboard y no reflejaba ventas nuevas.
+    setInterval(load_top_ten, 60000)
 });
 
 // Dash-2: el botón "Descargar" era un <a href="javascript:void(0)"> sin

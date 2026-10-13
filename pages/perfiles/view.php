@@ -200,7 +200,7 @@ function renderTabla(perfiles) {
         var badge   = p.per_activo == 1 ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-secondary">Inactivo</span>';
         var sistema = p.per_es_sistema == 1 ? '<span class="badge badge-light border ml-1" title="Perfil de sistema" style="font-size:.65rem;">SISTEMA</span>' : '';
         var btnDel  = p.per_es_sistema == 1 ? '' :
-            '<button class="btn btn-sm btn-outline-danger ml-1" title="Eliminar" onclick="eliminarPerfil(' + p.per_id + ')"><i class="icon dripicons-trash"></i></button>';
+            '<button class="btn btn-sm btn-outline-danger ml-1" title="Eliminar" onclick="eliminarPerfil(' + p.per_id + ')"><i class="icon dripicons-trash"></i> Eliminar</button>';
         var toggleLbl = p.per_activo == 1 ? 'Desactivar' : 'Activar';
         var toggleIco = p.per_activo == 1 ? 'dripicons-cross' : 'dripicons-checkmark';
 
@@ -214,9 +214,9 @@ function renderTabla(perfiles) {
                 '<span class="badge badge-secondary">' + p.total_usuarios + '</span></a>' +
             '</td>' +
             '<td class="text-center">' + badge + '</td>' +
-            '<td class="text-center">' +
-                '<button class="btn btn-sm btn-warning mr-1" title="Editar" onclick="abrirModalPerfil(' + p.per_id + ')"><i class="icon dripicons-pencil"></i></button>' +
-                '<button class="btn btn-sm btn-outline-secondary mr-1" title="' + toggleLbl + '" onclick="toggleActivo(' + p.per_id + ')"><i class="icon ' + toggleIco + '"></i></button>' +
+            '<td class="text-center text-nowrap">' +
+                '<button class="btn btn-sm btn-warning mr-1" title="Editar" onclick="abrirModalPerfil(' + p.per_id + ')"><i class="icon dripicons-pencil"></i> Editar</button>' +
+                '<button class="btn btn-sm btn-outline-secondary mr-1" title="' + toggleLbl + '" onclick="toggleActivo(' + p.per_id + ')"><i class="icon ' + toggleIco + '"></i> ' + toggleLbl + '</button>' +
                 btnDel +
             '</td>' +
         '</tr>';
