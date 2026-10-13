@@ -16,6 +16,10 @@ if (empty($_SESSION['id_user'])) {
 
 $action = $_GET['action'] ?? '';
 
+// cli_estado / ccm_estado / pcm_estado / cliente_trazabilidad (migrations/bloque23 y bloque24):
+// se crean solos si faltan, para que el deploy no dependa de haber corrido el .sql antes.
+cupoAsegurarColumnasEstado($mysqli);
+
 switch ($action) {
 
     // ── LIST — tabla HTML para DataTables ────────────────────────────────────
@@ -35,7 +39,7 @@ switch ($action) {
             "SELECT c.cli_id, c.cli_descripcion, c.cli_ciudad, c.cli_contacto,
                     c.cli_email, c.cli_telefono, c.cli_numero_convenio,
                     c.cli_tipo_beneficio, c.cli_valor_beneficio,
-                    c.cli_tipo_cartera, c.cli_dia_corte,
+                    c.cli_tipo_cartera, c.cli_dia_corte, c.cli_estado,
                     COALESCE(c.cli_tipo_cliente, 'Sin definir') AS cli_tipo_cliente,
                     (SELECT COUNT(*) FROM personal p WHERE p.cli_id = c.cli_id AND p.per_estado != 'archivado') AS total_personal,
                     (SELECT COUNT(*) FROM estado_cuenta ec WHERE ec.cli_id = c.cli_id) AS total_ec
@@ -260,6 +264,154 @@ switch ($action) {
             'nombre'   => $per['per_nombre'],
             'documento' => $per['per_documento'],
             'marcas'   => cupoEmpleadoDetalleMarcas($mysqli, $per_id),
+        ]);
+        break;
+
+    // ── Bloquear / activar marcas de UNA persona (nivel persona y marca) ───────
+    case 'personal_marcas_estado':
+        header('Content-Type: application/json');
+        $cli_id = (int)($_POST['cli_id'] ?? 0);
+        $per_id = (int)($_POST['per_id'] ?? 0);
+        $estado = $_POST['estado'] ?? '';
+        $mar_ids = array_values(array_unique(array_filter(array_map('intval', explode(',', $_POST['mar_ids'] ?? '')))));
+        if (!in_array($estado, ['activo', 'bloqueado'], true) || !$mar_ids) {
+            echo json_encode(['success' => false, 'mensaje' => 'Seleccione al menos una marca']);
+            break;
+        }
+        $stmt = $mysqli->prepare("SELECT per_id FROM personal WHERE per_id = ? AND cli_id = ? LIMIT 1");
+        $stmt->bind_param('ii', $per_id, $cli_id);
+        $stmt->execute();
+        if (!$stmt->get_result()->fetch_assoc()) {
+            echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
+            break;
+        }
+        $lista = implode(',', $mar_ids); // enteros ya saneados
+        $res = $mysqli->query(
+            "SELECT m.mar_descripcion FROM personal_cupo_marca x JOIN marca m ON m.mar_id = x.mar_id
+             WHERE x.per_id = $per_id AND x.mar_id IN ($lista) AND x.pcm_estado != '$estado' ORDER BY m.mar_descripcion"
+        );
+        $cambian = [];
+        while ($r = $res->fetch_assoc()) $cambian[] = $r['mar_descripcion'];
+        if (!$cambian) {
+            echo json_encode(['success' => true, 'mensaje' => 'Esas marcas ya estaban ' . ($estado === 'bloqueado' ? 'bloqueadas' : 'activas'),
+                              'marcas' => cupoEmpleadoDetalleMarcas($mysqli, $per_id)]);
+            break;
+        }
+        $mysqli->query("UPDATE personal_cupo_marca SET pcm_estado = '$estado' WHERE per_id = $per_id AND mar_id IN ($lista)");
+
+        $id_user_sesion = (int)$_SESSION['id_user'];
+        $label    = $estado === 'bloqueado' ? 'Bloqueo por marca' : 'Activación por marca';
+        $anterior = $estado === 'bloqueado' ? 'activo' : 'bloqueado';
+        $nuevoTxt = substr(implode(', ', $cambian), 0, 255);
+        $tra = $mysqli->prepare(
+            "INSERT INTO personal_trazabilidad (per_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+             VALUES (?, ?, 'pcm_estado', ?, ?, ?)"
+        );
+        $tra->bind_param('iisss', $per_id, $id_user_sesion, $label, $anterior, $nuevoTxt);
+        $tra->execute();
+
+        echo json_encode([
+            'success' => true,
+            'mensaje' => count($cambian) . ($estado === 'bloqueado' ? ' marca(s) bloqueada(s)' : ' marca(s) activada(s)'),
+            'marcas'  => cupoEmpleadoDetalleMarcas($mysqli, $per_id),
+        ]);
+        break;
+
+    // ── Estado del convenio + sus marcas + historial (modal "Estado del convenio") ──
+    case 'convenio_estado_info':
+        header('Content-Type: application/json');
+        $cli_id = (int)($_GET['cli_id'] ?? 0);
+        $stmt = $mysqli->prepare("SELECT cli_descripcion, cli_estado FROM cliente WHERE cli_id = ?");
+        $stmt->bind_param('i', $cli_id);
+        $stmt->execute();
+        $cli = $stmt->get_result()->fetch_assoc();
+        if (!$cli) {
+            echo json_encode(['success' => false, 'mensaje' => 'Cliente no encontrado']);
+            break;
+        }
+        $modoConv = cupoObtenerModo($mysqli, $cli_id);
+        $cnt = $mysqli->query("SELECT SUM(per_estado = 'activo') AS activos, SUM(per_estado = 'bloqueado') AS bloqueados FROM personal WHERE cli_id = $cli_id")->fetch_assoc();
+        $hist = [];
+        $rh = $mysqli->query(
+            "SELECT t.tra_campo_label, t.tra_valor_anterior, t.tra_valor_nuevo,
+                    DATE_FORMAT(t.tra_fecha, '%d/%m/%Y %H:%i') AS fecha, COALESCE(u.name_user, '—') AS usuario
+             FROM cliente_trazabilidad t LEFT JOIN usuario u ON u.id_user = t.id_user
+             WHERE t.cli_id = $cli_id ORDER BY t.tra_id DESC LIMIT 15"
+        );
+        while ($h = $rh->fetch_assoc()) $hist[] = $h;
+        echo json_encode([
+            'success'         => true,
+            'estado'          => ($cli['cli_estado'] === 'bloqueado') ? 'bloqueado' : 'activo',
+            'modo'            => $modoConv['modo'],
+            'puede_bloquear'  => tienePermiso($mysqli, 'clientes.bloquear'),
+            'personas_activas'    => (int)$cnt['activos'],
+            'personas_bloqueadas' => (int)$cnt['bloqueados'],
+            'marcas'          => $modoConv['modo'] === 'marca' ? cupoMarcasDelConvenio($mysqli, $cli_id) : [],
+            'historial'       => $hist,
+        ]);
+        break;
+
+    // ── Bloquear / activar TODO el convenio (nivel convenio) ───────────────────
+    case 'convenio_cambiar_estado':
+        header('Content-Type: application/json');
+        if (!tienePermiso($mysqli, 'clientes.bloquear')) {
+            echo json_encode(['success' => false, 'mensaje' => 'No tiene permiso para bloquear o activar convenios']);
+            break;
+        }
+        $cli_id = (int)($_POST['cli_id'] ?? 0);
+        $estado = $_POST['estado'] ?? '';
+        if (!$cli_id || !in_array($estado, ['activo', 'bloqueado'], true)) {
+            echo json_encode(['success' => false, 'mensaje' => 'Datos inválidos']);
+            break;
+        }
+        $anterior = cupoConvenioEstado($mysqli, $cli_id);
+        if ($anterior === $estado) {
+            echo json_encode(['success' => true, 'mensaje' => 'El convenio ya estaba ' . ($estado === 'bloqueado' ? 'bloqueado' : 'activo'), 'estado' => $estado]);
+            break;
+        }
+        $upd = $mysqli->prepare("UPDATE cliente SET cli_estado = ? WHERE cli_id = ?");
+        $upd->bind_param('si', $estado, $cli_id);
+        if (!$upd->execute()) {
+            echo json_encode(['success' => false, 'mensaje' => 'Error al actualizar']);
+            break;
+        }
+        cupoRegistrarTrazaConvenio($mysqli, $cli_id, $_SESSION['id_user'], 'cli_estado',
+            $estado === 'bloqueado' ? 'Bloqueo del convenio' : 'Activación del convenio', $anterior, $estado);
+        echo json_encode(['success' => true, 'mensaje' => $estado === 'bloqueado' ? 'Convenio bloqueado' : 'Convenio activado', 'estado' => $estado]);
+        break;
+
+    // ── Bloquear / activar marcas para TODO el convenio (nivel convenio y marca) ──
+    case 'convenio_marcas_estado':
+        header('Content-Type: application/json');
+        if (!tienePermiso($mysqli, 'clientes.bloquear')) {
+            echo json_encode(['success' => false, 'mensaje' => 'No tiene permiso para bloquear o activar marcas de un convenio']);
+            break;
+        }
+        $cli_id = (int)($_POST['cli_id'] ?? 0);
+        $estado = $_POST['estado'] ?? '';
+        $mar_ids = array_values(array_unique(array_filter(array_map('intval', explode(',', $_POST['mar_ids'] ?? '')))));
+        if (!$cli_id || !in_array($estado, ['activo', 'bloqueado'], true) || !$mar_ids) {
+            echo json_encode(['success' => false, 'mensaje' => 'Seleccione al menos una marca']);
+            break;
+        }
+        $lista = implode(',', $mar_ids); // enteros ya saneados
+        $res = $mysqli->query(
+            "SELECT m.mar_descripcion FROM cliente_cupo_marca c JOIN marca m ON m.mar_id = c.mar_id
+             WHERE c.cli_id = $cli_id AND c.mar_id IN ($lista) AND c.ccm_estado != '$estado' ORDER BY m.mar_descripcion"
+        );
+        $cambian = [];
+        while ($r = $res->fetch_assoc()) $cambian[] = $r['mar_descripcion'];
+        if ($cambian) {
+            $mysqli->query("UPDATE cliente_cupo_marca SET ccm_estado = '$estado' WHERE cli_id = $cli_id AND mar_id IN ($lista)");
+            cupoRegistrarTrazaConvenio($mysqli, $cli_id, $_SESSION['id_user'], 'ccm_estado',
+                $estado === 'bloqueado' ? 'Marcas bloqueadas para el convenio' : 'Marcas activadas para el convenio',
+                $estado === 'bloqueado' ? 'activo' : 'bloqueado', implode(', ', $cambian));
+        }
+        echo json_encode([
+            'success' => true,
+            'mensaje' => $cambian ? count($cambian) . ($estado === 'bloqueado' ? ' marca(s) bloqueada(s) para el convenio' : ' marca(s) activada(s) para el convenio')
+                                  : 'Esas marcas ya estaban ' . ($estado === 'bloqueado' ? 'bloqueadas' : 'activas'),
+            'marcas'  => cupoMarcasDelConvenio($mysqli, $cli_id),
         ]);
         break;
 

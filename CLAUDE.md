@@ -373,6 +373,22 @@ clasifica los convenios A/B/C/D solo como ayuda: es inferencia, no dato del sist
   (14 marcas, solo Pizza Hut ACTIVA, cupos 120/50/50/30/100...). Falta: correrlo en producción
   y, si Elbany valida, repetirlo para el resto de convenios multi-marca.
 
+**Bloqueos en cuatro niveles (13 de octubre de 2026).** El POS (`ajax/pos/pos.php`, `buscar` y
+`registrar`) solo deja comprar si TODOS están activos, y cada nivel es independiente y reversible
+(`migrations/bloque24_bloqueos_convenio_marca.sql`; el código también crea las columnas solo,
+`cupoAsegurarColumnasEstado()` en `helpers/cupo_marca_helpers.php`):
+- **Convenio** — `cliente.cli_estado`. Botón "Estado y marcas" en la ficha del cliente
+  (`pages/clientes/view.php`, modal `modalEstadoConvenio`). NO toca el estado de ninguna persona.
+- **Convenio y marca** — `cliente_cupo_marca.ccm_estado`. Mismo modal, lista de marcas con casillas.
+  `cupoGuardarMaximosPorMarca()` conserva el estado al editar topes (borra y reinserta filas).
+- **Persona** — `personal.per_estado` (ya existía, candado de la fila).
+- **Persona y marca** — `personal_cupo_marca.pcm_estado`. Modal "Cupo por marca" con casillas
+  (bloquear/activar seleccionadas; la casilla maestra = todas).
+- Los dos niveles de convenio exigen el permiso granular **`clientes.bloquear`** (catálogo en
+  `pages/perfiles/view.php`; Super Admin siempre pasa); los de persona no piden permiso extra (igual
+  que el candado existente). Auditoría: `personal_trazabilidad` (persona) y la tabla nueva
+  `cliente_trazabilidad` (convenio y marcas del convenio), visible como "Historial reciente" en el modal.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

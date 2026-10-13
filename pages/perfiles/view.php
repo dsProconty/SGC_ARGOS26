@@ -20,6 +20,7 @@ $permisos_granulares = [
     'gestiones.confirmar_pago' => 'Confirmar / rechazar pagos en Gestiones',
     'giftcard.aprobar'         => 'Aprobar / rechazar solicitudes de Gift Card',
     'clientes.eliminar'        => 'Eliminar clientes',
+    'clientes.bloquear'        => 'Bloquear / activar convenios y sus marcas',
 ];
 ?>
 <div class="content">

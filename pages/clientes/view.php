@@ -135,6 +135,10 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                             <small class="text-muted" id="detalle_subtitulo"></small>
                         </div>
                         <div class="ml-auto">
+                            <span class="badge badge-danger mr-2" id="badge_convenio_bloqueado" style="display:none;">CONVENIO BLOQUEADO</span>
+                            <button class="btn btn-sm btn-outline-secondary mr-1" onclick="abrirEstadoConvenio()" title="Bloquear o activar el convenio y sus marcas">
+                                <i class="icon dripicons-lock"></i> Estado y marcas
+                            </button>
                             <button class="btn btn-sm btn-primary" onclick="editarClienteActual()">
                                 <i class="icon dripicons-document-edit"></i> Editar
                             </button>
@@ -595,7 +599,68 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                 <h5 class="modal-title"><i class="icon dripicons-view-list"></i> Cupo por marca — <span id="cm_nombre_empleado"></span> <small class="text-muted" id="cm_documento_empleado"></small></h5>
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
-            <div class="modal-body" id="cupo_marca_body" style="max-height:65vh; overflow-y:auto;"></div>
+            <div class="modal-body" style="max-height:65vh; overflow-y:auto;">
+                <div id="cm_alerta"></div>
+                <div id="cupo_marca_body"></div>
+            </div>
+            <div class="modal-footer justify-content-between" id="cupo_marca_footer" style="display:none;">
+                <small class="text-muted">Marca las marcas y elige la acción. Bloquear una marca no cambia el estado de la persona.</small>
+                <div>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="cupoMarcaCambiarEstado('bloqueado')"><i class="icon dripicons-lock"></i> Bloquear seleccionadas</button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="cupoMarcaCambiarEstado('activo')"><i class="icon dripicons-lock-open"></i> Activar seleccionadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL — ESTADO DEL CONVENIO Y SUS MARCAS
+     Bloquear/activar todo el convenio, o marcas puntuales para todo el convenio.
+══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalEstadoConvenio" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-lock"></i> Estado del convenio — <span id="ec_nombre"></span></h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+                <div id="ec_alerta"></div>
+
+                <h6 class="text-uppercase text-muted small mb-2">Todo el convenio</h6>
+                <div class="d-flex align-items-center mb-2">
+                    <span id="ec_estado_badge" class="badge mr-3"></span>
+                    <span id="ec_personas" class="text-muted small flex-grow-1"></span>
+                    <button type="button" class="btn btn-sm" id="ec_btn_estado" style="display:none;" onclick="ecPedirConfirmacion()"></button>
+                </div>
+                <div class="alert alert-warning py-2" id="ec_confirm" style="display:none;">
+                    <div id="ec_confirm_texto" class="mb-2"></div>
+                    <button type="button" class="btn btn-sm btn-dark" onclick="ecConfirmar()">Confirmar</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('#ec_confirm').hide()">Cancelar</button>
+                </div>
+                <p class="small text-muted" id="ec_sin_permiso" style="display:none;">No tiene permiso para bloquear o activar convenios o sus marcas.</p>
+
+                <div id="ec_marcas_wrap" style="display:none;">
+                    <hr>
+                    <h6 class="text-uppercase text-muted small mb-2">Marcas del convenio (aplica a todas las personas)</h6>
+                    <table class="table table-sm table-striped mb-2">
+                        <thead><tr>
+                            <th style="width:30px;"><input type="checkbox" id="ec_chk_todas" onchange="$('.ec_chk').prop('checked', this.checked)"></th>
+                            <th>Marca</th><th class="text-right">Tope</th><th class="text-right">Personas</th><th>Estado</th>
+                        </tr></thead>
+                        <tbody id="ec_marcas_body"></tbody>
+                    </table>
+                    <div id="ec_marcas_acciones" class="text-right">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="ecMarcasEstado('bloqueado')"><i class="icon dripicons-lock"></i> Bloquear seleccionadas</button>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ecMarcasEstado('activo')"><i class="icon dripicons-lock-open"></i> Activar seleccionadas</button>
+                    </div>
+                </div>
+
+                <hr>
+                <h6 class="text-uppercase text-muted small mb-2">Historial reciente</h6>
+                <div id="ec_historial"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -913,7 +978,8 @@ function cargarClientes() {
 
             html += '<tr>'
                 + '<td>' + (i+1) + '</td>'
-                + '<td><strong>' + d.cli_descripcion + '</strong></td>'
+                + '<td><strong>' + d.cli_descripcion + '</strong>'
+                  + (d.cli_estado === 'bloqueado' ? ' <span class="badge badge-danger">Bloqueado</span>' : '') + '</td>'
                 + '<td>' + tipoCli + '</td>'
                 + '<td>' + (d.cli_ciudad||'—') + '</td>'
                 + '<td>' + (d.cli_contacto||'—') + '</td>'
@@ -1000,6 +1066,7 @@ function verDetalle(id) {
 
         // Header
         $('#detalle_nombre').text(d.cli_descripcion);
+        $('#badge_convenio_bloqueado').toggle(d.cli_estado === 'bloqueado');
         var subtitulo = [];
         if (d.cli_ciudad)           subtitulo.push(d.cli_ciudad);
         if (d.cli_numero_convenio)  subtitulo.push('Conv. ' + d.cli_numero_convenio);
@@ -1656,10 +1723,44 @@ function _tarjetaEnmascarada(t) {
     return new Array(t.length - 3).join('X') + _escHtml(t.slice(-4));
 }
 
+var _cmPerId = null;
+
+function _cmAlerta(tipo, texto) {
+    $('#cm_alerta').html('<div class="alert alert-' + tipo + ' py-2 mb-2">' + _escHtml(texto) + '</div>');
+}
+
+function _cmRenderMarcas(marcas) {
+    if (!marcas.length) {
+        $('#cupo_marca_body').html('<p class="text-muted text-center mb-0">Esta persona no tiene cupo asignado en ninguna marca.</p>');
+        $('#cupo_marca_footer').hide();
+        return;
+    }
+    var html = '<table class="table table-sm table-striped mb-0"><thead><tr>'
+        + '<th style="width:30px;"><input type="checkbox" id="cm_chk_todas" onchange="$(\'.cm_chk\').prop(\'checked\', this.checked)" title="Seleccionar todas"></th>'
+        + '<th>Marca</th><th>Tarjeta</th><th>Estado</th><th class="text-right">Cupo</th><th class="text-right">Saldo</th>'
+        + '</tr></thead><tbody>';
+    marcas.forEach(function(m) {
+        var bloqueada = m.estado === 'bloqueado';
+        html += '<tr>'
+            + '<td><input type="checkbox" class="cm_chk" value="' + m.mar_id + '"></td>'
+            + '<td>' + _escHtml(m.mar_descripcion) + '</td>'
+            + '<td><code>' + _tarjetaEnmascarada(m.tarjeta) + '</code></td>'
+            + '<td><strong class="' + (bloqueada ? 'text-danger' : 'text-primary') + '">' + (bloqueada ? 'BLOQUEADA' : 'ACTIVA') + '</strong></td>'
+            + '<td class="text-right">' + parseFloat(m.asignado).toFixed(2) + '</td>'
+            + '<td class="text-right">' + parseFloat(m.disponible).toFixed(2) + '</td>'
+            + '</tr>';
+    });
+    $('#cupo_marca_body').html(html + '</tbody></table>');
+    $('#cupo_marca_footer').show();
+}
+
 function verCupoMarca(per_id) {
     var p = _personalData[per_id];
+    _cmPerId = per_id;
     $('#cm_nombre_empleado').text(p ? p.per_nombre : '');
     $('#cm_documento_empleado').text(p && p.per_documento ? '(' + p.per_documento + ')' : '');
+    $('#cm_alerta').html('');
+    $('#cupo_marca_footer').hide();
     $('#cupo_marca_body').html('<div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span></div>');
     $('#modalCupoMarca').modal('show');
 
@@ -1668,25 +1769,116 @@ function verCupoMarca(per_id) {
             $('#cupo_marca_body').html('<p class="text-danger text-center mb-0">' + _escHtml(res.mensaje || 'No se pudo cargar el cupo por marca.') + '</p>');
             return;
         }
-        if (!res.marcas.length) {
-            $('#cupo_marca_body').html('<p class="text-muted text-center mb-0">Esta persona no tiene cupo asignado en ninguna marca.</p>');
-            return;
-        }
-        var html = '<table class="table table-sm table-striped mb-0"><thead><tr>'
-            + '<th>Marca</th><th>Tarjeta</th><th>Estado</th><th class="text-right">Cupo</th><th class="text-right">Saldo</th>'
-            + '</tr></thead><tbody>';
-        res.marcas.forEach(function(m) {
-            var bloqueada = m.estado === 'bloqueado';
+        _cmRenderMarcas(res.marcas);
+    });
+}
+
+// Bloquear / activar las marcas marcadas de ESTA persona (no cambia el estado de la persona)
+function cupoMarcaCambiarEstado(estado) {
+    var ids = $('.cm_chk:checked').map(function() { return this.value; }).get();
+    if (!ids.length) { _cmAlerta('warning', 'Marque al menos una marca.'); return; }
+    $.post('ajax/clientes/clientes.php?action=personal_marcas_estado',
+        { cli_id: _cliId, per_id: _cmPerId, estado: estado, mar_ids: ids.join(',') }, function(res) {
+        if (!res.success) { _cmAlerta('danger', res.mensaje || 'No se pudo actualizar.'); return; }
+        _cmRenderMarcas(res.marcas);
+        _cmAlerta('success', res.mensaje);
+    }, 'json').fail(function() { _cmAlerta('danger', 'Error de conexión.'); });
+}
+
+// ══════════════════════════════════════════════
+// ESTADO DEL CONVENIO Y SUS MARCAS (nivel convenio y convenio+marca)
+// ══════════════════════════════════════════════
+var _ecInfo = null;
+
+function _ecAlerta(tipo, texto) {
+    $('#ec_alerta').html('<div class="alert alert-' + tipo + ' py-2">' + _escHtml(texto) + '</div>');
+}
+
+function abrirEstadoConvenio() {
+    $('#ec_nombre').text(_cliData ? _cliData.cli_descripcion : '');
+    $('#ec_alerta').html('');
+    $('#ec_confirm').hide();
+    $('#modalEstadoConvenio').modal('show');
+    cargarEstadoConvenio();
+}
+
+function cargarEstadoConvenio() {
+    $.getJSON('ajax/clientes/clientes.php?action=convenio_estado_info&cli_id=' + _cliId, function(r) {
+        if (!r.success) { _ecAlerta('danger', r.mensaje || 'No se pudo cargar el estado.'); return; }
+        _ecInfo = r;
+        var bloq = r.estado === 'bloqueado';
+        $('#ec_estado_badge').attr('class', 'badge mr-3 badge-' + (bloq ? 'danger' : 'success')).text(bloq ? 'BLOQUEADO' : 'ACTIVO');
+        $('#ec_personas').text(r.personas_activas + ' persona(s) activa(s), ' + r.personas_bloqueadas + ' bloqueada(s)');
+        $('#badge_convenio_bloqueado').toggle(bloq);
+        if (_cliData) _cliData.cli_estado = r.estado;
+
+        $('#ec_btn_estado').attr('class', 'btn btn-sm ' + (bloq ? 'btn-primary' : 'btn-danger'))
+            .html(bloq ? '<i class="icon dripicons-lock-open"></i> Activar convenio' : '<i class="icon dripicons-lock"></i> Bloquear convenio')
+            .toggle(!!r.puede_bloquear);
+        $('#ec_sin_permiso').toggle(!r.puede_bloquear);
+
+        // Marcas del convenio (solo si el convenio maneja cupo por marca)
+        $('#ec_marcas_wrap').toggle(r.modo === 'marca' && r.marcas.length > 0);
+        $('#ec_marcas_acciones').toggle(!!r.puede_bloquear);
+        var html = '';
+        r.marcas.forEach(function(m) {
+            var b = m.estado === 'bloqueado';
             html += '<tr>'
+                + '<td><input type="checkbox" class="ec_chk" value="' + m.mar_id + '"></td>'
                 + '<td>' + _escHtml(m.mar_descripcion) + '</td>'
-                + '<td><code>' + _tarjetaEnmascarada(m.tarjeta) + '</code></td>'
-                + '<td><strong class="' + (bloqueada ? 'text-danger' : 'text-primary') + '">' + (bloqueada ? 'BLOQUEADA' : 'ACTIVA') + '</strong></td>'
-                + '<td class="text-right">' + parseFloat(m.asignado).toFixed(2) + '</td>'
-                + '<td class="text-right">' + parseFloat(m.disponible).toFixed(2) + '</td>'
+                + '<td class="text-right">' + parseFloat(m.tope).toFixed(2) + '</td>'
+                + '<td class="text-right">' + m.personas + '</td>'
+                + '<td><strong class="' + (b ? 'text-danger' : 'text-primary') + '">' + (b ? 'BLOQUEADA' : 'ACTIVA') + '</strong></td>'
                 + '</tr>';
         });
-        $('#cupo_marca_body').html(html + '</tbody></table>');
+        $('#ec_marcas_body').html(html);
+        $('#ec_chk_todas').prop('checked', false);
+
+        // Historial
+        if (!r.historial.length) {
+            $('#ec_historial').html('<p class="text-muted small mb-0">Sin cambios registrados.</p>');
+        } else {
+            var h = '<div class="list-group list-group-flush">';
+            r.historial.forEach(function(x) {
+                h += '<div class="list-group-item px-0 py-1 small"><strong>' + _escHtml(x.tra_campo_label) + '</strong>'
+                    + (x.tra_valor_nuevo && x.tra_valor_nuevo !== 'activo' && x.tra_valor_nuevo !== 'bloqueado' ? ': ' + _escHtml(x.tra_valor_nuevo) : '')
+                    + ' <span class="text-muted">· ' + _escHtml(x.usuario) + ' · ' + _escHtml(x.fecha) + '</span></div>';
+            });
+            $('#ec_historial').html(h + '</div>');
+        }
     });
+}
+
+function ecPedirConfirmacion() {
+    if (!_ecInfo) return;
+    var bloquear = _ecInfo.estado !== 'bloqueado';
+    var n = _ecInfo.personas_activas;
+    $('#ec_confirm_texto').html(bloquear
+        ? 'Se rechazarán <strong>todas las compras</strong> de este convenio en todos los locales (' + n + ' persona(s) activa(s) hoy), hasta que lo actives de nuevo. No cambia el estado de ninguna persona.'
+        : 'El convenio volverá a poder comprar. Podrán hacerlo las ' + n + ' persona(s) que estén activas (y en marcas no bloqueadas).');
+    $('#ec_confirm').show();
+}
+
+function ecConfirmar() {
+    if (!_ecInfo) return;
+    var nuevo = _ecInfo.estado === 'bloqueado' ? 'activo' : 'bloqueado';
+    $.post('ajax/clientes/clientes.php?action=convenio_cambiar_estado', { cli_id: _cliId, estado: nuevo }, function(res) {
+        $('#ec_confirm').hide();
+        if (!res.success) { _ecAlerta('danger', res.mensaje || 'No se pudo actualizar.'); return; }
+        _ecAlerta('success', res.mensaje);
+        cargarEstadoConvenio();
+    }, 'json').fail(function() { _ecAlerta('danger', 'Error de conexión.'); });
+}
+
+function ecMarcasEstado(estado) {
+    var ids = $('.ec_chk:checked').map(function() { return this.value; }).get();
+    if (!ids.length) { _ecAlerta('warning', 'Marque al menos una marca.'); return; }
+    $.post('ajax/clientes/clientes.php?action=convenio_marcas_estado',
+        { cli_id: _cliId, estado: estado, mar_ids: ids.join(',') }, function(res) {
+        if (!res.success) { _ecAlerta('danger', res.mensaje || 'No se pudo actualizar.'); return; }
+        _ecAlerta('success', res.mensaje);
+        cargarEstadoConvenio();
+    }, 'json').fail(function() { _ecAlerta('danger', 'Error de conexión.'); });
 }
 
 // ══════════════════════════════════════════════

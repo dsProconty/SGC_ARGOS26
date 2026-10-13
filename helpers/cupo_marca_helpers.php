@@ -92,7 +92,20 @@ if (!function_exists('cupoGuardarMaximosPorMarca')) {
     // Reemplaza los topes por marca de un convenio. $montosPorMarca es
     // array mar_id => monto (montos <= 0 se omiten, igual que una fila vacía).
     function cupoGuardarMaximosPorMarca($mysqli, $cli_id, $montosPorMarca) {
+        cupoAsegurarColumnasEstado($mysqli);
         $cli_id = (int)$cli_id;
+
+        // Editar los topes borra y reinserta las filas: hay que conservar qué marcas estaban
+        // bloqueadas para el convenio, o editar un monto las reactivaría sin que nadie lo note.
+        $estados = array();
+        $prev = $mysqli->prepare("SELECT mar_id, ccm_estado FROM cliente_cupo_marca WHERE cli_id = ?");
+        $prev->bind_param('i', $cli_id);
+        $prev->execute();
+        $resPrev = $prev->get_result();
+        while ($r = $resPrev->fetch_assoc()) {
+            $estados[(int)$r['mar_id']] = $r['ccm_estado'];
+        }
+
         $del = $mysqli->prepare("DELETE FROM cliente_cupo_marca WHERE cli_id = ?");
         $del->bind_param('i', $cli_id);
         $del->execute();
@@ -103,8 +116,9 @@ if (!function_exists('cupoGuardarMaximosPorMarca')) {
             if ($monto <= 0) {
                 continue;
             }
-            $ins = $mysqli->prepare("INSERT INTO cliente_cupo_marca (cli_id, mar_id, ccm_monto_max) VALUES (?, ?, ?)");
-            $ins->bind_param('iid', $cli_id, $mar_id, $monto);
+            $estado = (isset($estados[$mar_id]) && $estados[$mar_id] === 'bloqueado') ? 'bloqueado' : 'activo';
+            $ins = $mysqli->prepare("INSERT INTO cliente_cupo_marca (cli_id, mar_id, ccm_monto_max, ccm_estado) VALUES (?, ?, ?, ?)");
+            $ins->bind_param('iids', $cli_id, $mar_id, $monto, $estado);
             $ins->execute();
         }
     }
@@ -129,15 +143,125 @@ if (!function_exists('cupoAsegurarColumnasEstado')) {
     // pcm_estado / pcm_tarjeta (migrations/bloque23): estado y tarjeta de la persona
     // en cada marca, como en el sistema viejo. Se crean solas la primera vez que
     // se necesitan, para que un deploy no dependa de haber corrido el .sql antes.
+    // También los bloqueos de convenio (cliente.cli_estado) y de una marca del convenio
+    // (cliente_cupo_marca.ccm_estado) + su historial (cliente_trazabilidad), migrations/bloque24.
     function cupoAsegurarColumnasEstado($mysqli) {
         static $hecho = false;
         if ($hecho) {
             return;
         }
         $hecho = true;
+
+        // Una sola consulta cuando todo ya existe (el caso normal).
+        $res = $mysqli->query(
+            "SELECT
+               (SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND ((TABLE_NAME = 'personal_cupo_marca' AND COLUMN_NAME IN ('pcm_estado', 'pcm_tarjeta'))
+                     OR (TABLE_NAME = 'cliente_cupo_marca' AND COLUMN_NAME = 'ccm_estado')
+                     OR (TABLE_NAME = 'cliente' AND COLUMN_NAME = 'cli_estado'))) AS cols,
+               (SELECT COUNT(*) FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cliente_trazabilidad') AS tabla"
+        );
+        $row = $res ? $res->fetch_assoc() : null;
+        if ($row && (int)$row['cols'] === 4 && (int)$row['tabla'] === 1) {
+            return;
+        }
+
         require_once __DIR__ . '/db_helpers.php';
         agregarColumnaSiNoExiste($mysqli, 'personal_cupo_marca', 'pcm_estado', "VARCHAR(10) NOT NULL DEFAULT 'activo'");
         agregarColumnaSiNoExiste($mysqli, 'personal_cupo_marca', 'pcm_tarjeta', 'VARCHAR(20) NULL');
+        agregarColumnaSiNoExiste($mysqli, 'cliente_cupo_marca', 'ccm_estado', "VARCHAR(10) NOT NULL DEFAULT 'activo'");
+        agregarColumnaSiNoExiste($mysqli, 'cliente', 'cli_estado', "VARCHAR(10) NOT NULL DEFAULT 'activo'");
+        $mysqli->query(
+            "CREATE TABLE IF NOT EXISTS cliente_trazabilidad (
+               tra_id INT NOT NULL AUTO_INCREMENT,
+               cli_id INT NOT NULL,
+               id_user INT NOT NULL,
+               tra_campo VARCHAR(50) NOT NULL,
+               tra_campo_label VARCHAR(100) NOT NULL,
+               tra_valor_anterior VARCHAR(255) NULL,
+               tra_valor_nuevo VARCHAR(255) NULL,
+               tra_fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+               PRIMARY KEY (tra_id),
+               KEY idx_ctra_cli (cli_id, tra_fecha)
+             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+    }
+}
+
+if (!function_exists('cupoConvenioEstado')) {
+    // 'activo' | 'bloqueado' — bloqueo de TODO el convenio (cliente.cli_estado).
+    function cupoConvenioEstado($mysqli, $cli_id) {
+        cupoAsegurarColumnasEstado($mysqli);
+        $cli_id = (int)$cli_id;
+        $stmt = $mysqli->prepare("SELECT cli_estado FROM cliente WHERE cli_id = ?");
+        $stmt->bind_param('i', $cli_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        return ($row && $row['cli_estado'] === 'bloqueado') ? 'bloqueado' : 'activo';
+    }
+}
+
+if (!function_exists('cupoConvenioMarcaEstado')) {
+    // 'activo' | 'bloqueado' — una marca bloqueada para TODO el convenio (cliente_cupo_marca.ccm_estado).
+    // Sin fila => 'activo' (la falta de tope ya la rechaza cupoValidarPorMarca, no es asunto de este estado).
+    function cupoConvenioMarcaEstado($mysqli, $cli_id, $mar_id) {
+        cupoAsegurarColumnasEstado($mysqli);
+        $cli_id = (int)$cli_id;
+        $mar_id = (int)$mar_id;
+        $stmt = $mysqli->prepare("SELECT ccm_estado FROM cliente_cupo_marca WHERE cli_id = ? AND mar_id = ?");
+        $stmt->bind_param('ii', $cli_id, $mar_id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        return ($row && $row['ccm_estado'] === 'bloqueado') ? 'bloqueado' : 'activo';
+    }
+}
+
+if (!function_exists('cupoMarcasDelConvenio')) {
+    // Marcas con tope del convenio (modo 'marca'): mar_id, nombre, tope, estado y cuántas personas
+    // (no archivadas) tienen cupo/tarjeta en esa marca.
+    function cupoMarcasDelConvenio($mysqli, $cli_id) {
+        cupoAsegurarColumnasEstado($mysqli);
+        $cli_id = (int)$cli_id;
+        $out = array();
+        $stmt = $mysqli->prepare(
+            "SELECT m.mar_id, m.mar_descripcion, c.ccm_monto_max, c.ccm_estado,
+                    (SELECT COUNT(*) FROM personal_cupo_marca x JOIN personal p ON p.per_id = x.per_id
+                      WHERE p.cli_id = c.cli_id AND x.mar_id = c.mar_id AND p.per_estado != 'archivado') AS personas
+             FROM cliente_cupo_marca c JOIN marca m ON m.mar_id = c.mar_id
+             WHERE c.cli_id = ? ORDER BY m.mar_descripcion ASC"
+        );
+        $stmt->bind_param('i', $cli_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $out[] = array(
+                'mar_id'          => (int)$row['mar_id'],
+                'mar_descripcion' => $row['mar_descripcion'],
+                'tope'            => (float)$row['ccm_monto_max'],
+                'estado'          => ($row['ccm_estado'] === 'bloqueado') ? 'bloqueado' : 'activo',
+                'personas'        => (int)$row['personas'],
+            );
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('cupoRegistrarTrazaConvenio')) {
+    // Deja constancia de un bloqueo/activación de convenio o de una de sus marcas.
+    function cupoRegistrarTrazaConvenio($mysqli, $cli_id, $id_user, $campo, $label, $anterior, $nuevo) {
+        cupoAsegurarColumnasEstado($mysqli);
+        $cli_id  = (int)$cli_id;
+        $id_user = (int)$id_user;
+        $anterior = substr((string)$anterior, 0, 255);
+        $nuevo    = substr((string)$nuevo, 0, 255);
+        $stmt = $mysqli->prepare(
+            "INSERT INTO cliente_trazabilidad (cli_id, id_user, tra_campo, tra_campo_label, tra_valor_anterior, tra_valor_nuevo)
+             VALUES (?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->bind_param('iissss', $cli_id, $id_user, $campo, $label, $anterior, $nuevo);
+        $stmt->execute();
     }
 }
 

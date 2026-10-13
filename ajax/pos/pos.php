@@ -102,6 +102,11 @@ switch ($action) {
 
             if ($result && mysqli_num_rows($result) > 0) {
                 $data = mysqli_fetch_assoc($result);
+                // Bloqueo de TODO el convenio (cliente.cli_estado)
+                if (cupoConvenioEstado($mysqli, $data['cli_id']) === 'bloqueado') {
+                    echo json_encode(['success' => false, 'mensaje' => 'El convenio «' . trim($data['cli_descripcion']) . '» se encuentra bloqueado.']);
+                    break;
+                }
                 if ($data['per_estado'] === 'suspendido') {
                     echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de este empleado se encuentra suspendida. Por favor contactar con ' . $data['cli_descripcion'] . '.']);
                     exit;
@@ -124,9 +129,14 @@ switch ($action) {
                         $data['per_cupo_disponible'] = 0;
                         $data['marca_no_resuelta']   = true;
                     } else {
+                        // Marca bloqueada para TODO el convenio (cliente_cupo_marca.ccm_estado)
+                        if (cupoConvenioMarcaEstado($mysqli, $data['cli_id'], $mar_id_actual) === 'bloqueado') {
+                            echo json_encode(['success' => false, 'mensaje' => 'Esta marca se encuentra bloqueada para el convenio «' . trim($data['cli_descripcion']) . '».']);
+                            break;
+                        }
                         $cupoMarca = cupoEmpleadoEnMarca($mysqli, $data['per_id'], $mar_id_actual);
                         if ($cupoMarca['estado'] === 'bloqueado') {
-                            echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de esta persona se encuentra bloqueada en esta marca. Por favor contactar con ' . trim($data['cli_descripcion']) . '.']);
+                            echo json_encode(['success' => false, 'mensaje' => 'La tarjeta de esta persona se encuentra bloqueada en esta marca. Por favor contactar con «' . trim($data['cli_descripcion']) . '».']);
                             break;
                         }
                         $data['per_cupo_asignado']   = $cupoMarca['asignado'];
@@ -437,6 +447,10 @@ switch ($action) {
             echo json_encode(['success' => false, 'mensaje' => 'Empleado no activo']);
             break;
         }
+        if (cupoConvenioEstado($mysqli, $emp['cli_id']) === 'bloqueado') {
+            echo json_encode(['success' => false, 'mensaje' => 'El convenio se encuentra bloqueado']);
+            break;
+        }
 
         $modoCupoEmp = cupoObtenerModo($mysqli, $emp['cli_id']);
         $mar_id_venta = null;
@@ -444,6 +458,10 @@ switch ($action) {
             $mar_id_venta = $loc_id ? cupoMarcaDeLocal($mysqli, $loc_id) : null;
             if ($mar_id_venta === null) {
                 echo json_encode(['success' => false, 'mensaje' => 'No se pudo determinar la marca del local para validar el cupo. Contacte a soporte.']);
+                break;
+            }
+            if (cupoConvenioMarcaEstado($mysqli, $emp['cli_id'], $mar_id_venta) === 'bloqueado') {
+                echo json_encode(['success' => false, 'mensaje' => 'Esta marca se encuentra bloqueada para el convenio']);
                 break;
             }
             $cupoMarcaEmp = cupoEmpleadoEnMarca($mysqli, $per_id, $mar_id_venta);
