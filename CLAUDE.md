@@ -96,6 +96,17 @@ contra la base real de HostPapa, no para pushear).
   bloqueada — la tabla vieja no tiene ningún campo de responsable/usuario.
   `activo`=4.840 ($148.968,13), `vencido`=13.269 ($122.440,38),
   `consumido`=12.512 ($0).
+  **CORRECCIÓN (14-oct-2026): lo anterior de "no hay lote/cliente" era falso.** El viejo sí guarda
+  el lote real: `gvony_ads_giftcard.consumercard_id` → `gvony_ads_consumercard` (fecha, factura,
+  cantidad, valor) → `gvony_ads_consumercard_beneficiary` (cliente: nombre y RUC). 16.725 de los 30.621
+  códigos migrados tienen lote (389 lotes, 47 clientes; ej. SODETUR, JULIECOM, Diners Club); los otros
+  13.896 (4.722 de ellos activos, venta al público de Pizza Hut/Fridays) nunca tuvieron lote ni cliente.
+  `_dump_viejo/14_reorganizar_lotes_giftcard.sql` crea los 389 lotes reales con su cliente (por RUC si
+  coincide con UN solo cliente, si no por nombre, si no lo crea tipo Gift Card), mueve ahí sus códigos y
+  deja los lotes sintéticos a nombre de los clientes comodín "VENTA AL PÚBLICO — PIZZA HUT / — FRIDAYS"
+  (para poder buscarlos en la pantalla de lotes). Solo INSERT/UPDATE, repetible, no toca saldos ni estados.
+  Ensayado en `sgc_ens_gc` (copia local): 389 lotes, 16.725 + 13.896 códigos, 4.840 activos / $148.968,13
+  iguales que antes. Nota: el nombre de los beneficiarios viejos está en latin1 (generar con `set_charset('utf8mb4')`).
 - Scripts en `_dump_viejo/`: `04_correccion_archivados_faltantes.sql`,
   `05_migrar_giftcards.sql`, `06_migrar_consumos.sql` (todos ya corridos).
 - Cierres de cuenta históricos (`gvony_ads_company_account_close`) → NO
