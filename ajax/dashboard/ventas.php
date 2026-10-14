@@ -1,6 +1,8 @@
 <?php
 date_default_timezone_set('America/Guayaquil');
 require_once "../../config/database.php";
+require_once "../../helpers/session_helpers.php";
+exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
 
 $action = $_GET['action'];
 
@@ -26,7 +28,7 @@ switch ($action) {
         $fechaFinSemana = date("Y-m-d", $tiempoDeFinDeSemana);
 
         $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
         and c.con_fecha >= '$fechaInicioSemana' and c.con_fecha <= '$fechaFinSemana'";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -43,7 +45,7 @@ switch ($action) {
             : "m.mar_descripcion = '$marca'";
 
         $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
         and extract(month from c.con_fecha) = extract(month from (select now())) and extract(year from c.con_fecha) = extract(year from (select now()))";
 
         $res = mysqli_query($mysqli, $queryConsumos);
@@ -60,7 +62,7 @@ switch ($action) {
             : "m.mar_descripcion = '$marca'";
 
         $queryConsumos = "SELECT sum(c.con_valor_total) as total_consumo from consumo c, local l, marca m
-            where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
+            where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and $condMarca
             and extract(year from c.con_fecha) = extract(year from (select now()))";
 
         $res = mysqli_query($mysqli, $queryConsumos);

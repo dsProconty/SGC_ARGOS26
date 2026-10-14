@@ -17,6 +17,19 @@ if (empty($_SESSION['id_user'])) {
 
 $action = $_GET['action'] ?? '';
 
+// Solo el módulo Clientes administra clientes (crear, editar, eliminar, personal, bloqueos...). Antes bastaba con tener
+// sesión: un cajero o una empresa cliente podía crear clientes y ver todo el personal. La lista y la ficha (list/get)
+// también las usa Gift Card para elegir el cliente del lote, pero no se le abren al cliente externo.
+$esClienteExterno = tienePerfil($mysqli, 'empresa_cliente') || tienePerfil($mysqli, 'empresa cliente')
+                 || tienePerfil($mysqli, 'cliente_giftcard') || tienePerfil($mysqli, 'cliente giftcard');
+$accesoClientes = tieneModulo($mysqli, 'clientes')
+    || (in_array($action, array('list', 'get')) && tieneModulo($mysqli, 'giftcard') && !$esClienteExterno);
+if (!$accesoClientes) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']);
+    exit;
+}
+
 // cli_estado / ccm_estado / pcm_estado / cliente_trazabilidad (migrations/bloque23 y bloque24):
 // se crean solos si faltan, para que el deploy no dependa de haber corrido el .sql antes.
 cupoAsegurarColumnasEstado($mysqli);

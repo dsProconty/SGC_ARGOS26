@@ -40,7 +40,18 @@ if (isset($_POST['Guardar'])) {
         $sql  = mysqli_query($mysqli, "SELECT password FROM usuario WHERE id_user = $id_user");
         $data = mysqli_fetch_assoc($sql);
 
-        if ($old_pass !== $data['password']) {
+        // Las cuentas migradas del sistema viejo guardan un hash bcrypt (igual que en login-check.php):
+        // se valida con password_verify(); las nuevas siguen comparando MD5.
+        $hashGuardado = $data['password'];
+        if (strpos($hashGuardado, '$2y$') === 0 || strpos($hashGuardado, '$2a$') === 0 || strpos($hashGuardado, '$2b$') === 0) {
+            // mismo tratamiento que aplica login-check.php a lo que escribe la persona
+            $oldPlano = stripslashes(strip_tags(htmlspecialchars(trim($_POST['old_pass'] ?? ''))));
+            $oldValida = password_verify($oldPlano, $hashGuardado);
+        } else {
+            $oldValida = ($old_pass === $hashGuardado);
+        }
+
+        if (!$oldValida) {
             header("Location: ../../main.php?module=contrasena&alert=1");
             exit;
         }

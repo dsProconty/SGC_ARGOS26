@@ -2,8 +2,12 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once "../../config/database.php";
 require_once "../../helpers/db_helpers.php";
+require_once "../../helpers/session_helpers.php";
 
 $action = $_GET['action'] ?? '';
+// Solo quien administra usuarios (o Perfiles, que lista las cuentas de cada perfil). Antes no pedía ni sesión:
+// cualquiera podía listar las cuentas o reasignarle el local a otra persona (cerrándole la sesión).
+exigirAccesoAjax($mysqli, $action === 'list_by_perfil' ? array('usuarios', 'perfiles') : 'usuarios');
 
 switch ($action) {
     case 'list':

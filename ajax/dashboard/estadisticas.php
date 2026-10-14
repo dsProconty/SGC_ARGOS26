@@ -1,6 +1,8 @@
 <?php
 date_default_timezone_set('America/Guayaquil');
 require_once "../../config/database.php";
+require_once "../../helpers/session_helpers.php";
+exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
 
 $action = $_GET['action'];
 
@@ -69,7 +71,7 @@ switch ($action) {
         $marca = $_GET['marca'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes3Semana1Ini' and c.con_fecha < '$Mes3Semana2Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -79,7 +81,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes3Semana2Ini' and c.con_fecha < '$Mes3Semana3Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -89,7 +91,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes3Semana3Ini' and c.con_fecha < '$Mes3Semana4Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -99,7 +101,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes3Semana4Ini' and c.con_fecha < '$Mes2Semana1Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -113,7 +115,7 @@ switch ($action) {
         //Mes 2
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes2Semana1Ini' and c.con_fecha < '$Mes2Semana2Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -123,7 +125,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes2Semana2Ini' and c.con_fecha < '$Mes2Semana3Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -133,7 +135,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes2Semana3Ini' and c.con_fecha < '$Mes2Semana4Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -143,7 +145,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes2Semana4Ini' and c.con_fecha < '$Mes1Semana1Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -155,7 +157,7 @@ switch ($action) {
         //Mes 1
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes1Semana1Ini' and c.con_fecha < '$Mes1Semana2Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -165,7 +167,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes1Semana2Ini' and c.con_fecha < '$Mes1Semana3Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -175,7 +177,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes1Semana3Ini' and c.con_fecha < '$Mes1Semana4Ini'";
 
         $res = mysqli_query($mysqli,$query);
@@ -185,7 +187,7 @@ switch ($action) {
         $semanas[] = $row['consumo'];
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
-        where from.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
+        where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 
         and c.con_fecha >= '$Mes1Semana4Ini' and c.con_fecha <= '$finMes'";
 
         $res = mysqli_query($mysqli,$query);

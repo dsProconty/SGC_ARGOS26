@@ -5,10 +5,8 @@ require_once('../../services/estado_cuenta_service.php');
 
 header('Content-Type: application/json');
 
-if (empty($_SESSION['id_user'])) {
-    echo json_encode(['success' => false, 'mensaje' => 'Sesión no válida']);
-    exit;
-}
+require_once('../../helpers/session_helpers.php');
+exigirAccesoAjax($mysqli, array('estado_cuenta', 'clientes')); // la ficha del cliente también ve/envía sus estados de cuenta
 
 $action  = $_GET['action'] ?? $_POST['action'] ?? '';
 $id_user = (int)$_SESSION['id_user'];

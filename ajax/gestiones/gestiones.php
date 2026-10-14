@@ -4,6 +4,7 @@ require_once "../../helpers/session_helpers.php";
 require_once "../../helpers/db_helpers.php";
 session_start();
 date_default_timezone_set('America/Guayaquil');
+exigirAccesoAjax($mysqli, 'gestiones'); // antes no pedía sesión: cobranza, consumos y pagos quedaban abiertos
 $action = $_GET['action'];
 
 switch ($action) {
@@ -481,7 +482,13 @@ switch ($action) {
         $observacion_gestion = mysqli_real_escape_string($mysqli, $_POST['observacion_gestion'] ?? '');
         $us_id = (int)$_SESSION['id_user'];
         if ($respuesta == 'pago') {
-            $monto = (float)($_POST['monto'] ?? 0);
+            $monto = round((float)($_POST['monto'] ?? 0), 2);
+            // El navegador ya lo valida, pero el servidor no puede confiar en eso: un pago en cero o negativo
+            // dejaba la cartera "pendiente de confirmación" y le restaba (o sumaba) deuda sin sentido.
+            if ($monto <= 0) {
+                echo 'El monto del pago debe ser mayor a cero';
+                break;
+            }
             $observacion = mysqli_real_escape_string($mysqli, $_POST['observacion'] ?? '');
             $estado = 'pendiente_confirmacion';
         } else if ($respuesta == 'compromiso') {

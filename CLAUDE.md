@@ -481,6 +481,34 @@ cuadro cuadra con el Total venta (antes las diferidas entraban al total pero no 
 diferidas se registran a mano en su módulo; el POS no las crea. Pendiente/no hecho: incluirlas en los reportes de
 liquidación por marca (`pages/reportes/excel.php`), que hoy solo suman consumos.
 
+**Pasada de pruebas completa (14 de octubre de 2026) — hallazgos y reglas nuevas.** Se probó en local cada módulo
+con usuarios de prueba por rol (curl + navegador). Lo que salió y quedó corregido:
+- **Seguridad: los endpoints ajax se abrían sin sesión o sin chequear el módulo.** `ajax/users`, `ajax/dashboard/*`,
+  `ajax/gestiones` y `pages/reportes/excel.php` respondían a cualquiera sin iniciar sesión (lista de usuarios, reasignar
+  local —cerraba la sesión de la persona—, cobranza, 29 reportes); `ajax/clientes`, `combos`, `estado_cuenta` y
+  `venta_diferida` solo pedían tener sesión (un cajero o una empresa cliente podía crear clientes). Ahora **todo endpoint
+  ajax nuevo debe empezar con `exigirAccesoAjax($mysqli, 'modulo')`** (`helpers/session_helpers.php`; acepta un módulo o
+  una lista, Super Admin siempre pasa; `tieneModulo()` aplica la misma regla de `content.php`). `ajax/clientes` abre
+  `list`/`get` también a quien tenga Gift Card (selector de cliente del lote), excepto al cliente externo.
+- **Alta/edición de usuarios (`pages/user/proses.php`) no validaba nada**: un cajero podía crear un Super Admin, se
+  permitían usuarios repetidos y nombres que luego no podían entrar. Ahora exige el módulo `usuarios`, solo un Super
+  Admin crea/edita cuentas Super Admin, y el usuario es único y de letras/números/`_`/`.`/`-`.
+- **Login**: `ctype_alnum` dejaba fuera a **20 cuentas migradas activas** con ñ, espacio o `_` en el usuario (ej.
+  `Mcedeño`, `j___sod`). Ahora acepta letras Unicode, números y `_ . -`, y compara con `TRIM(username)`.
+- **Cambiar contraseña** comparaba solo contra MD5: las cuentas migradas (bcrypt) nunca podían cambiar su clave.
+- **Dashboard**: el filtro de anulados dejó `from.con_estado` en 15 consultas de `ajax/dashboard/ventas.php` y
+  `estadisticas.php` (error fatal, los gráficos por marca no cargaban en producción desde la 7.37).
+- Gestiones aceptaba pagos en cero o negativos (solo lo validaba el navegador); Configuración aceptaba cualquier valor
+  (IVA "abc" o 150) y dejaba pisar las marcas internas; Perfiles permitía dos perfiles con el mismo nombre; en Clientes,
+  la persona "suspendida" desde el Portal Empresa no aparecía en ninguna pestaña.
+- `.htaccess` ahora bloquea por web `*.sql`, `*.log`, `error_log`, `*.md`, `database/`, `migrations/`, `docs/`, `tools/`,
+  `vendor/`, `cron/`. **`database/setup.sql` (seed con `admin`/`supervisor`/`operador1` = md5 de `admin123`) era
+  descargable**: confirmar que esas cuentas en producción tengan otra clave o estén bloqueadas.
+- **Pendiente de decisión del cliente (no se tocó):** una venta mixta a un empleado (parte con cupo, parte con gift card
+  o pago externo) se cobra al convenio por `con_valor_total` (todo), no solo por `con_monto_convenio`, en cartera, estado
+  de cuenta, dashboard y reportes; la pestaña Consumos de Clientes sí suma `con_monto_convenio`. La comisión por marca
+  (`marca.mar_comision`) no se puede editar desde ninguna pantalla. Rechazar una solicitud de gift card no exige motivo.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

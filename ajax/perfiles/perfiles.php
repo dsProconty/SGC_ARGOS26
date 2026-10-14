@@ -91,6 +91,13 @@ switch ($action) {
 
         if (!$nombre) { echo json_encode(['success' => false, 'mensaje' => 'El nombre es requerido']); break; }
 
+        // Dos perfiles con el mismo nombre se confunden entre sí (el rol de la sesión se deriva del nombre).
+        $dupP = $mysqli->prepare("SELECT per_id FROM perfil WHERE LOWER(TRIM(per_nombre)) = LOWER(?) AND per_id <> ? LIMIT 1");
+        $idChk = 0;
+        $dupP->bind_param('si', $nombre, $idChk);
+        $dupP->execute();
+        if ($dupP->get_result()->fetch_assoc()) { echo json_encode(['success' => false, 'mensaje' => 'Ya existe un perfil con ese nombre']); break; }
+
         $stmt = $mysqli->prepare("INSERT INTO perfil (per_nombre, per_descripcion) VALUES (?, ?)");
         $stmt->bind_param('ss', $nombre, $descripcion);
         if (!$stmt->execute()) { echo json_encode(['success' => false, 'mensaje' => 'Error al crear perfil']); break; }
@@ -128,6 +135,13 @@ switch ($action) {
         $permisos    = $_POST['permisos'] ?? [];
 
         if (!$nombre || !$per_id) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
+
+        // Dos perfiles con el mismo nombre se confunden entre sí (el rol de la sesión se deriva del nombre).
+        $dupP = $mysqli->prepare("SELECT per_id FROM perfil WHERE LOWER(TRIM(per_nombre)) = LOWER(?) AND per_id <> ? LIMIT 1");
+        $idChk = $per_id;
+        $dupP->bind_param('si', $nombre, $idChk);
+        $dupP->execute();
+        if ($dupP->get_result()->fetch_assoc()) { echo json_encode(['success' => false, 'mensaje' => 'Ya existe un perfil con ese nombre']); break; }
 
         $stmt = $mysqli->prepare("UPDATE perfil SET per_nombre=?, per_descripcion=? WHERE per_id=?");
         $stmt->bind_param('ssi', $nombre, $descripcion, $per_id);

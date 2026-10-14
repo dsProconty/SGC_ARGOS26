@@ -5,10 +5,8 @@ session_start();
 require_once "../../config/database.php";
 header('Content-Type: application/json');
 
-if (empty($_SESSION['id_user'])) {
-    echo json_encode(['success' => false, 'mensaje' => 'Sesión no válida']);
-    exit;
-}
+require_once "../../helpers/session_helpers.php";
+exigirAccesoAjax($mysqli, 'dashboard');
 
 // Acepta rol legacy (permisos_acceso) O el perfil nuevo asignado (per_id -> perfil.per_nombre)
 $rolesPermitidos = ['super admin', 'financiero', 'operador'];

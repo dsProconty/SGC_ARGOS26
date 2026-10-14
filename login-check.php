@@ -6,7 +6,10 @@ require_once "config/database.php";
 $username     = mysqli_real_escape_string($mysqli, stripslashes(strip_tags(htmlspecialchars(trim($_POST['username'])))));
 $passwordPlano = stripslashes(strip_tags(htmlspecialchars(trim($_POST['password']))));
 
-if (!ctype_alnum($username)) {
+// Se aceptan letras (con ñ y tildes), números, guion, guion bajo y punto. Antes solo ctype_alnum(): 20 cuentas
+// migradas del sistema viejo (ej. "Mcedeño", "j___sod") quedaron imposibilitadas de entrar. El valor ya viaja
+// escapado con mysqli_real_escape_string, así que esto no abre la puerta a inyección.
+if ($username === '' || !preg_match('/^[\p{L}\p{N}_.\-]+$/u', $username)) {
 	header("Location: index.php?alert=1");
 
 	}
@@ -16,7 +19,7 @@ else {
 	// original ($2y$/$2a$/$2b$...) para que la persona pueda seguir
 	// entrando con la misma contraseña de siempre — se valida con
 	// password_verify() en vez de comparar MD5 en la consulta.
-	$query = mysqli_query($mysqli, "SELECT * FROM usuario WHERE username='$username' AND status='activo'")
+	$query = mysqli_query($mysqli, "SELECT * FROM usuario WHERE TRIM(username)='$username' AND status='activo'")
 									or die('error'.mysqli_error($mysqli));
 	$rows  = mysqli_num_rows($query);
 	$data  = $rows > 0 ? mysqli_fetch_assoc($query) : null;

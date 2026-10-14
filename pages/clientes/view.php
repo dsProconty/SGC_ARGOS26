@@ -1195,9 +1195,13 @@ function filtrarPersonalPorEstado(el, estado) {
 
 // Filtra _personalLista (ya en memoria, sin volver a pedirle nada al server)
 // por el tab activo y redibuja la tabla + los contadores de cada tab.
+// "Suspendido" (lo que fija el Portal Empresa) e "inactivo" (datos viejos) se tratan como Bloqueado:
+// sin esto esas personas no aparecían en ninguna pestaña y no se podían volver a activar desde aquí.
+function esEstadoBloqueado(e) { return e === 'bloqueado' || e === 'suspendido' || e === 'inactivo'; }
+
 function renderTablaPersonal() {
     var activos    = _personalLista.filter(function (p) { return p.per_estado === 'activo'; });
-    var bloqueados = _personalLista.filter(function (p) { return p.per_estado === 'bloqueado'; });
+    var bloqueados = _personalLista.filter(function (p) { return esEstadoBloqueado(p.per_estado); });
     var archivados = _personalLista.filter(function (p) { return p.per_estado === 'archivado'; });
     $('#badge_personal_activo').text(activos.length);
     $('#badge_personal_bloqueado').text(bloqueados.length);
@@ -1212,8 +1216,8 @@ function renderTablaPersonal() {
     var porMarca = (_personalModoCupo === 'marca');
     $.each(visibles, function(i, p) {
         _personalData[p.per_id] = p;
-        var estadoBadge = {activo:'success', bloqueado:'danger', archivado:'secondary', inactivo:'secondary'}[p.per_estado] || 'secondary';
-        var esBloqueado  = p.per_estado === 'bloqueado';
+        var estadoBadge = {activo:'success', bloqueado:'danger', suspendido:'danger', archivado:'secondary', inactivo:'danger'}[p.per_estado] || 'secondary';
+        var esBloqueado  = esEstadoBloqueado(p.per_estado);
         var esArchivado  = p.per_estado === 'archivado';
         var filaClass = esBloqueado ? ' class="table-danger"' : (esArchivado ? ' class="table-secondary"' : '');
         html += '<tr' + filaClass + '>'
@@ -1683,7 +1687,7 @@ function reactivarEmpleado(per_id) {
 function bloquearEmpleado(per_id) {
     var p = _personalData[per_id];
     if (!p) return;
-    var esBloqueado = p.per_estado === 'bloqueado';
+    var esBloqueado = esEstadoBloqueado(p.per_estado);
     var nuevoEstado = esBloqueado ? 'activo' : 'bloqueado';
     var accion = esBloqueado ? 'activar' : 'bloquear';
 

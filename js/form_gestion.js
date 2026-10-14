@@ -174,6 +174,8 @@ $('#form_gestion').submit(function (e) {
                                 success: function (response) {
                                     if (response == 'exito') {
                                         window.location.href = '?module=gestiones&cartera=30';
+                                    } else {
+                                        alert(String(response).replace(/<[^>]*>/g, ' ').substring(0, 200));
                                     }
                                 }
                             });

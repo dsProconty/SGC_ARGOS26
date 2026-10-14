@@ -7,10 +7,7 @@ mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 header('Content-Type: application/json');
 
-if (empty($_SESSION['id_user'])) {
-    echo json_encode(['success' => false, 'mensaje' => 'Sesión no válida']);
-    exit;
-}
+exigirAccesoAjax($mysqli, 'combos');
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 

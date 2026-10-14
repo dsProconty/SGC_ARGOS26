@@ -4,10 +4,8 @@ require_once('../../config/database.php');
 
 header('Content-Type: application/json');
 
-if (empty($_SESSION['id_user'])) {
-    echo json_encode(['success' => false, 'mensaje' => 'Sesión no válida']);
-    exit;
-}
+require_once('../../helpers/session_helpers.php');
+exigirAccesoAjax($mysqli, 'venta_diferida');
 
 require_once('../../helpers/venta_diferida_helpers.php');
 vdAsegurarMarca($mysqli); // venta_diferida.mar_id (bloque25): se crea sola si falta

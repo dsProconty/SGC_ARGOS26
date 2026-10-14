@@ -16,3 +16,21 @@
     RewriteRule ^\.env$ - [F,L]
     RewriteRule (^|/)\.git(/|$) - [F,L]
 </IfModule>
+
+# Archivos y carpetas que nunca deben poder bajarse por web: respaldos y scripts SQL (traen datos y hashes de
+# contraseñas de ejemplo), logs de errores (rutas y usuario de base), herramientas, migraciones y dependencias.
+<IfModule mod_authz_core.c>
+    <FilesMatch "(\.sql|\.log|\.md|\.example|\.lock|\.yml)$|^error_log$|^composer\.json$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "(\.sql|\.log|\.md|\.example|\.lock|\.yml)$|^error_log$|^composer\.json$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(database|migrations|docker|docs|tools|_dump_viejo|vendor|cron)(/|$) - [F,L]
+</IfModule>

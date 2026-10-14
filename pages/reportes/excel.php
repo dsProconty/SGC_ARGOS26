@@ -1,5 +1,9 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 require_once __DIR__ . "/../../config/database.php";
+require_once __DIR__ . "/../../helpers/session_helpers.php";
+// Antes cualquiera con la URL descargaba los 29 reportes (cobranza, consumos, datos de personas) sin iniciar sesión.
+exigirAccesoAjax($mysqli, 'reportes');
 require_once __DIR__ . "/../../services/giftcard_solicitud.php";
 
 // H-001/PV-B: los reportes de Gift Card (giftpoint, reporte gifcards, registro

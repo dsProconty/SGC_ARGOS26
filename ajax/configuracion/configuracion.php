@@ -33,8 +33,28 @@ switch ($action) {
             break;
         }
 
+        // El servidor valida el valor según el parámetro: antes aceptaba cualquier cosa (IVA "abc", -5 o 150 rompían
+        // todos los vouchers y reportes) y hasta se podían pisar a mano las marcas internas del sistema.
+        $soloLectura = array('cartera_ultima_corrida', 'ec_auto_ultima_corrida', 'api_id_user');
+        if (in_array($clave, $soloLectura, true)) {
+            echo json_encode(['success' => false, 'mensaje' => 'Este parámetro lo maneja el sistema y no se puede editar']);
+            break;
+        }
+        if ($clave === 'iva_porcentaje') {
+            if (!is_numeric($valor) || (float)$valor < 0 || (float)$valor > 100) {
+                echo json_encode(['success' => false, 'mensaje' => 'El IVA debe ser un número entre 0 y 100']);
+                break;
+            }
+        }
+        if ($clave === 'modo_preproduccion' && !in_array($valor, array('0', '1'), true)) {
+            echo json_encode(['success' => false, 'mensaje' => 'El modo preproducción solo admite 0 o 1']);
+            break;
+        }
+
         $q = "UPDATE configuracion SET cfg_valor = '$valor' WHERE cfg_clave = '$clave'";
-        if (mysqli_query($mysqli, $q) && mysqli_affected_rows($mysqli) > 0) {
+        // affected_rows vale 0 cuando el valor no cambia: guardar el mismo valor no es un error, el parámetro existe
+        $existe = mysqli_query($mysqli, "SELECT 1 FROM configuracion WHERE cfg_clave = '$clave' LIMIT 1");
+        if ($existe && mysqli_num_rows($existe) > 0 && mysqli_query($mysqli, $q)) {
             echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'mensaje' => 'No se encontró el parámetro']);
