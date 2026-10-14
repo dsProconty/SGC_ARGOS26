@@ -9,6 +9,9 @@ if (empty($_SESSION['id_user'])) {
     exit;
 }
 
+require_once('../../helpers/venta_diferida_helpers.php');
+vdAsegurarMarca($mysqli); // venta_diferida.mar_id (bloque25): se crea sola si falta
+
 $action  = $_GET['action'] ?? $_POST['action'] ?? '';
 $id_user = (int)$_SESSION['id_user'];
 
@@ -20,11 +23,13 @@ switch ($action) {
                          vd.vd_cuotas_pagadas, vd.vd_monto_cuota, vd.vd_fecha_inicio, vd.vd_estado,
                          p.per_nombre, p.per_documento,
                          c.cli_descripcion,
-                         u.name_user AS registrado_por
+                         u.name_user AS registrado_por,
+                         mar.mar_descripcion AS marca
                   FROM venta_diferida vd
                   JOIN personal p  ON vd.per_id  = p.per_id
                   JOIN cliente  c  ON p.cli_id   = c.cli_id
                   JOIN usuario  u  ON vd.id_user = u.id_user
+                  LEFT JOIN marca mar ON mar.mar_id = " . vdMarcaSql('vd') . "
                   ORDER BY vd.vd_id DESC";
         $result = mysqli_query($mysqli, $query);
         $badges = ['activo' => 'success', 'completado' => 'primary', 'cancelado' => 'danger'];
@@ -35,6 +40,7 @@ switch ($action) {
                     <th>No.</th>
                     <th>Empleado</th>
                     <th>Empresa</th>
+                    <th>Marca</th>
                     <th>Descripción</th>
                     <th>Monto Total</th>
                     <th>Cuota</th>
@@ -55,6 +61,7 @@ switch ($action) {
                     <td><?php echo $no; ?></td>
                     <td><?php echo htmlspecialchars($row['per_nombre']); ?><br><small><?php echo $row['per_documento']; ?></small></td>
                     <td><?php echo htmlspecialchars($row['cli_descripcion']); ?></td>
+                    <td><?php echo htmlspecialchars($row['marca'] ? $row['marca'] : '—'); ?></td>
                     <td><?php echo htmlspecialchars($row['vd_descripcion']); ?></td>
                     <td>$<?php echo number_format($row['vd_monto_total'], 2); ?></td>
                     <td>$<?php echo number_format($row['vd_monto_cuota'], 2); ?></td>
@@ -117,6 +124,16 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $data]);
         break;
 
+    // Marcas para el selector del formulario + cuál es la que sale por defecto (ARGOS HOME)
+    case 'marcas':
+        $marcas = [];
+        $rm = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca WHERE TRIM(mar_descripcion) <> '' ORDER BY mar_descripcion ASC");
+        while ($m = mysqli_fetch_assoc($rm)) {
+            $marcas[] = ['mar_id' => (int)$m['mar_id'], 'mar_descripcion' => $m['mar_descripcion']];
+        }
+        echo json_encode(['success' => true, 'marcas' => $marcas, 'por_defecto' => vdMarcaPorDefecto($mysqli)]);
+        break;
+
     case 'crear':
         $per_id       = (int)($_POST['per_id']       ?? 0);
         $descripcion  = mysqli_real_escape_string($mysqli, trim($_POST['descripcion']  ?? ''));
@@ -131,10 +148,26 @@ switch ($action) {
 
         $monto_cuota = round($monto_total / $num_cuotas, 2);
 
+        // Toda venta diferida va atada a una marca. Si no llega ninguna se usa ARGOS HOME; si llega, debe existir.
+        $mar_id = (int)($_POST['mar_id'] ?? 0);
+        if ($mar_id > 0) {
+            $rmc = mysqli_query($mysqli, "SELECT mar_id FROM marca WHERE mar_id = $mar_id LIMIT 1");
+            if (!$rmc || mysqli_num_rows($rmc) === 0) {
+                echo json_encode(['success' => false, 'mensaje' => 'La marca seleccionada no existe']);
+                break;
+            }
+        } else {
+            $mar_id = vdMarcaPorDefecto($mysqli);
+            if (!$mar_id) {
+                echo json_encode(['success' => false, 'mensaje' => 'Seleccione la marca de la venta diferida']);
+                break;
+            }
+        }
+
         $sql = "INSERT INTO venta_diferida
-                    (per_id, id_user, vd_descripcion, vd_monto_total, vd_num_cuotas, vd_cuotas_pagadas, vd_monto_cuota, vd_fecha_inicio, vd_estado)
+                    (per_id, id_user, vd_descripcion, vd_monto_total, vd_num_cuotas, vd_cuotas_pagadas, vd_monto_cuota, vd_fecha_inicio, vd_estado, mar_id)
                 VALUES
-                    ($per_id, $id_user, '$descripcion', $monto_total, $num_cuotas, 0, $monto_cuota, '$fecha_inicio', 'activo')";
+                    ($per_id, $id_user, '$descripcion', $monto_total, $num_cuotas, 0, $monto_cuota, '$fecha_inicio', 'activo', $mar_id)";
 
         if (!mysqli_query($mysqli, $sql)) {
             echo json_encode(['success' => false, 'mensaje' => 'Error al guardar: ' . mysqli_error($mysqli)]);

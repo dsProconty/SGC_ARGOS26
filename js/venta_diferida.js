@@ -36,7 +36,24 @@ $(document).ready(function () {
     });
 });
 
+var _vdMarcaDefecto = null; // mar_id de ARGOS HOME (marca por defecto)
+
+// Carga el selector de marcas con ARGOS HOME preseleccionada
+function cargarMarcasVD() {
+    $.getJSON('ajax/venta_diferida/venta_diferida.php?action=marcas', function (r) {
+        if (!r.success) return;
+        _vdMarcaDefecto = r.por_defecto;
+        var html = '';
+        r.marcas.forEach(function (m) {
+            html += '<option value="' + m.mar_id + '">' + $('<div>').text(m.mar_descripcion).html() + '</option>';
+        });
+        $('#vd_marca').html(html);
+        if (_vdMarcaDefecto) $('#vd_marca').val(String(_vdMarcaDefecto));
+    });
+}
+
 function abrirModalNueva() {
+    cargarMarcasVD();
     $('#modal_nueva_vd').modal('show');
 }
 
@@ -109,7 +126,8 @@ function guardarVD() {
             descripcion:  descripcion,
             monto_total:  monto_total,
             num_cuotas:   num_cuotas,
-            fecha_inicio: fecha_inicio
+            fecha_inicio: fecha_inicio,
+            mar_id:       $('#vd_marca').val() || ''
         },
         dataType: 'json',
         success: function (resp) {

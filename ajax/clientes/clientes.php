@@ -6,6 +6,7 @@ require_once "../../helpers/cupo_marca_helpers.php";
 require_once "../../services/giftcard_solicitud.php";
 require_once "../../helpers/session_helpers.php";
 require_once "../../helpers/db_helpers.php";
+require_once "../../helpers/venta_diferida_helpers.php";
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -19,6 +20,7 @@ $action = $_GET['action'] ?? '';
 // cli_estado / ccm_estado / pcm_estado / cliente_trazabilidad (migrations/bloque23 y bloque24):
 // se crean solos si faltan, para que el deploy no dependa de haber corrido el .sql antes.
 cupoAsegurarColumnasEstado($mysqli);
+vdAsegurarMarca($mysqli); // venta_diferida.mar_id (bloque25)
 
 switch ($action) {
 
@@ -998,9 +1000,10 @@ switch ($action) {
         $stmt = $mysqli->prepare(
             "SELECT vd.vd_id, vd.vd_descripcion, vd.vd_monto_total, vd.vd_num_cuotas,
                     vd.vd_cuotas_pagadas, vd.vd_monto_cuota, vd.vd_fecha_inicio, vd.vd_estado,
-                    p.per_nombre, p.per_documento
+                    p.per_nombre, p.per_documento, mar.mar_descripcion AS marca
              FROM venta_diferida vd
              JOIN personal p ON vd.per_id = p.per_id
+             LEFT JOIN marca mar ON mar.mar_id = " . vdMarcaSql('vd') . "
              WHERE p.cli_id = ?
              ORDER BY vd.vd_id DESC"
         );

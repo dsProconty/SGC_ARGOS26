@@ -295,7 +295,7 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                     <div id="tabla_vd_cliente_wrapper" style="display:none;">
                         <table id="table_vd_cliente" class="table table-striped table-bordered" style="width:100%">
                             <thead><tr>
-                                <th>Empleado</th><th>Descripción</th><th>Monto Total</th>
+                                <th>Empleado</th><th>Marca</th><th>Descripción</th><th>Monto Total</th>
                                 <th>Cuota</th><th>Avance</th><th>Inicio</th><th>Estado</th>
                             </tr></thead>
                             <tbody id="tbody_vd_cliente"></tbody>
@@ -1318,6 +1318,7 @@ function cargarTabVD() {
                 var pct     = total > 0 ? Math.round(pagadas / total * 100) : 0;
                 html += '<tr>'
                     + '<td>' + v.per_nombre + '<br><small class="text-muted">' + (v.per_documento||'') + '</small></td>'
+                    + '<td>' + esc(v.marca || '—') + '</td>'
                     + '<td>' + v.vd_descripcion + '</td>'
                     + '<td class="text-right">$ ' + parseFloat(v.vd_monto_total||0).toFixed(2) + '</td>'
                     + '<td class="text-right">$ ' + parseFloat(v.vd_monto_cuota||0).toFixed(2) + '</td>'

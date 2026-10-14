@@ -73,6 +73,11 @@
                         <label>Descripción del producto / servicio</label>
                         <textarea class="form-control" id="vd_descripcion" rows="2" placeholder="Ej: Laptop Dell Inspiron 15"></textarea>
                     </div>
+                    <div class="form-group">
+                        <label>Marca</label>
+                        <select class="form-control" id="vd_marca"></select>
+                        <small class="text-muted">Por defecto ARGOS HOME. Elige otra solo si la venta pertenece a otra franquicia: es la columna del Estado de Cuenta donde saldrán las cuotas.</small>
+                    </div>
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-group">

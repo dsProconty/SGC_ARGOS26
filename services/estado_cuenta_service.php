@@ -6,6 +6,7 @@
 // Sin type hints nullable ni short-list syntax: PHP < 7.1 en producción.
 
 require_once __DIR__ . '/../helpers/mail_helpers.php';
+require_once __DIR__ . '/../helpers/venta_diferida_helpers.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
 if (!function_exists('ec_generar_estado_cuenta')) {
@@ -71,6 +72,8 @@ if (!function_exists('ec_obtener_detalle')) {
             return null;
         }
 
+        vdAsegurarMarca($mysqli); // venta_diferida.mar_id (bloque25)
+
         $ec     = mysqli_fetch_assoc($r_ec);
         $cli_id = (int)$ec['cli_id'];
         $p_ini  = $ec['ec_periodo_inicio'];
@@ -104,8 +107,8 @@ if (!function_exists('ec_obtener_detalle')) {
                      p.per_nombre,
                      p.per_documento,
                      p.per_numero_tarjeta,
-                     NULL                          AS loc_direccion,
-                     NULL                          AS mar_descripcion,
+                     'Venta diferida'              AS loc_direccion,
+                     mv.mar_descripcion            AS mar_descripcion,
                      ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2) AS con_valor_neto,
                      ROUND(vd.vd_monto_cuota - ROUND(vd.vd_monto_cuota / (1 + COALESCE((SELECT cfg_valor FROM configuracion WHERE cfg_clave='iva_porcentaje' LIMIT 1), 0) / 100), 2), 2) AS con_iva,
                      vd.vd_monto_cuota             AS con_valor_total,
@@ -116,6 +119,7 @@ if (!function_exists('ec_obtener_detalle')) {
                  FROM venta_diferida vd
                  JOIN personal p ON vd.per_id = p.per_id
                  JOIN seq s ON s.n <= vd.vd_num_cuotas
+                 LEFT JOIN marca mv ON mv.mar_id = " . vdMarcaSql('vd') . "
                  WHERE p.cli_id = $cli_id
                    AND vd.vd_estado != 'cancelado'
                    AND DATE_ADD(vd.vd_fecha_inicio, INTERVAL (s.n - 1) MONTH) BETWEEN '$p_ini' AND '$p_fin'
@@ -141,9 +145,36 @@ if (!function_exists('ec_obtener_detalle')) {
                      ORDER BY mar_descripcion ASC";
         $r_marcas = mysqli_query($mysqli, $q_marcas);
         $marcas   = array();
+        $marcasIds = array();
         while ($m = mysqli_fetch_assoc($r_marcas)) {
             $marcas[] = $m;
+            $marcasIds[(int)$m['mar_id']] = true;
         }
+
+        // Cuotas de ventas diferidas: cada una pertenece a una marca y sale en SU columna del cuadro
+        $q_vd_marcas = "WITH RECURSIVE seq (n) AS (
+                            SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60
+                        )
+                        SELECT DISTINCT mv.mar_id, mv.mar_descripcion
+                        FROM venta_diferida vd
+                        JOIN personal per ON vd.per_id = per.per_id
+                        JOIN seq s ON s.n <= vd.vd_num_cuotas
+                        JOIN marca mv ON mv.mar_id = " . vdMarcaSql('vd') . "
+                        WHERE per.cli_id = $cli_id
+                          AND vd.vd_estado != 'cancelado'
+                          AND DATE_ADD(vd.vd_fecha_inicio, INTERVAL (s.n - 1) MONTH) BETWEEN '$p_ini' AND '$p_fin'";
+        $r_vd_marcas = mysqli_query($mysqli, $q_vd_marcas);
+        if ($r_vd_marcas) {
+            while ($m = mysqli_fetch_assoc($r_vd_marcas)) {
+                if (!isset($marcasIds[(int)$m['mar_id']])) {
+                    $marcas[] = $m;
+                    $marcasIds[(int)$m['mar_id']] = true;
+                }
+            }
+        }
+        usort($marcas, function ($a, $b) {
+            return strcasecmp($a['mar_descripcion'], $b['mar_descripcion']);
+        });
 
         $q_pivot = "SELECT per.per_id, per.per_nombre, per.per_documento,
                            COALESCE(m.mar_id, 0) AS mar_id, SUM(con.con_valor_total) AS total_marca
@@ -157,8 +188,39 @@ if (!function_exists('ec_obtener_detalle')) {
                     ORDER BY per.per_nombre ASC";
         $r_pivot    = mysqli_query($mysqli, $q_pivot);
         $pivot_rows = array();
+        $pivot_idx  = array();
         while ($row = mysqli_fetch_assoc($r_pivot)) {
+            $pivot_idx[$row['per_id'] . '|' . $row['mar_id']] = count($pivot_rows);
             $pivot_rows[] = $row;
+        }
+
+        // Cuotas de ventas diferidas del período, por persona y marca (así el cuadro cuadra con el total del estado)
+        $q_vd_pivot = "WITH RECURSIVE seq (n) AS (
+                            SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 60
+                        )
+                        SELECT per.per_id, per.per_nombre, per.per_documento, mv.mar_id, SUM(vd.vd_monto_cuota) AS total_marca
+                        FROM venta_diferida vd
+                        JOIN personal per ON vd.per_id = per.per_id
+                        JOIN seq s ON s.n <= vd.vd_num_cuotas
+                        JOIN marca mv ON mv.mar_id = " . vdMarcaSql('vd') . "
+                        WHERE per.cli_id = $cli_id
+                          AND vd.vd_estado != 'cancelado'
+                          AND DATE_ADD(vd.vd_fecha_inicio, INTERVAL (s.n - 1) MONTH) BETWEEN '$p_ini' AND '$p_fin'
+                        GROUP BY per.per_id, per.per_nombre, per.per_documento, mv.mar_id";
+        $r_vd_pivot = mysqli_query($mysqli, $q_vd_pivot);
+        if ($r_vd_pivot) {
+            while ($row = mysqli_fetch_assoc($r_vd_pivot)) {
+                $k = $row['per_id'] . '|' . $row['mar_id'];
+                if (isset($pivot_idx[$k])) {
+                    $pivot_rows[$pivot_idx[$k]]['total_marca'] = (float)$pivot_rows[$pivot_idx[$k]]['total_marca'] + (float)$row['total_marca'];
+                } else {
+                    $pivot_idx[$k] = count($pivot_rows);
+                    $pivot_rows[]  = $row;
+                }
+            }
+            usort($pivot_rows, function ($a, $b) {
+                return strcasecmp($a['per_nombre'], $b['per_nombre']);
+            });
         }
 
         $q_saldo = "SELECT per.per_id, SUM(con.con_valor_total) AS saldo_acumulado

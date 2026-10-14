@@ -459,6 +459,17 @@ misma rutina y un candado `GET_LOCK('sgc_cartera_actualizar')` para que cron y b
 La cartera guarda `configuracion.cartera_ultima_corrida` (fecha/hora y origen `cron`|`manual`) y Gestiones la muestra
 bajo el título: así se comprueba que el cron de cPanel (`cron/actualizar_cartera.php`) realmente corre.
 
+**Ventas diferidas atadas a una marca (14 de octubre de 2026).** Pedido de Elbany: el estado de cuenta debe
+mostrar el valor diferido dentro de la franquicia donde se compró. `venta_diferida.mar_id` (`migrations/bloque25_venta_diferida_marca.sql`;
+la app crea la columna sola y las ventas que ya existían quedan en ARGOS HOME). **Toda venta diferida lleva marca; por
+defecto ARGOS HOME** (resuelta por nombre, `vdMarcaPorDefecto()` en `helpers/venta_diferida_helpers.php`; los ids no son
+portables) y el formulario de Ventas Diferidas trae un selector para elegir otra. Listados (módulo y pestaña del cliente)
+muestran la columna Marca. En el estado de cuenta (`services/estado_cuenta_service.php`, `ec_obtener_detalle`) cada cuota
+aparece como línea "MARCA — Venta diferida" y se suma en SU columna del cuadro "Resumen por Beneficiario y Marca", así el
+cuadro cuadra con el Total venta (antes las diferidas entraban al total pero no al cuadro y no tenían marca). Las ventas
+diferidas se registran a mano en su módulo; el POS no las crea. Pendiente/no hecho: incluirlas en los reportes de
+liquidación por marca (`pages/reportes/excel.php`), que hoy solo suman consumos.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
