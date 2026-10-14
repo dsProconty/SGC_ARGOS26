@@ -234,6 +234,18 @@ if (!$es_staff_gc && !$es_cliente) {
 </div>
 
 <!-- Modal Crear Lote Directo (GC-B) -->
+<link rel="stylesheet" href="assets/vendor/select2/select2.min.css">
+<style>
+/* Select2 del modal "Crear Lote": mismo alto y borde que los .form-control */
+#modal_crear_lote .input-group > .select2-container { flex: 1 1 auto; min-width: 0; }
+#modal_crear_lote .select2-container .select2-selection--single { height: calc(1.5em + .75rem + 2px); border: 1px solid #ced4da; border-radius: .25rem 0 0 .25rem; }
+#modal_crear_lote .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: calc(1.5em + .75rem); padding-left: .75rem; }
+#modal_crear_lote .select2-container--default .select2-selection--single .select2-selection__arrow { height: calc(1.5em + .75rem); }
+#modal_crear_lote .select2-container--default.select2-container--disabled .select2-selection--single { background: #e9ecef; }
+.select2-container--open { z-index: 2000; }
+.select2-dropdown { z-index: 2000; }
+.select2-search--dropdown .select2-search__field { padding: .35rem .5rem; }
+</style>
 <div class="modal fade" id="modal_crear_lote" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -403,10 +415,10 @@ $(document).ready(function () {
         if (abierto) {
             $('#wrap_lote_nuevo_cliente').slideUp();
             $('#lote_nuevo_cliente').val('');
-            $('#lote_cli_id').prop('disabled', false);
+            $('#lote_cli_id').prop('disabled', false).trigger('change');
         } else {
             $('#wrap_lote_nuevo_cliente').slideDown();
-            $('#lote_cli_id').val('').prop('disabled', true);
+            $('#lote_cli_id').val('').prop('disabled', true).trigger('change');
         }
     });
 
@@ -443,7 +455,7 @@ $(document).ready(function () {
     });
 
     $('#modal_crear_lote').on('hidden.bs.modal', function () {
-        $('#lote_cli_id').val('').prop('disabled', false);
+        $('#lote_cli_id').val('').prop('disabled', false).trigger('change');
         $('#lote_nuevo_cliente').val('');
         $('#wrap_lote_nuevo_cliente').hide();
         $('#lote_cantidad,#lote_cupo_codigo,#lote_periodo_facturacion,#lote_fecha_caducidad').val('');
@@ -519,16 +531,35 @@ function cargarSolicitudesEmpresa() {
     });
 }
 
+// Selector de cliente con buscador (Select2, ya cargado en main.php)
+function iniciarBuscadorCliente() {
+    var $s = $('#lote_cli_id');
+    if (typeof $.fn.select2 !== 'function') return; // sin Select2 queda el desplegable normal
+    if ($s.hasClass('select2-hidden-accessible')) $s.select2('destroy');
+    $s.select2({
+        dropdownParent: $('#modal_crear_lote'),
+        placeholder: '— Seleccionar —',
+        width: '1%',
+        language: {
+            noResults: function () { return 'Sin resultados. Usa "+" para crear un cliente nuevo.'; },
+            searching: function () { return 'Buscando…'; }
+        }
+    });
+}
+
 function abrirModalCrearLote() {
     $('#lote_cli_id').html('<option value="">Cargando...</option>');
     $.getJSON('ajax/clientes/clientes.php?action=list', function (res) {
         var opts = '<option value="">— Seleccionar —</option>';
         if (res.success) {
             res.data.forEach(function (c) {
-                opts += '<option value="' + c.cli_id + '">' + esc(c.cli_descripcion) + '</option>';
+                var nombre = (c.cli_descripcion || '').trim();
+                if (!nombre) return; // clientes sin nombre no se pueden elegir
+                opts += '<option value="' + c.cli_id + '">' + esc(nombre) + '</option>';
             });
         }
         $('#lote_cli_id').html(opts);
+        iniciarBuscadorCliente();
     });
     $('#modal_crear_lote').modal('show');
 }
