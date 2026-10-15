@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../helpers/cobro_helpers.php'; // se cobra solo la parte que salió del cupo (con_monto_convenio)
 // Cartera de Cobranza: una fila por convenio y tipo (30 / 60 / 90 / 91 = +90 días) en la tabla `cartera`,
 // con la suma de los consumos de la ventana de ese tipo (cli_valor_pagar). Las ventanas dependen del día de
 // corte del convenio (cliente.cli_dia_corte): inicio INCLUSIVO, fin EXCLUSIVO.
@@ -22,7 +23,7 @@ if (!function_exists('cartera_suma_consumos')) {
     // Suma de consumos de un convenio. $ini = null => sin límite inferior.
     function cartera_suma_consumos($mysqli, $cli_id, $ini, $fin) {
         $cli_id = (int)$cli_id;
-        $sql = "SELECT SUM(con.con_valor_total) AS monto_total
+        $sql = "SELECT SUM(" . cobroConvenioSql('con') . ") AS monto_total
                 FROM consumo con
                 JOIN personal p ON con.per_id = p.per_id
                 WHERE con.con_estado NOT IN ('anulado','rechazado') AND p.cli_id = $cli_id AND con.con_fecha < '" . mysqli_real_escape_string($mysqli, $fin) . "'";

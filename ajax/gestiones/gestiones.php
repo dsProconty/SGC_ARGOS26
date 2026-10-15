@@ -2,6 +2,7 @@
 require_once "../../config/database.php";
 require_once "../../helpers/session_helpers.php";
 require_once "../../helpers/db_helpers.php";
+require_once "../../helpers/cobro_helpers.php"; // se cobra solo la parte que salió del cupo (con_monto_convenio)
 session_start();
 date_default_timezone_set('America/Guayaquil');
 exigirAccesoAjax($mysqli, 'gestiones'); // antes no pedía sesión: cobranza, consumos y pagos quedaban abiertos
@@ -583,11 +584,11 @@ switch ($action) {
         $queryPagos = "SELECT sum(pag_monto) as monto_pagado from cartera c, gestion g,pago p where c.car_id = g.car_id and g.pag_id = p.pag_id and c.car_id = '$id_cartera' and p.pag_estado != 'rechazado'";
 
         if ($fecha_ini != '') {
-            $queryTotal = "SELECT sum(con.con_valor_total) as 'valor_pagar' 
+            $queryTotal = "SELECT sum(" . cobroConvenioSql('con') . ") as 'valor_pagar' 
             from consumo con, personal p,cliente c where con.con_estado NOT IN ('anulado','rechazado') AND con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
             and con.con_fecha >= '$fecha_ini' and con.con_fecha < '$fecha_fin'";
         } else {
-            $queryTotal = "SELECT sum(con.con_valor_total) as 'valor_pagar' 
+            $queryTotal = "SELECT sum(" . cobroConvenioSql('con') . ") as 'valor_pagar' 
             from consumo con, personal p,cliente c where con.con_estado NOT IN ('anulado','rechazado') AND con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
             and  con.con_fecha < '$fecha_fin'";
         }
@@ -606,12 +607,20 @@ switch ($action) {
         $fecha_fin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
 
         if ($fecha_ini != '') {
-            $query = "SELECT con.*,p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
+            $query = "SELECT con.*,
+                    ROUND(con.con_valor_neto * " . cobroFraccionSql('con') . ", 2) AS con_valor_neto,
+                    ROUND(con.con_iva * " . cobroFraccionSql('con') . ", 2) AS con_iva,
+                    ROUND(" . cobroConvenioSql('con') . ", 2) AS con_valor_total,
+                    p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
             from consumo con, personal p,cliente c,local l,marca m 
             where con.con_estado NOT IN ('anulado','rechazado') AND con.loc_id = l.loc_id and l.mar_id = m.mar_id and 
             con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente' and con.con_fecha >= '$fecha_ini' and con.con_fecha< '$fecha_fin'";
         } else {
-            $query = "SELECT con.*,p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
+            $query = "SELECT con.*,
+                    ROUND(con.con_valor_neto * " . cobroFraccionSql('con') . ", 2) AS con_valor_neto,
+                    ROUND(con.con_iva * " . cobroFraccionSql('con') . ", 2) AS con_iva,
+                    ROUND(" . cobroConvenioSql('con') . ", 2) AS con_valor_total,
+                    p.per_nombre,p.per_documento,l.loc_direccion,m.mar_descripcion 
             from consumo con, personal p,cliente c,local l,marca m 
             where con.con_estado NOT IN ('anulado','rechazado') AND con.loc_id = l.loc_id and l.mar_id = m.mar_id and 
             con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente' and con.con_fecha< '$fecha_fin'";

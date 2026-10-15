@@ -350,7 +350,7 @@ switch ($tipo) {
             </tr>
             <?php
 
-            $query = "SELECT cli.cli_descripcion,max(c.con_fecha)as con_fecha,sum(c.con_valor_total) as con_valor_total,m.mar_descripcion
+            $query = "SELECT cli.cli_descripcion,max(c.con_fecha)as con_fecha,sum(COALESCE(c.con_monto_convenio, c.con_valor_total)) as con_valor_total,m.mar_descripcion
             from consumo c,personal p,cliente cli,local l,marca m 
             where c.con_estado NOT IN ('anulado','rechazado') AND cli.cli_id = p.cli_id and c.per_id = p.per_id
             and c.loc_id = l.loc_id and m.mar_id = l.mar_id
@@ -496,13 +496,13 @@ switch ($tipo) {
             <?php
 
             if($marca == 'TODOS'){
-                $query = "SELECT cli.cli_descripcion, p.per_nombre, c.con_fecha,c.con_hora, c.con_valor_total from consumo c,local l,marca m,personal p,cliente cli
+                $query = "SELECT cli.cli_descripcion, p.per_nombre, c.con_fecha,c.con_hora, COALESCE(c.con_monto_convenio, c.con_valor_total) AS con_valor_total from consumo c,local l,marca m,personal p,cliente cli
                 where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and c.per_id = p.per_id and p.cli_id = cli.cli_id
                 and extract(month from c.con_fecha) = extract(month from (select now())) 
                 and extract(year from c.con_fecha) = extract(year from (select now())) 
                 order by con_fecha,cli_descripcion desc";
             }else{
-                $query = "SELECT cli.cli_descripcion, p.per_nombre, c.con_fecha,c.con_hora, c.con_valor_total from consumo c,local l,marca m,personal p,cliente cli
+                $query = "SELECT cli.cli_descripcion, p.per_nombre, c.con_fecha,c.con_hora, COALESCE(c.con_monto_convenio, c.con_valor_total) AS con_valor_total from consumo c,local l,marca m,personal p,cliente cli
                 where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and c.per_id = p.per_id and p.cli_id = cli.cli_id
                 and m.mar_descripcion = '$marca' and extract(month from c.con_fecha) = extract(month from (select now())) 
                 and extract(year from c.con_fecha) = extract(year from (select now())) order by con_fecha,cli_descripcion desc";
@@ -976,7 +976,7 @@ switch ($tipo) {
             $queryClientes = "SELECT cli_id, cli_descripcion FROM cliente cli WHERE 1=1 $whereCli ORDER BY cli_descripcion ASC";
             $resClientes = mysqli_query($mysqli, $queryClientes);
 
-            $queryValores = "SELECT p.cli_id, MONTH(con.con_fecha) AS mes, SUM(con.con_valor_total) AS valor
+            $queryValores = "SELECT p.cli_id, MONTH(con.con_fecha) AS mes, SUM(COALESCE(con.con_monto_convenio, con.con_valor_total)) AS valor
                              FROM consumo con
                              JOIN personal p ON con.per_id = p.per_id
                              WHERE con.con_estado NOT IN ('anulado','rechazado') AND YEAR(con.con_fecha) = $anio

@@ -504,10 +504,18 @@ con usuarios de prueba por rol (curl + navegador). Lo que salió y quedó correg
 - `.htaccess` ahora bloquea por web `*.sql`, `*.log`, `error_log`, `*.md`, `database/`, `migrations/`, `docs/`, `tools/`,
   `vendor/`, `cron/`. **`database/setup.sql` (seed con `admin`/`supervisor`/`operador1` = md5 de `admin123`) era
   descargable**: confirmar que esas cuentas en producción tengan otra clave o estén bloqueadas.
-- **Pendiente de decisión del cliente (no se tocó):** una venta mixta a un empleado (parte con cupo, parte con gift card
-  o pago externo) se cobra al convenio por `con_valor_total` (todo), no solo por `con_monto_convenio`, en cartera, estado
-  de cuenta, dashboard y reportes; la pestaña Consumos de Clientes sí suma `con_monto_convenio`. La comisión por marca
-  (`marca.mar_comision`) no se puede editar desde ninguna pantalla. Rechazar una solicitud de gift card no exige motivo.
+- **Qué se le cobra a un convenio (decisión del cliente, 15-oct-2026): SOLO lo que salió del cupo de su empleado**
+  (`consumo.con_monto_convenio`), no el total de la venta. Una venta mixta (parte con cupo, parte con gift card o pago
+  externo) ya trae las otras partes pagadas por otro medio. `helpers/cobro_helpers.php` (`cobroConvenioSql()` =
+  `COALESCE(con_monto_convenio, con_valor_total)` y `cobroFraccionSql()`) lo aplica en cartera
+  (`services/cartera_service.php`), estado de cuenta (total, detalle, cuadro por marca y saldo acumulado; el detalle muestra
+  neto, IVA y total repartidos en esa proporción y `con_valor_venta` trae el total vendido) y Gestiones (`total` y
+  `consumos`), y en los reportes por empresa (Cliente + Consumos, Consumos del mes, Consumo Mensual por Empresa). Las
+  ventas migradas traen `con_monto_convenio` = total, y las filas viejas con NULL se toman completas. **Toda suma NUEVA que
+  represente lo que debe una empresa debe usar el helper, no `con_valor_total`.** Siguen sumando el total vendido (volumen
+  por marca/local, no cobranza): dashboard, Ventas por Locales, Total Ventas, Ranking, Liquidación, Comisión Mensual.
+- Pendiente menor: la comisión por marca (`marca.mar_comision`) no se puede editar desde ninguna pantalla. Rechazar una
+  solicitud de gift card no exige motivo.
 
 ## Infraestructura del repo (para no repetir investigación)
 

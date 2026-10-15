@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/../helpers/mail_helpers.php';
 require_once __DIR__ . '/../helpers/venta_diferida_helpers.php';
+require_once __DIR__ . '/../helpers/cobro_helpers.php'; // se cobra solo la parte que salió del cupo (con_monto_convenio)
 require_once __DIR__ . '/../vendor/autoload.php';
 
 if (!function_exists('ec_generar_estado_cuenta')) {
@@ -20,7 +21,7 @@ if (!function_exists('ec_generar_estado_cuenta')) {
         $periodo_inicio = mysqli_real_escape_string($mysqli, $periodo_inicio);
         $periodo_fin    = mysqli_real_escape_string($mysqli, $periodo_fin);
 
-        $q_total = "SELECT COALESCE(SUM(con.con_valor_total), 0) AS total
+        $q_total = "SELECT COALESCE(SUM(" . cobroConvenioSql('con') . "), 0) AS total
                     FROM consumo con
                     JOIN personal p ON con.per_id = p.per_id
                     WHERE con.con_estado NOT IN ('anulado','rechazado') AND p.cli_id = $cli_id
@@ -81,8 +82,11 @@ if (!function_exists('ec_obtener_detalle')) {
 
         // Detalle de consumos regulares
         $q_det = "SELECT con.con_fecha, con.con_hora, p.per_nombre, p.per_documento,
-                         p.per_numero_tarjeta, l.loc_direccion, m.mar_descripcion, con.con_valor_neto, con.con_iva,
-                         con.con_valor_total, con.con_monto_convenio, con.con_monto_externo,
+                         p.per_numero_tarjeta, l.loc_direccion, m.mar_descripcion,
+                         ROUND(con.con_valor_neto * " . cobroFraccionSql('con') . ", 2) AS con_valor_neto,
+                         ROUND(con.con_iva * " . cobroFraccionSql('con') . ", 2) AS con_iva,
+                         ROUND(" . cobroConvenioSql('con') . ", 2) AS con_valor_total,
+                         con.con_valor_total AS con_valor_venta, con.con_monto_convenio, con.con_monto_externo,
                          con.con_descripcion, 'consumo' AS origen
                   FROM consumo con
                   JOIN personal p ON con.per_id = p.per_id
@@ -177,7 +181,7 @@ if (!function_exists('ec_obtener_detalle')) {
         });
 
         $q_pivot = "SELECT per.per_id, per.per_nombre, per.per_documento,
-                           COALESCE(m.mar_id, 0) AS mar_id, SUM(con.con_valor_total) AS total_marca
+                           COALESCE(m.mar_id, 0) AS mar_id, SUM(" . cobroConvenioSql('con') . ") AS total_marca
                     FROM consumo con
                     JOIN personal per ON con.per_id = per.per_id
                     LEFT JOIN local l ON con.loc_id = l.loc_id
@@ -223,7 +227,7 @@ if (!function_exists('ec_obtener_detalle')) {
             });
         }
 
-        $q_saldo = "SELECT per.per_id, SUM(con.con_valor_total) AS saldo_acumulado
+        $q_saldo = "SELECT per.per_id, SUM(" . cobroConvenioSql('con') . ") AS saldo_acumulado
                     FROM consumo con
                     JOIN personal per ON con.per_id = per.per_id
                     WHERE con.con_estado NOT IN ('anulado','rechazado') AND per.cli_id = $cli_id
