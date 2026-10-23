@@ -19,7 +19,7 @@ $(document).ready(function () {
             }
             resp.top_deudores.forEach(function (d) {
                 $tbody.append(
-                    '<tr><td>' + d.cli_descripcion + '</td>' +
+                    '<tr><td>' + esc(d.cli_descripcion) + '</td>' +
                     '<td class="text-right">$' + Number(d.deuda_pendiente).toFixed(2) + '</td></tr>'
                 );
             });

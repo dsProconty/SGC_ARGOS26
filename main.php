@@ -52,6 +52,7 @@ if (isset($_SESSION['id_user'])) {
 	<link rel="stylesheet" href="./assets/css/custom-overrides.css?v=<?php echo @filemtime(__DIR__ . '/assets/css/custom-overrides.css'); ?>">
 
 	<script src="./assets/vendor/jquery/dist/jquery.min.js"></script>
+	<script src="./js/html_escape.js?v=<?php echo @filemtime(__DIR__ . '/js/html_escape.js'); ?>"></script>
 
 </head>
 

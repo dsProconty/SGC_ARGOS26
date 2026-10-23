@@ -77,7 +77,7 @@ function buscarEmpleadoVD() {
                 $('#card_empleado_vd').slideDown();
                 $('#btn_guardar_vd').show();
             } else {
-                $('#alerta_vd').html('<div class="alert alert-danger mb-2">' + resp.mensaje + '</div>');
+                $('#alerta_vd').html('<div class="alert alert-danger mb-2">' + esc(resp.mensaje) + '</div>');
                 $('#card_empleado_vd').hide();
                 $('#btn_guardar_vd').hide();
             }
@@ -135,7 +135,7 @@ function guardarVD() {
                 $('#modal_nueva_vd').modal('hide');
                 cargarVentasDiferidas();
             } else {
-                $('#alerta_vd').html('<div class="alert alert-danger mb-2">' + resp.mensaje + '</div>');
+                $('#alerta_vd').html('<div class="alert alert-danger mb-2">' + esc(resp.mensaje) + '</div>');
             }
         },
         error: function () {
@@ -172,7 +172,7 @@ function confirmarCuota() {
                 $('#modal_pagar_cuota').modal('hide');
                 cargarVentasDiferidas();
             } else {
-                $('#alerta_cuota').html('<div class="alert alert-danger mb-0">' + resp.mensaje + '</div>');
+                $('#alerta_cuota').html('<div class="alert alert-danger mb-0">' + esc(resp.mensaje) + '</div>');
             }
         },
         error: function () {
@@ -209,7 +209,7 @@ function confirmarLiquidar() {
                 $('#modal_liquidar').modal('hide');
                 cargarVentasDiferidas();
             } else {
-                $('#alerta_liquidar').html('<div class="alert alert-danger mb-0">' + resp.mensaje + '</div>');
+                $('#alerta_liquidar').html('<div class="alert alert-danger mb-0">' + esc(resp.mensaje) + '</div>');
             }
         },
         error: function () {

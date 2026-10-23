@@ -7,6 +7,7 @@ require_once "../../config/database.php";
 require_once "../../helpers/db_compat.php";
 require_once "../../helpers/db_helpers.php";
 require_once "../../helpers/session_helpers.php";
+require_once "../../helpers/auth_helpers.php"; // hashClave()
 
 
 if (empty($_SESSION['username']) && empty($_SESSION['password'])){
@@ -66,8 +67,11 @@ else {
 		if (isset($_POST['Guardar'])) {
 	
 			$validarUsuarioNombre(trim(($_POST['username'] ?? '')), 0);
+			if (trim(isset($_POST['password']) ? $_POST['password'] : '') === '') {
+				$volverConError('La contraseña es obligatoria.');
+			}
 			$username    = mysqli_real_escape_string($mysqli, trim(($_POST['username'] ?? '')));
-			$password    = md5(trim(($_POST['password'] ?? ''))); // MD5 de lo escrito, sin escapes (ver helpers/auth_helpers.php)
+			$password    = mysqli_real_escape_string($mysqli, hashClave(isset($_POST['password']) ? $_POST['password'] : '')); // bcrypt (ver helpers/auth_helpers.php)
 			$name_user   = mysqli_real_escape_string($mysqli, trim(($_POST['name_user'] ?? '')));
 			agregarColumnaSiNoExiste($mysqli, 'usuario', 'documento', 'VARCHAR(20) NULL');
 			$documento_t = mysqli_real_escape_string($mysqli, trim($_POST['documento'] ?? ''));
@@ -109,7 +113,7 @@ else {
 					}
 				}
 				$username    = mysqli_real_escape_string($mysqli, trim(($_POST['username'] ?? '')));
-				$password    = md5(trim(($_POST['password'] ?? ''))); // MD5 de lo escrito, sin escapes (ver helpers/auth_helpers.php)
+				$password    = mysqli_real_escape_string($mysqli, hashClave(isset($_POST['password']) ? $_POST['password'] : '')); // bcrypt (ver helpers/auth_helpers.php)
 				$name_user   = mysqli_real_escape_string($mysqli, trim(($_POST['name_user'] ?? '')));
 				$email       = mysqli_real_escape_string($mysqli, trim(($_POST['email'] ?? '')));
 				$telefono    = mysqli_real_escape_string($mysqli, trim(($_POST['telefono'] ?? '')));

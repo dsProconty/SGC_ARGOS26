@@ -985,16 +985,16 @@ function cargarClientes() {
                 ? '<span class="badge badge-' + (cartBadge[d.cli_tipo_cartera]||'secondary') + '">' + d.cli_tipo_cartera + ' días</span>'
                 : '<span class="text-muted">—</span>';
 
-            var tipoCli = '<span class="badge badge-' + (tipoBadge[d.cli_tipo_cliente]||'secondary') + '">' + d.cli_tipo_cliente + '</span>';
+            var tipoCli = '<span class="badge badge-' + (tipoBadge[d.cli_tipo_cliente]||'secondary') + '">' + esc(d.cli_tipo_cliente) + '</span>';
 
             html += '<tr>'
                 + '<td>' + (i+1) + '</td>'
-                + '<td><strong>' + d.cli_descripcion + '</strong>'
+                + '<td><strong>' + esc(d.cli_descripcion) + '</strong>'
                   + (d.cli_estado === 'bloqueado' ? ' <span class="badge badge-danger">Bloqueado</span>' : '') + '</td>'
                 + '<td>' + tipoCli + '</td>'
                 + '<td>' + (d.cli_ciudad||'—') + '</td>'
                 + '<td>' + (d.cli_contacto||'—') + '</td>'
-                + '<td>' + (d.cli_email ? '<a href="mailto:'+d.cli_email+'">'+d.cli_email+'</a>' : '—') + '</td>'
+                + '<td>' + (d.cli_email ? '<a href="mailto:'+esc(d.cli_email)+'">'+esc(d.cli_email)+'</a>' : '—') + '</td>'
                 + '<td>' + tipoBen + '</td>'
                 + '<td>' + tipoCart + '</td>'
                 + '<td class="text-center">'
@@ -1018,7 +1018,7 @@ function cargarClientes() {
         $('#tabla_wrapper').show();
 
         var dt = $('#table_clientes').DataTable({
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+            language: { url: 'assets/vendor/datatables.net/i18n/es-ES.json' },
             columnDefs: [{ orderable: false, targets: [9] }],
             pageLength: 15,
             order: [[1,'asc']]
@@ -1054,7 +1054,7 @@ $('#btn_confirmar_eliminar_cliente').on('click', function () {
             $('#modalConfirmarEliminarCliente').modal('hide');
             cargarClientes();
         } else {
-            $('#dc_alerta').html('<div class="alert alert-danger py-2 mb-0">' + esc(res.mensaje || 'Error al eliminar el cliente') + '</div>');
+            $('#dc_alerta').html('<div class="alert alert-danger py-2 mb-0">' + escesc(res.mensaje || 'Error al eliminar el cliente') + '</div>');
         }
     }, 'json').fail(function () {
         btn.prop('disabled', false).html('<i class="icon dripicons-trash"></i> Eliminar');
@@ -1089,8 +1089,8 @@ function verDetalle(id) {
         $('#inf_ruc').text(d.cli_ruc || '—');
         $('#inf_ciudad').text(d.cli_ciudad || '—');
         $('#inf_contacto').text(d.cli_contacto || '—');
-        $('#inf_email').html(d.cli_email ? '<a href="mailto:'+d.cli_email+'">'+d.cli_email+'</a>' : '—');
-        $('#inf_email2').html(d.cli_email2 ? '<a href="mailto:'+d.cli_email2+'">'+d.cli_email2+'</a>' : '—');
+        $('#inf_email').html(d.cli_email ? '<a href="mailto:'+esc(d.cli_email)+'">'+esc(d.cli_email)+'</a>' : '—');
+        $('#inf_email2').html(d.cli_email2 ? '<a href="mailto:'+esc(d.cli_email2)+'">'+esc(d.cli_email2)+'</a>' : '—');
         $('#inf_telefono').text(d.cli_telefono || '—');
         $('#inf_telefono2').text(d.cli_telefono2 || '—');
         $('#inf_dia_corte').text(d.cli_dia_corte && d.cli_dia_corte != '0' ? 'Día ' + d.cli_dia_corte : '—');
@@ -1223,7 +1223,7 @@ function renderTablaPersonal() {
         var filaClass = esBloqueado ? ' class="table-danger"' : (esArchivado ? ' class="table-secondary"' : '');
         html += '<tr' + filaClass + '>'
             + '<td>' + (i+1) + '</td>'
-            + '<td>' + p.per_nombre + '</td>'
+            + '<td>' + esc(p.per_nombre) + '</td>'
             + '<td>' + (p.per_documento || '—') + '</td>'
             + '<td><code>' + (p.per_numero_tarjeta || '—') + '</code></td>'
             + '<td><span class="badge badge-'+estadoBadge+'">'+p.per_estado+'</span></td>'
@@ -1257,7 +1257,7 @@ function renderTablaPersonal() {
     $('#tbody_personal').html(html);
 
     $('#table_personal').DataTable({
-        language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+        language: { url: 'assets/vendor/datatables.net/i18n/es-ES.json' },
         columnDefs: [{ orderable: false, targets: [7] }],
         pageLength: 10, order: [[1,'asc']]
     });
@@ -1278,10 +1278,10 @@ function cargarTabConsumos() {
             var estColor = {pendiente:'warning', exitoso:'success', rechazado:'danger', anulado:'secondary'}[c.con_estado] || 'secondary';
             html += '<tr>'
                 + '<td>' + c.con_fecha + ' <small class="text-muted">' + (c.con_hora||'') + '</small></td>'
-                + '<td>' + c.per_nombre + '</td>'
+                + '<td>' + esc(c.per_nombre) + '</td>'
                 + '<td><code>' + (c.con_numero_tarjeta || '—') + '</code></td>'
                 + '<td>' + esc(c.marca_nombre) + '</td>'
-                + '<td>' + c.local_nombre + '</td>'
+                + '<td>' + esc(c.local_nombre) + '</td>'
                 + '<td class="text-right font-weight-bold">$ ' + parseFloat(c.con_valor_total||0).toFixed(2) + '</td>'
                 + '<td class="text-right">$ ' + parseFloat(c.con_monto_convenio||0).toFixed(2) + '</td>'
                 + '<td class="text-right">$ ' + parseFloat(c.con_monto_externo||0).toFixed(2) + '</td>'
@@ -1292,7 +1292,7 @@ function cargarTabConsumos() {
 
         if ($.fn.DataTable.isDataTable('#table_consumos')) $('#table_consumos').DataTable().destroy();
         $('#table_consumos').DataTable({
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+            language: { url: 'assets/vendor/datatables.net/i18n/es-ES.json' },
             pageLength: 15, order: [[0,'desc']]
         });
 
@@ -1322,9 +1322,9 @@ function cargarTabVD() {
                 var total   = parseInt(v.vd_num_cuotas) || 0;
                 var pct     = total > 0 ? Math.round(pagadas / total * 100) : 0;
                 html += '<tr>'
-                    + '<td>' + v.per_nombre + '<br><small class="text-muted">' + (v.per_documento||'') + '</small></td>'
+                    + '<td>' + esc(v.per_nombre) + '<br><small class="text-muted">' + esc(v.per_documento) + '</small></td>'
                     + '<td>' + esc(v.marca || '—') + '</td>'
-                    + '<td>' + v.vd_descripcion + '</td>'
+                    + '<td>' + esc(v.vd_descripcion) + '</td>'
                     + '<td class="text-right">$ ' + parseFloat(v.vd_monto_total||0).toFixed(2) + '</td>'
                     + '<td class="text-right">$ ' + parseFloat(v.vd_monto_cuota||0).toFixed(2) + '</td>'
                     + '<td>'
@@ -1340,7 +1340,7 @@ function cargarTabVD() {
 
             if ($.fn.DataTable.isDataTable('#table_vd_cliente')) $('#table_vd_cliente').DataTable().destroy();
             $('#table_vd_cliente').DataTable({
-                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+                language: { url: 'assets/vendor/datatables.net/i18n/es-ES.json' },
                 pageLength: 10, order: [[5,'desc']]
             });
             $('#tabla_vd_cliente_wrapper').show();
@@ -1376,7 +1376,7 @@ function cargarTabEC() {
                 + '<td>' + e.ec_periodo_inicio + ' → ' + e.ec_periodo_fin + '</td>'
                 + '<td class="text-right font-weight-bold">$ ' + parseFloat(e.ec_monto_total||0).toFixed(2) + '</td>'
                 + '<td>' + e.ec_fecha_generacion + '</td>'
-                + '<td><span class="badge badge-'+envBadge+'">'+e.ec_estado_envio+'</span>' + leyendaEnvio + '</td>'
+                + '<td><span class="badge badge-'+envBadge+'">'+esc(e.ec_estado_envio)+'</span>' + leyendaEnvio + '</td>'
                 + '<td>' + pdf + '</td>'
                 + '<td><a class="btn btn-xs btn-success" title="Enviar por correo" onclick="enviarECCliente(' + e.ec_id + ')"><i class="icon dripicons-mail"></i></a></td>'
               + '</tr>';
@@ -1385,7 +1385,7 @@ function cargarTabEC() {
 
         if ($.fn.DataTable.isDataTable('#table_ec')) $('#table_ec').DataTable().destroy();
         $('#table_ec').DataTable({
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+            language: { url: 'assets/vendor/datatables.net/i18n/es-ES.json' },
             pageLength: 10, order: [[0,'desc']]
         });
 
@@ -1443,7 +1443,7 @@ function cargarTabGiftCards() {
 
             if ($.fn.DataTable.isDataTable('#table_gc')) $('#table_gc').DataTable().destroy();
             $('#table_gc').DataTable({
-                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+                language: { url: 'assets/vendor/datatables.net/i18n/es-ES.json' },
                 pageLength: 10, order: [[1,'desc']]
             });
             $('#tabla_gc_wrapper').show();
@@ -1665,7 +1665,7 @@ $('#btn_guardar_empleado').on('click', function() {
             _tabsLoaded['personal'] = false;
             cargarTabPersonal();
         } else {
-            $('#alerta_empleado').html('<div class="alert alert-danger mb-0">' + res.mensaje + '</div>');
+            $('#alerta_empleado').html('<div class="alert alert-danger mb-0">' + esc(res.mensaje) + '</div>');
         }
     }, 'json').fail(function() {
         btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Guardar');
@@ -1716,7 +1716,7 @@ $('#btn_confirmar_estado').on('click', function () {
             _tabsLoaded['personal'] = false;
             cargarTabPersonal();
         } else {
-            $('#alerta_personal').html('<div class="alert alert-danger py-2 mb-2">' + (res.mensaje || 'Error al actualizar el estado') + '</div>');
+            $('#alerta_personal').html('<div class="alert alert-danger py-2 mb-2">' + esc(res.mensaje || 'Error al actualizar el estado') + '</div>');
         }
     }, 'json').fail(function () {
         btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Confirmar');
@@ -1800,7 +1800,7 @@ function cmToggleConsumos(mar_id, btn) {
     $td.html('<div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>');
     $.getJSON('ajax/clientes/clientes.php?action=personal_consumos_marca&cli_id=' + _cliId + '&per_id=' + _cmPerId + '&mar_id=' + mar_id, function(res) {
         if (!res.success) {
-            $td.html('<span class="text-danger small">' + _escHtml(res.mensaje || 'No se pudo cargar el detalle.') + '</span>');
+            $td.html('<span class="text-danger small">' + _escHtmlesc(res.mensaje || 'No se pudo cargar el detalle.') + '</span>');
             return;
         }
         $det.data('cargado', true);
@@ -1840,7 +1840,7 @@ function verCupoMarca(per_id) {
 
     $.getJSON('ajax/clientes/clientes.php?action=personal_cupo_marca&cli_id=' + _cliId + '&per_id=' + per_id, function(res) {
         if (!res.success) {
-            $('#cupo_marca_body').html('<p class="text-danger text-center mb-0">' + _escHtml(res.mensaje || 'No se pudo cargar el cupo por marca.') + '</p>');
+            $('#cupo_marca_body').html('<p class="text-danger text-center mb-0">' + _escHtmlesc(res.mensaje || 'No se pudo cargar el cupo por marca.') + '</p>');
             return;
         }
         _cmRenderMarcas(res.marcas);
@@ -1976,7 +1976,7 @@ function verAuditoria(per_id) {
                 + '<span><strong>' + t.tra_campo_label + '</strong></span>'
                 + '<small class="text-muted">' + t.tra_fecha + '</small>'
                 + '</div>'
-                + '<div class="small text-muted">Por: ' + t.name_user + '</div>'
+                + '<div class="small text-muted">Por: ' + esc(t.name_user) + '</div>'
                 + (t.tra_valor_anterior || t.tra_valor_nuevo
                     ? '<div class="small mt-1"><span class="text-muted">' + (t.tra_valor_anterior || '—') + '</span> &rarr; <strong>' + (t.tra_valor_nuevo || '—') + '</strong></div>'
                     : '')
@@ -2203,7 +2203,7 @@ $('#btn_procesar_carga_masiva').on('click', function () {
             cli_id: _cliId, accion: accion, filas: JSON.stringify(filas), solo_preview: 1
         }, function (res) {
             if (!res.success) {
-                $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al analizar el archivo') + '</div>');
+                $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + esc(res.mensaje || 'Error al analizar el archivo') + '</div>');
                 return;
             }
             renderPreviewCargaMasiva(res);
@@ -2256,7 +2256,7 @@ $('#btn_confirmar_carga_masiva').on('click', function () {
         if (!res.success) {
             btn.prop('disabled', false);
             $('#btn_confirmar_carga_masiva_txt').text(txtOriginal);
-            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + (res.mensaje || 'Error al procesar') + '</div>');
+            $('#alerta_carga_masiva').html('<div class="alert alert-danger mb-0">' + esc(res.mensaje || 'Error al procesar') + '</div>');
             return;
         }
         var r = res.resultados;
@@ -2297,7 +2297,6 @@ $('#btn_cm_otra_carga').on('click', function () {
     cmGoScreen(1);
 });
 
-function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
 
 // ══════════════════════════════════════════════
 // INIT

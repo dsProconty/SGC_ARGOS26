@@ -401,7 +401,7 @@ $(document).ready(function () {
                     $('#sol_cantidad,#sol_cupo_codigo,#sol_periodo_facturacion,#sol_fecha_caducidad').val('');
                     cargarMisSolicitudes();
                     mostrarToast('success', r.mensaje);
-                } else { $('#alerta_solicitar').html('<div class="alert alert-danger mb-0">' + r.mensaje + '</div>'); }
+                } else { $('#alerta_solicitar').html('<div class="alert alert-danger mb-0">' + esc(r.mensaje) + '</div>'); }
             },
             error:    function () { $('#alerta_solicitar').html('<div class="alert alert-danger mb-0">Error de conexión.</div>'); },
             complete: function () { $('#btn_enviar_solicitud').prop('disabled', false).html('<i class="icon dripicons-mail"></i> Enviar Solicitud'); }
@@ -448,7 +448,7 @@ $(document).ready(function () {
                     $('#modal_crear_lote').modal('hide');
                     cargarSolicitudes();
                     mostrarToast('success', r.mensaje);
-                } else { $('#alerta_crear_lote').html('<div class="alert alert-danger mb-0">' + r.mensaje + '</div>'); }
+                } else { $('#alerta_crear_lote').html('<div class="alert alert-danger mb-0">' + esc(r.mensaje) + '</div>'); }
             },
             error:    function () { $('#alerta_crear_lote').html('<div class="alert alert-danger mb-0">Error de conexión.</div>'); },
             complete: function () { $('#btn_guardar_lote_directo').prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Crear Lote'); }
@@ -475,7 +475,7 @@ $(document).ready(function () {
             data: { action: (accion === 'APPROVE') ? 'aprobar_solicitud' : 'rechazar_solicitud', sol_id: sol_id, notas: notas },
             success: function (r) {
                 if (r.success) { $('#modal_preview_sol').modal('hide'); cargarSolicitudes(); cargarLotes(); mostrarToast('success', r.mensaje); }
-                else { $('#alerta_preview').html('<div class="alert alert-danger mb-0">' + r.mensaje + '</div>'); }
+                else { $('#alerta_preview').html('<div class="alert alert-danger mb-0">' + esc(r.mensaje) + '</div>'); }
             },
             error:    function () { $('#alerta_preview').html('<div class="alert alert-danger mb-0">Error de conexión.</div>'); },
             complete: function () { $('#btn_confirmar_accion').prop('disabled', false); }
@@ -681,7 +681,6 @@ function mostrarToast(tipo, msg) {
     setTimeout(function () { t.fadeOut(400, function () { $(this).remove(); }); }, 4000);
 }
 
-function esc(s) { return $('<div>').text(s).html(); }
 function fFecha(d) { if (!d) return '-'; var p = d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 function fFechaHora(d) { if (!d) return '-'; var p = d.split(' '); return fFecha(p[0]) + (p[1] ? ' '+p[1].substring(0,5) : ''); }
 </script>

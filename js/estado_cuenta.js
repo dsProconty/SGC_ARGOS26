@@ -94,7 +94,7 @@ function generarEC() {
                 cargarEstadosCuenta();
                 ver_ec(resp.ec_id);
             } else {
-                $('#alerta_ec').html('<div class="alert alert-danger mb-2">' + resp.mensaje + '</div>');
+                $('#alerta_ec').html('<div class="alert alert-danger mb-2">' + esc(resp.mensaje) + '</div>');
             }
         },
         error: function () {
@@ -136,7 +136,7 @@ function ver_ec(ec_id) {
             if (resp.success) {
                 $('#ec_content').html(renderEC(resp.ec, resp.detalles, resp.marcas || [], resp.pivot_rows || [], resp.saldos || {}));
             } else {
-                $('#ec_content').html('<div class="alert alert-danger">' + resp.mensaje + '</div>');
+                $('#ec_content').html('<div class="alert alert-danger">' + esc(resp.mensaje) + '</div>');
             }
         },
         error: function () {
@@ -163,10 +163,10 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
         filas += '<tr' + (esDiferida ? ' class="table-warning"' : '') + '>' +
             '<td>' + d.con_fecha + '</td>' +
             '<td>' + (d.con_hora ? d.con_hora.substring(0,5) : '-') + '</td>' +
-            '<td>' + d.per_nombre + '</td>' +
+            '<td>' + esc(d.per_nombre) + '</td>' +
             '<td>' + (d.per_documento || '-') + '</td>' +
             '<td>' + (d.per_numero_tarjeta ? maskTarjeta(d.per_numero_tarjeta) : '-') + '</td>' +
-            '<td>' + (d.mar_descripcion ? '<strong>' + d.mar_descripcion + '</strong> — ' : '') + (d.loc_direccion || '-') + '</td>' +
+            '<td>' + (d.mar_descripcion ? '<strong>' + esc(d.mar_descripcion) + '</strong> — ' : '') + (d.loc_direccion || '-') + '</td>' +
             '<td>' + (d.con_descripcion || '-') + '</td>' +
             '<td class="text-right">$' + neto.toFixed(2)  + '</td>' +
             '<td class="text-right">$' + iva.toFixed(2)   + '</td>' +
@@ -220,7 +220,7 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
         // thead-dark, bg-light/bg-warning solo pisaban el fondo y dejaban el
         // texto blanco heredado sobre fondo claro, ilegible.
         var thMarcas = marcas.map(function(m) {
-            return '<th class="text-right" style="background-color:#6d1b3a;color:#fff;">' + m.mar_descripcion + '</th>';
+            return '<th class="text-right" style="background-color:#6d1b3a;color:#fff;">' + esc(m.mar_descripcion) + '</th>';
         }).join('');
         var pivotHeader = '<tr>' +
             '<th style="background-color:#6d1b3a;color:#fff;">Cédula</th>' +
@@ -245,7 +245,7 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
             grandTotalSaldo += saldo;
             pivotBody += '<tr>' +
                 '<td><small>' + (emp.per_documento || '-') + '</small></td>' +
-                '<td>' + emp.per_nombre + '</td>' +
+                '<td>' + esc(emp.per_nombre) + '</td>' +
                 tdMarcas +
                 '<td class="text-right bg-light"><strong>$' + emp.total_periodo.toFixed(2) + '</strong></td>' +
                 '<td class="text-right"><strong>$' + saldo.toFixed(2) + '</strong></td>' +
@@ -305,7 +305,7 @@ function renderEC(ec, detalles, marcas, pivotRows, saldos) {
         '  <hr>' +
         '  <div class="row mb-3">' +
         '    <div class="col-6">' +
-        '      <strong>Cliente:</strong> ' + ec.cli_descripcion + '<br>' +
+        '      <strong>Cliente:</strong> ' + esc(ec.cli_descripcion) + '<br>' +
         '      <strong>Contacto:</strong> ' + (ec.cli_contacto || '-') + '<br>' +
         '      <strong>Teléfono:</strong> ' + (ec.cli_telefono || '-') + '<br>' +
         '      <strong>Email:</strong> '    + (ec.cli_email    || '-') +

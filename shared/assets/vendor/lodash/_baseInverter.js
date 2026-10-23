@@ -1,1 +1,0 @@
-var baseForOwn=require("./_baseForOwn");function baseInverter(e,o,a,s){return baseForOwn(e,function(e,r,n){o(s,a(e),r,n)}),s}module.exports=baseInverter;

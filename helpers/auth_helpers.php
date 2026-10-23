@@ -51,3 +51,19 @@ if (!function_exists('claveCoincide')) {
         return false;
     }
 }
+
+if (!function_exists('hashClave')) {
+    // Hash con el que se guarda una clave nueva: bcrypt (PASSWORD_DEFAULT), salado, y el mismo formato de las cuentas
+    // migradas. Antes se guardaba MD5 sin sal. claveCoincide() reconoce los dos formatos.
+    function hashClave($clave) {
+        return password_hash(trim((string)$clave), PASSWORD_DEFAULT);
+    }
+}
+
+if (!function_exists('claveEsMd5Antiguo')) {
+    // ¿La clave guardada sigue en el formato antiguo (no bcrypt)? Si sí, al entrar correctamente se vuelve a guardar con bcrypt.
+    function claveEsMd5Antiguo($guardado) {
+        $g = (string)$guardado;
+        return !(strpos($g, '$2y$') === 0 || strpos($g, '$2a$') === 0 || strpos($g, '$2b$') === 0);
+    }
+}

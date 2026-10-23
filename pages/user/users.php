@@ -93,13 +93,13 @@ $('#btn_guardar_reasignar').on('click', function () {
         dataType: 'json',
         success: function (res) {
             if (res.success) {
-                $('#reasignar_alert').removeClass('alert-warning').addClass('alert alert-success').html(res.mensaje).show();
+                $('#reasignar_alert').removeClass('alert-warning').addClass('alert alert-success').html(esc(res.mensaje)).show();
                 setTimeout(function () {
                     $('#modal_reasignar_local').modal('hide');
                     load_usuarios();
                 }, 1000);
             } else {
-                $('#reasignar_alert').removeClass('alert-success').addClass('alert alert-danger').html(res.mensaje).show();
+                $('#reasignar_alert').removeClass('alert-success').addClass('alert alert-danger').html(esc(res.mensaje)).show();
             }
         },
         error: function () {

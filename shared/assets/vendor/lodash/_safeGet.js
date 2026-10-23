@@ -1,1 +1,0 @@
-function safeGet(e,o){return"__proto__"==o?void 0:e[o]}module.exports=safeGet;

@@ -212,7 +212,7 @@ function renderTabla(perfiles) {
             '<td><small class="text-muted">' + esc(p.per_descripcion || '—') + '</small></td>' +
             '<td class="text-center"><span class="badge badge-info">' + p.total_modulos + '</span></td>' +
             '<td class="text-center">' +
-                '<a href="#" class="text-dark" onclick="verUsuariosPerfil(' + p.per_id + ', \'' + esc(p.per_nombre) + '\'); return false;">' +
+                '<a href="#" class="text-dark" onclick="verUsuariosPerfil(' + p.per_id + ', \'' + escJs(p.per_nombre) + '\'); return false;">' +
                 '<span class="badge badge-secondary">' + p.total_usuarios + '</span></a>' +
             '</td>' +
             '<td class="text-center">' + badge + '</td>' +
@@ -291,7 +291,7 @@ function guardarPerfil() {
                 cargarPerfiles();
                 mostrarToast('success', r.mensaje);
             } else {
-                $('#alerta_perfil').html('<div class="alert alert-danger mb-2">' + r.mensaje + '</div>');
+                $('#alerta_perfil').html('<div class="alert alert-danger mb-2">' + esc(r.mensaje) + '</div>');
             }
         },
         error: function () { $('#alerta_perfil').html('<div class="alert alert-danger mb-2">Error de conexión.</div>'); },
@@ -349,7 +349,6 @@ function verUsuariosPerfil(per_id, nombre) {
 }
 
 // ── Utilidades ───────────────────────────────────────────────
-function esc(s) { return s ? $('<div>').text(s).html() : ''; }
 
 function mostrarToast(tipo, msg) {
     var t = $('<div>').css({

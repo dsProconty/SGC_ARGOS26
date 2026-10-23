@@ -1,1 +1,0 @@
-var castPath=require("./_castPath"),last=require("./last"),parent=require("./_parent"),toKey=require("./_toKey");function baseUnset(e,t){return t=castPath(t,e),null==(e=parent(e,t))||delete e[toKey(last(t))]}module.exports=baseUnset;

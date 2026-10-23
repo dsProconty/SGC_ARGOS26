@@ -386,7 +386,6 @@ var nominaData = [];
 
 var _modoCupoEmpresa = 'global';
 
-function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
 
 // Devuelve un objeto {mar_id: monto} leyendo los inputs por marca dentro del contenedor dado.
 function leerCupoMarcaInputs(containerSelector) {
@@ -463,7 +462,7 @@ function cargarNomina(buscar) {
     if (buscar) url += '&buscar=' + encodeURIComponent(buscar);
     $('#tbody_nomina').html('<tr><td colspan="9" class="text-center py-3"><i class="icon dripicons-loading icon-spin"></i> Cargando...</td></tr>');
     $.getJSON(url, function(r) {
-        if (!r.success) { $('#tbody_nomina').html('<tr><td colspan="9" class="text-center text-danger">' + r.mensaje + '</td></tr>'); return; }
+        if (!r.success) { $('#tbody_nomina').html('<tr><td colspan="9" class="text-center text-danger">' + esc(r.mensaje) + '</td></tr>'); return; }
         nominaData = r.data;
         var html = '';
         if (!r.data.length) {
@@ -473,7 +472,7 @@ function cargarNomina(buscar) {
                 var badgeColor = e.per_estado === 'activo' ? 'success' : 'secondary';
                 html += '<tr>'
                     + '<td>' + (e.per_documento || '—') + '</td>'
-                    + '<td>' + e.per_nombre + '</td>'
+                    + '<td>' + esc(e.per_nombre) + '</td>'
                     + '<td><code>' + (e.per_numero_tarjeta ? maskTarjeta(e.per_numero_tarjeta) : '—') + '</code></td>'
                     + '<td>' + (e.per_correo || '—') + '</td>'
                     + '<td><span class="badge badge-' + badgeColor + '">' + e.per_estado + '</span></td>'
@@ -495,7 +494,7 @@ function cargarNomina(buscar) {
 
         // Poblar select historial
         var opts = '<option value="">Todos los empleados</option>';
-        r.data.forEach(function(e) { opts += '<option value="' + e.per_id + '">' + e.per_nombre + '</option>'; });
+        r.data.forEach(function(e) { opts += '<option value="' + e.per_id + '">' + esc(e.per_nombre) + '</option>'; });
         $('#hist_per_id').html(opts);
     });
 }
@@ -539,7 +538,7 @@ function cargarHistorial() {
 
     $('#tbody_historial').html('<tr><td colspan="10" class="text-center py-3"><i class="icon dripicons-loading icon-spin"></i> Cargando...</td></tr>');
     $.getJSON(url, function(r) {
-        if (!r.success) { $('#tbody_historial').html('<tr><td colspan="10" class="text-center text-danger">' + r.mensaje + '</td></tr>'); return; }
+        if (!r.success) { $('#tbody_historial').html('<tr><td colspan="10" class="text-center text-danger">' + esc(r.mensaje) + '</td></tr>'); return; }
         var html = '';
         var total = 0;
         if (!r.data.length) {
@@ -550,7 +549,7 @@ function cargarHistorial() {
                 html += '<tr>'
                     + '<td>' + c.con_fecha + '</td>'
                     + '<td>' + (c.con_hora ? c.con_hora.substring(0,5) : '—') + '</td>'
-                    + '<td>' + c.per_nombre + '</td>'
+                    + '<td>' + esc(c.per_nombre) + '</td>'
                     + '<td>' + (c.per_documento || '—') + '</td>'
                     + '<td>' + (c.loc_nombre || '—') + '</td>'
                     + '<td>' + (c.con_descripcion || '—') + '</td>'
@@ -644,7 +643,7 @@ $('#btn_guardar_emp').on('click', function() {
 });
 
 function alertaEmp(tipo, msg) {
-    $('#alerta_nuevo_emp').html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show();
+    $('#alerta_nuevo_emp').html('<div class="alert alert-' + tipo + ' mb-0">' + esc(msg) + '</div>').show();
 }
 
 // ---- Eventos ----
@@ -705,7 +704,7 @@ function cargarTrazabilidad(per_id) {
         r.data.forEach(function(t) {
             html += '<tr>'
                 + '<td>' + t.tra_fecha + '</td>'
-                + '<td>' + t.name_user + '</td>'
+                + '<td>' + esc(t.name_user) + '</td>'
                 + '<td><strong>' + t.tra_campo_label + '</strong></td>'
                 + '<td class="text-danger">' + (t.tra_valor_anterior || '—') + '</td>'
                 + '<td class="text-success">' + (t.tra_valor_nuevo || '—') + '</td>'
@@ -761,7 +760,7 @@ $('#btn_guardar_edicion').on('click', function() {
 });
 
 function alertaEdit(tipo, msg) {
-    $('#alerta_editar_emp').html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show();
+    $('#alerta_editar_emp').html('<div class="alert alert-' + tipo + ' mb-0">' + esc(msg) + '</div>').show();
 }
 
 // ---- Suspender / Activar tarjeta ----

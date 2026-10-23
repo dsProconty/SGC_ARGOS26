@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/../../helpers/texto_helpers.php'; // h(): escapa texto de la base al imprimirlo ?>
 <div class="content" data-layout="tabbed">
     <!-- PAGE HEADER -->
     <header class="page-header">
@@ -152,7 +153,7 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Cédula / Usuario</label>
                                             <div class="col-sm-5">
-                                                <input type="text" class="form-control" name="username" autocomplete="off" value="<?php echo $data['username']; ?>" required>
+                                                <input type="text" class="form-control" name="username" autocomplete="off" value="<?php echo h($data['username']); ?>" required>
                                                 <small class="text-muted">La cédula será usada para iniciar sesión</small>
                                             </div>
                                         </div>
@@ -162,7 +163,7 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Nombre</label>
                                             <div class="col-sm-5">
-                                                <input type="text" class="form-control" name="name_user" autocomplete="off" value="<?php echo $data['name_user']; ?>" required>
+                                                <input type="text" class="form-control" name="name_user" autocomplete="off" value="<?php echo h($data['name_user']); ?>" required>
                                             </div>
                                         </div>
 
@@ -177,14 +178,14 @@
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Email</label>
                                             <div class="col-sm-5">
-                                                <input type="email" class="form-control" name="email" autocomplete="off" value="<?php echo $data['email']; ?>">
+                                                <input type="email" class="form-control" name="email" autocomplete="off" value="<?php echo h($data['email']); ?>">
                                             </div>
                                         </div>
 
                                         <div class="form-group">
                                             <label class="col-sm-2 control-label">Telefono</label>
                                             <div class="col-sm-5">
-                                                <input type="text" class="form-control" name="telefono" autocomplete="off" maxlength="13" onKeyPress="return goodchars(event,'0123456789',this)" value="<?php echo $data['telefono']; ?>">
+                                                <input type="text" class="form-control" name="telefono" autocomplete="off" maxlength="13" onKeyPress="return goodchars(event,'0123456789',this)" value="<?php echo h($data['telefono']); ?>">
                                             </div>
                                         </div>
 

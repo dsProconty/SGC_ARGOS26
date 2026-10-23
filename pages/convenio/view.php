@@ -441,7 +441,7 @@ $(document).ready(function () {
     // Helpers
     // -------------------------------------------------------
     function mostrarAlerta(tipo, msg) {
-        $('#alerta_modal').html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show();
+        $('#alerta_modal').html('<div class="alert alert-' + tipo + ' mb-0">' + esc(msg) + '</div>').show();
     }
     function ocultarAlerta() {
         $('#alerta_modal').hide().html('');

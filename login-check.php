@@ -35,6 +35,22 @@ else {
 
 	if ($passwordValida) {
 
+		// Cuenta con el hash antiguo (MD5 sin sal): ahora que la clave quedó comprobada, se vuelve a guardar con bcrypt.
+		// Es transparente para la persona y no cambia su clave. Si falla, no pasa nada: seguirá con el hash anterior.
+		if (claveEsMd5Antiguo($data['password'])) {
+			$claveCruda = trim(isset($_POST['password']) ? $_POST['password'] : '');
+			if ($claveCruda !== '') {
+				$nuevoHash = hashClave($claveCruda);
+				$uh = mysqli_prepare($mysqli, "UPDATE usuario SET password = ? WHERE id_user = ?");
+				if ($uh) {
+					$idUh = (int)$data['id_user'];
+					mysqli_stmt_bind_param($uh, 'si', $nuevoHash, $idUh);
+					if (mysqli_stmt_execute($uh)) { $data['password'] = $nuevoHash; }
+					mysqli_stmt_close($uh);
+				}
+			}
+		}
+
 		session_start();
 		$_SESSION['id_user']         = $data['id_user'];
 		$_SESSION['username']        = $data['username'];

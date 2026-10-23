@@ -7,6 +7,7 @@ require_once('../../services/estado_cuenta_service.php');
 header('Content-Type: application/json');
 
 require_once('../../helpers/session_helpers.php');
+require_once('../../helpers/texto_helpers.php'); // h(): escapa texto de la base al imprimirlo
 exigirAccesoAjax($mysqli, array('estado_cuenta', 'clientes')); // la ficha del cliente también ve/envía sus estados de cuenta
 
 $action  = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -51,7 +52,7 @@ switch ($action) {
                     <td>$<?php echo number_format($row['ec_monto_total'], 2); ?></td>
                     <td><?php echo date('d/m/Y H:i', strtotime($row['ec_fecha_generacion'])); ?></td>
                     <td>
-                        <span class="badge badge-<?php echo $color; ?>" id="badge_envio_<?php echo $row['ec_id']; ?>"><?php echo $row['ec_estado_envio']; ?></span>
+                        <span class="badge badge-<?php echo $color; ?>" id="badge_envio_<?php echo h($row['ec_id']); ?>"><?php echo h($row['ec_estado_envio']); ?></span>
                         <?php if ($row['ec_estado_envio'] === 'enviado' && $row['ec_fecha_envio']): ?>
                             <br><small class="text-muted">Enviado <?php echo date('d/m/Y H:i', strtotime($row['ec_fecha_envio'])); ?></small>
                         <?php elseif ($row['ec_estado_envio'] === 'error' && $row['ec_error_detalle']): ?>

@@ -1047,7 +1047,7 @@ $(document).ready(function () {
         $('#div_empleado_vacio').show();
     }
 
-    function mostrarAlerta(id, tipo, msg) { $('#' + id).html('<div class="alert alert-' + tipo + ' mb-0">' + msg + '</div>').show(); }
+    function mostrarAlerta(id, tipo, msg) { $('#' + id).html('<div class="alert alert-' + tipo + ' mb-0">' + esc(msg) + '</div>').show(); }
     function ocultarAlerta(id) { $('#' + id).hide().html(''); }
     function htmlEsc(str) {
         if (!str) return '';

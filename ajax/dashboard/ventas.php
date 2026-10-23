@@ -3,6 +3,7 @@ date_default_timezone_set('America/Guayaquil');
 require_once "../../config/database.php";
 require_once "../../helpers/db_compat.php";
 require_once "../../helpers/session_helpers.php";
+require_once "../../helpers/texto_helpers.php"; // h(): escapa texto de la base al imprimirlo
 exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
 
 $action = ($_GET['action'] ?? '');
@@ -94,8 +95,8 @@ switch ($action) {
                 <?php
                 while ($row = mysqli_fetch_array($res)) { ?>
                     <tr>
-                        <td><?php echo $row['name_user']; ?></td>
-                        <td><?php echo $row['cli_descripcion']; ?></td>
+                        <td><?php echo h($row['name_user']); ?></td>
+                        <td><?php echo h($row['cli_descripcion']); ?></td>
                         <td><?php echo $row['pag_fecha']; ?></td>
                         <td><?php echo $row['pag_monto']; ?></td>
                         <td>
@@ -141,7 +142,7 @@ switch ($action) {
                     while ($row = mysqli_fetch_array($res)) { ?>
                         <tr>
                             <td>
-                                <strong class="nowrap"><?php echo $row['cli_descripcion'] ?></strong>
+                                <strong class="nowrap"><?php echo h($row['cli_descripcion']) ?></strong>
                             </td>
                             <td><?php echo $row['total'] ?></td>
                             <td><?php echo $row['ultimo_consumo'] ?></td>

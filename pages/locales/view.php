@@ -601,7 +601,7 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
             // Poblar selector de marcas en modal sucursal
             var opts = '<option value="">— Seleccione marca —</option>';
             r.data.forEach(function (m) {
-                opts += '<option value="' + m.mar_id + '">' + m.mar_descripcion + '</option>';
+                opts += '<option value="' + m.mar_id + '">' + esc(m.mar_descripcion) + '</option>';
             });
             $('#suc_mar_id').html(opts);
 
@@ -623,12 +623,12 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                     '  <td>' +
                     '    <div class="marca-pill">' +
                     '      <span class="marca-dot"></span>' +
-                    '      <span class="marca-name">' + m.mar_descripcion + '</span>' +
+                    '      <span class="marca-name">' + esc(m.mar_descripcion) + '</span>' +
                     '    </div>' +
                     '  </td>' +
                     '  <td><span class="marca-count">' + m.total_sucursales + ' sucursal' + (m.total_sucursales != 1 ? 'es' : '') + '</span></td>' +
                     '  <td class="text-center">' +
-                    '    <a onclick="event.stopPropagation(); editarMarca(' + m.mar_id + ',\'' + m.mar_descripcion.replace(/'/g, "\\'") + '\')" style="color:var(--arg-yellow); font-size:17px; cursor:pointer;" title="Editar marca"><i class="icon dripicons-pencil"></i></a>' +
+                    '    <a onclick="event.stopPropagation(); editarMarca(' + m.mar_id + ',\'' + escJs(m.mar_descripcion) + '\')" style="color:var(--arg-yellow); font-size:17px; cursor:pointer;" title="Editar marca"><i class="icon dripicons-pencil"></i></a>' +
                     '  </td>' +
                     '</tr>' +
                     '<tr class="loc-detail-row" id="detail-row-' + m.mar_id + '">' +

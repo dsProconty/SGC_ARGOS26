@@ -142,7 +142,7 @@ $(document).ready(function () {
             dataType: 'json',
             success: function(r) {
                 if (!r.success) {
-                    $('#alerta_cartera').html('<div class="alert alert-danger mb-0">' + (r.mensaje || 'No se pudo actualizar la cartera') + '</div>').show();
+                    $('#alerta_cartera').html('<div class="alert alert-danger mb-0">' + esc(r.mensaje || 'No se pudo actualizar la cartera') + '</div>').show();
                     return;
                 }
                 var x = r.resumen;
@@ -159,7 +159,7 @@ $(document).ready(function () {
     });
 
     function mostrarAlerta(tipo, msg) {
-        $('#alerta_cfg').html('<div class="alert alert-' + tipo + '">' + msg + '</div>').show();
+        $('#alerta_cfg').html('<div class="alert alert-' + tipo + '">' + esc(msg) + '</div>').show();
         setTimeout(function() { $('#alerta_cfg').fadeOut(); }, 3000);
     }
 });

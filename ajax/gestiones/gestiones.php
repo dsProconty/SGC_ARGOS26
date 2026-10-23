@@ -50,9 +50,9 @@ switch ($action) {
                         ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
-                                <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
-                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
+                                <td><?php echo h($row['cli_ciudad']); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_descripcion'])); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_contacto'])); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $rowUltGes['ges_fecha']; ?></td>
@@ -108,9 +108,9 @@ switch ($action) {
                         ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
-                                <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
-                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
+                                <td><?php echo h($row['cli_ciudad']); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_descripcion'])); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_contacto'])); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $rowUltGes['ges_fecha']; ?></td>
@@ -252,9 +252,9 @@ switch ($action) {
                         ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
-                                <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
-                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
+                                <td><?php echo h($row['cli_ciudad']); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_descripcion'])); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_contacto'])); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['cli_valor_pagar'] ?></td>
                                 <td><?php echo $totalPago; ?></td>
@@ -304,9 +304,9 @@ switch ($action) {
                         while ($row = mysqli_fetch_array($result)) { ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
-                                <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
-                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
+                                <td><?php echo h($row['cli_ciudad']); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_descripcion'])); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_contacto'])); ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td>
@@ -362,9 +362,9 @@ switch ($action) {
                         ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
-                                <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
-                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
+                                <td><?php echo h($row['cli_ciudad']); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_descripcion'])); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_contacto'])); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['com_fecha']; ?></td>
                                 <td><?php echo $row['com_monto']; ?></td>
@@ -419,13 +419,13 @@ switch ($action) {
                         <?php $no = 1; while ($row = mysqli_fetch_array($result)) { ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
-                                <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
+                                <td><?php echo h($row['cli_ciudad']); ?></td>
+                                <td><?php echo h(textoUtf8($row['cli_descripcion'])); ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $row['pag_monto']; ?></td>
-                                <td><?php echo $row['pag_observacion']; ?></td>
+                                <td><?php echo h($row['pag_observacion']); ?></td>
                                 <td><?php echo $row['pag_fecha_reg']; ?></td>
-                                <td><?php echo $row['gestor_nombre']; ?></td>
+                                <td><?php echo h($row['gestor_nombre']); ?></td>
                                 <td>
                                     <?php if ($esFinanciero): ?>
                                     <a class='btn btn-success btn-md' onclick="confirmarPago(<?php echo $row['pag_id']; ?>, <?php echo $row['car_id']; ?>)" title='Confirmar' data-toggle='tooltip'>
@@ -659,12 +659,12 @@ switch ($action) {
                     <tr>
                         <td><?php echo $row['con_fecha']; ?></td>
                         <td><?php echo $row['con_hora']; ?></td>
-                        <td><?php echo $row['mar_descripcion']; ?></td>
-                        <td><?php echo $row['loc_direccion']; ?></td>
-                        <td><?php echo $row['con_numero_tarjeta']; ?></td>
-                        <td><?php echo $row['per_documento']; ?></td>
-                        <td><?php echo $row['per_nombre']; ?></td>
-                        <td><?php echo $row['con_autorizacion']; ?></td>
+                        <td><?php echo h($row['mar_descripcion']); ?></td>
+                        <td><?php echo h($row['loc_direccion']); ?></td>
+                        <td><?php echo h($row['con_numero_tarjeta']); ?></td>
+                        <td><?php echo h($row['per_documento']); ?></td>
+                        <td><?php echo h($row['per_nombre']); ?></td>
+                        <td><?php echo h($row['con_autorizacion']); ?></td>
                         <td><?php echo $row['con_valor_neto']; ?></td>
                         <td><?php echo $row['con_iva']; ?></td>
                         <td><?php echo $row['con_valor_total']; ?></td>
@@ -685,7 +685,7 @@ switch ($action) {
 
         $row = mysqli_fetch_array($res);
 
-        echo $row['ges_observacion'];
+        echo h($row['ges_observacion']);
         break;
     case 'gestiones':
         $id_cartera  = (int)($_GET['id_cartera'] ?? 0);
@@ -714,11 +714,11 @@ switch ($action) {
                     <tr>
                         <td><?php echo $row['ges_fecha']; ?></td>
                         <td><?php echo $row['ges_tipo_gestion']; ?></td>
-                        <td><?php echo $row['ges_tipo_contacto']; ?></td>
-                        <td><?php echo $row['ges_respuesta']; ?></td>
-                        <td><?php echo $row['ges_contacto']; ?></td>
-                        <td><?php echo $row['ges_email_contacto']; ?></td>
-                        <td><?php echo $row['name_user']; ?></td>
+                        <td><?php echo h($row['ges_tipo_contacto']); ?></td>
+                        <td><?php echo h($row['ges_respuesta']); ?></td>
+                        <td><?php echo h($row['ges_contacto']); ?></td>
+                        <td><?php echo h($row['ges_email_contacto']); ?></td>
+                        <td><?php echo h($row['name_user']); ?></td>
                         <td>
                             <a data-toggle='tooltip' data-placement='top' title='Ver Observación' class='btn btn-success btn-md' onclick="ver_observacion(<?php echo $row['ges_id'] ?>)">
                                 <i style='color:#fff' class='icon dripicons-article'></i>
@@ -766,8 +766,8 @@ switch ($action) {
                     <tr>
                         <td><?php echo $row['pag_fecha']; ?></td>
                         <td><?php echo $row['pag_monto']; ?></td>
-                        <td><?php echo $row['pag_observacion']; ?></td>
-                        <td><?php echo $row['name_user']; ?></td>
+                        <td><?php echo h($row['pag_observacion']); ?></td>
+                        <td><?php echo h($row['name_user']); ?></td>
                         <td><?php echo $pag_estado_badge; ?></td>
                     </tr>
 

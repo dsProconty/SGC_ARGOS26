@@ -47,7 +47,7 @@ $(document).ready(function () {
                     $('#lgc_cantidad, #lgc_cupo_codigo, #lgc_periodo_facturacion, #lgc_fecha_caducidad').val('');
                     cargarLotes();
                 } else {
-                    $('#alerta_lote').html('<div class="alert alert-danger mb-0">' + resp.mensaje + '</div>');
+                    $('#alerta_lote').html('<div class="alert alert-danger mb-0">' + esc(resp.mensaje) + '</div>');
                 }
             },
             error: function () {
@@ -85,7 +85,7 @@ $(document).ready(function () {
                     cargarMisSolicitudes();
                     mostrarToast('success', resp.mensaje);
                 } else {
-                    $('#alerta_solicitar').html('<div class="alert alert-danger mb-0">' + resp.mensaje + '</div>');
+                    $('#alerta_solicitar').html('<div class="alert alert-danger mb-0">' + esc(resp.mensaje) + '</div>');
                 }
             },
             error: function () {
@@ -119,7 +119,7 @@ $(document).ready(function () {
                     cargarLotes();
                     mostrarToast('success', resp.mensaje);
                 } else {
-                    $('#alerta_preview').html('<div class="alert alert-danger mb-0">' + resp.mensaje + '</div>');
+                    $('#alerta_preview').html('<div class="alert alert-danger mb-0">' + esc(resp.mensaje) + '</div>');
                 }
             },
             error: function () {

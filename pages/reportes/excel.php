@@ -369,7 +369,7 @@ switch ($tipo) {
                     <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['con_valor_total'] ?></td>
                     <td><?php echo $row['con_fecha'] ?></td>
-                    <td><?php echo $row['mar_descripcion']; ?></td>
+                    <td><?php echo h($row['mar_descripcion']); ?></td>
                 </tr>
             <?php
             }
@@ -410,7 +410,7 @@ switch ($tipo) {
                 <tr>
                     <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['con_fecha'] ?></td>
-                    <td><?php echo $row['mar_descripcion']; ?></td>
+                    <td><?php echo h($row['mar_descripcion']); ?></td>
                 </tr>
             <?php
             }
@@ -929,7 +929,7 @@ switch ($tipo) {
             while ($cli = mysqli_fetch_assoc($resClientes)) {
                 $hay_datos = true;
                 $totalEmpresa = 0;
-                echo '<tr><td>' . textoLatin1($cli['cli_descripcion']) . '</td>';
+                echo '<tr><td>' . textoLatin1(h($cli['cli_descripcion'])) . '</td>';
                 for ($m = 1; $m <= 12; $m++) {
                     $v = $valores[$cli['cli_id']][$m] ?? 0;
                     $totalEmpresa += $v;
@@ -994,7 +994,7 @@ switch ($tipo) {
             while ($cli = mysqli_fetch_assoc($resClientes)) {
                 $hay_datos = true;
                 $totalEmpresa = 0;
-                echo '<tr><td>' . textoLatin1($cli['cli_descripcion']) . '</td>';
+                echo '<tr><td>' . textoLatin1(h($cli['cli_descripcion'])) . '</td>';
                 for ($m = 1; $m <= 12; $m++) {
                     $v = $valores[$cli['cli_id']][$m] ?? 0;
                     $totalEmpresa += $v;

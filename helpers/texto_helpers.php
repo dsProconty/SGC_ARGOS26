@@ -42,3 +42,11 @@ if (!function_exists('textoUtf8')) {
         return @utf8_encode($s);
     }
 }
+
+if (!function_exists('h')) {
+    // Escapa texto de la base para imprimirlo dentro de HTML (también las comillas, para atributos).
+    // ENT_SUBSTITUTE: un texto con UTF-8 inválido sale con "?" en lugar de quedar vacío (PHP < 8.1 devolvía '').
+    function h($s) {
+        return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}

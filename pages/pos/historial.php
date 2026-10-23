@@ -464,7 +464,7 @@ $(document).ready(function () {
                     $('#modal_anular').modal('hide');
                     buscarVentas();
                 } else {
-                    $('#alerta_anular').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo anular la venta') + '</div>');
+                    $('#alerta_anular').html('<div class="alert alert-danger">' + htmlEscesc(resp.mensaje || 'No se pudo anular la venta') + '</div>');
                 }
             },
             error: function () {
@@ -495,7 +495,7 @@ $(document).ready(function () {
                         + '</table>'
                     );
                 } else {
-                    $('#ver_anulacion_body').html('<div class="alert alert-warning mb-0">' + htmlEsc(resp.mensaje || 'Sin registro de anulación') + '</div>');
+                    $('#ver_anulacion_body').html('<div class="alert alert-warning mb-0">' + htmlEscesc(resp.mensaje || 'Sin registro de anulación') + '</div>');
                 }
             },
             error: function () {
@@ -523,7 +523,7 @@ $(document).ready(function () {
             success: function (resp) {
                 if (!resp.success) {
                     $('#mover_loc_destino').html('<option value="">—</option>');
-                    $('#alerta_mover').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo cargar la lista de locales') + '</div>');
+                    $('#alerta_mover').html('<div class="alert alert-danger">' + htmlEscesc(resp.mensaje || 'No se pudo cargar la lista de locales') + '</div>');
                     return;
                 }
                 if (resp.mar_descripcion) {
@@ -578,7 +578,7 @@ $(document).ready(function () {
                         + '<button type="button" class="btn btn-sm btn-outline-danger" id="btn_mover_confirmar_igual">Mover igual</button>'
                     );
                 } else {
-                    $('#alerta_mover').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo mover la venta') + '</div>');
+                    $('#alerta_mover').html('<div class="alert alert-danger">' + htmlEscesc(resp.mensaje || 'No se pudo mover la venta') + '</div>');
                 }
             },
             error: function () {
@@ -614,7 +614,7 @@ $(document).ready(function () {
                         + '</table>'
                     );
                 } else {
-                    $('#ver_movimiento_body').html('<div class="alert alert-warning mb-0">' + htmlEsc(resp.mensaje || 'Sin registro de movimiento') + '</div>');
+                    $('#ver_movimiento_body').html('<div class="alert alert-warning mb-0">' + htmlEscesc(resp.mensaje || 'Sin registro de movimiento') + '</div>');
                 }
             },
             error: function () {

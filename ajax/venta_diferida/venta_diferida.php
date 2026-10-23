@@ -6,6 +6,7 @@ require_once('../../helpers/db_compat.php');
 header('Content-Type: application/json');
 
 require_once('../../helpers/session_helpers.php');
+require_once('../../helpers/texto_helpers.php'); // h(): escapa texto de la base al imprimirlo
 exigirAccesoAjax($mysqli, 'venta_diferida');
 
 require_once('../../helpers/venta_diferida_helpers.php');
@@ -58,7 +59,7 @@ switch ($action) {
                 ?>
                 <tr>
                     <td><?php echo $no; ?></td>
-                    <td><?php echo htmlspecialchars($row['per_nombre']); ?><br><small><?php echo $row['per_documento']; ?></small></td>
+                    <td><?php echo htmlspecialchars($row['per_nombre']); ?><br><small><?php echo h($row['per_documento']); ?></small></td>
                     <td><?php echo htmlspecialchars($row['cli_descripcion']); ?></td>
                     <td><?php echo htmlspecialchars($row['marca'] ? $row['marca'] : '—'); ?></td>
                     <td><?php echo htmlspecialchars($row['vd_descripcion']); ?></td>

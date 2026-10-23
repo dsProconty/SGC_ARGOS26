@@ -30,8 +30,8 @@ $(document).on('click', '.btn-descargar-pago', function () {
     ventana.document.write('@media print{.no-print{display:none}}</style></head><body>');
     ventana.document.write('<h4>SGC ARGOS</h4><p>Comprobante de Pago</p><hr>');
     ventana.document.write('<table>');
-    ventana.document.write('<tr><td><span class="label">Cliente</span><br>' + d.cliente + '</td></tr>');
-    ventana.document.write('<tr><td><span class="label">Gestor</span><br>' + d.gestor + '</td></tr>');
+    ventana.document.write('<tr><td><span class="label">Cliente</span><br>' + esc(d.cliente) + '</td></tr>');
+    ventana.document.write('<tr><td><span class="label">Gestor</span><br>' + esc(d.gestor) + '</td></tr>');
     ventana.document.write('<tr><td><span class="label">Fecha</span><br>' + d.fecha + '</td></tr>');
     ventana.document.write('<tr><td><span class="label">Monto</span><br><strong>$' + parseFloat(d.monto).toFixed(2) + '</strong></td></tr>');
     ventana.document.write('</table>');

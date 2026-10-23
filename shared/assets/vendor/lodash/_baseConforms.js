@@ -1,1 +1,0 @@
-var baseConformsTo=require("./_baseConformsTo"),keys=require("./keys");function baseConforms(e){var r=keys(e);return function(o){return baseConformsTo(o,e,r)}}module.exports=baseConforms;

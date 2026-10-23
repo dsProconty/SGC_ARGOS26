@@ -15,13 +15,15 @@ if (isset($_POST['Guardar'])) {
 
     // La clave nueva se guarda como MD5 de lo que se escribió (trim), sin escapes: así el login la reconoce siempre
     // (ver helpers/auth_helpers.php). Antes se guardaba el MD5 de la versión escapada, con barras agregadas.
-    $new_pass    = md5(trim(isset($_POST['new_pass']) ? $_POST['new_pass'] : ''));
-    $retype_pass = md5(trim(isset($_POST['retype_pass']) ? $_POST['retype_pass'] : ''));
+    // La clave nueva se guarda con bcrypt (ver helpers/auth_helpers.php). La comparación de "repetir clave" se hace sobre el texto.
+    $new_plano    = trim(isset($_POST['new_pass']) ? $_POST['new_pass'] : '');
+    $retype_plano = trim(isset($_POST['retype_pass']) ? $_POST['retype_pass'] : '');
+    $new_pass     = mysqli_real_escape_string($mysqli, hashClave($new_plano));
     $rol         = $_SESSION['permisos_acceso'] ?? '';
     $es_admin    = in_array($rol, ['Super Admin', 'Supervisor']);
 
     // Validar que las nuevas contraseñas coincidan
-    if ($new_pass !== $retype_pass) {
+    if ($new_plano === '' || $new_plano !== $retype_plano) {
         header("Location: ../../main.php?module=contrasena&alert=2");
         exit;
     }
