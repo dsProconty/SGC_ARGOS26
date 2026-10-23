@@ -559,10 +559,16 @@ $(document).ready(function () {
         $('#btn_buscar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
         ocultarAlerta('alerta_busqueda');
 
+        var datosBusqueda = { action: 'buscar', cedula: input };
+        var $selLocal = $('#local_selector');
+        if ($selLocal.length && $selLocal.val()) {
+            datosBusqueda.loc_id = $selLocal.val(); // el cupo por marca depende del local
+        }
+
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'GET',
-            data: { action: 'buscar', cedula: input },
+            data: datosBusqueda,
             dataType: 'json',
             success: function (resp) {
                 if (!resp.success) {
@@ -595,6 +601,11 @@ $(document).ready(function () {
     }
 
     $('#btn_buscar').on('click', buscar);
+
+    // Al cambiar de local (modo pruebas del Super Admin) se vuelve a calcular el cupo de quien ya está en pantalla
+    $('#local_selector').on('change', function () {
+        if (modo === 'empleado' && $('#cedula_input').val().trim() !== '') { buscar(); }
+    });
     $('#cedula_input').on('keypress', function (e) { if (e.which === 13) buscar(); });
 
     // -------------------------------------------------------
@@ -617,7 +628,16 @@ $(document).ready(function () {
         // apaga visualmente las cifras para que no se lean como un saldo real.
         var marcaNoResuelta = !!data.marca_no_resuelta;
         marca_no_resuelta_actual = marcaNoResuelta;
-        $('#alerta_marca_no_resuelta').toggle(marcaNoResuelta);
+        var $avisoMarca = $('#alerta_marca_no_resuelta');
+        if (!$avisoMarca.data('html-error')) { $avisoMarca.data('html-error', $avisoMarca.html()); }
+        var faltaElegirLocal = marcaNoResuelta && $('#local_selector').length && !$('#local_selector').val();
+        if (faltaElegirLocal) {
+            // Super Admin en modo pruebas: este convenio tiene cupo por marca y el cupo depende del local
+            $avisoMarca.html('<i class="icon dripicons-warning"></i> <strong>Seleccione el local comercial.</strong> Este convenio maneja el cupo por marca, así que el cupo disponible depende del local donde se vende.');
+        } else {
+            $avisoMarca.html($avisoMarca.data('html-error'));
+        }
+        $avisoMarca.toggle(marcaNoResuelta);
         $('#emp_cupo_disponible, #emp_cupo_asignado').toggleClass('text-muted', marcaNoResuelta);
         $('#emp_cupo_disponible').toggleClass('text-success', !marcaNoResuelta);
 

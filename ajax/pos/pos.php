@@ -52,7 +52,9 @@ function resolverLocId($mysqli) {
     if (!esSuperAdmin($mysqli)) {
         return null;
     }
-    $posted = (int)($_POST['loc_id'] ?? 0);
+    // El Super Admin en "modo pruebas" elige el local en pantalla. La búsqueda va por GET y la venta por POST:
+    // antes solo se leía POST, así que al buscar nunca se conocía el local y los convenios por marca daban "error de sistema".
+    $posted = (int)(isset($_POST['loc_id']) ? $_POST['loc_id'] : (isset($_GET['loc_id']) ? $_GET['loc_id'] : 0));
     if ($posted <= 0) {
         return null;
     }

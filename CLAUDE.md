@@ -536,6 +536,10 @@ publicada 21-oct-2026). El código ahora corre igual en las dos versiones (bater
 - Antes de cambiar la versión del hosting: probar una copia en un subdominio con PHP 8.4 (la selección por dominio está
   en cPanel; por carpeta no). Otros sistemas del mismo servidor: revisar `mcrypt`, `wddx`, `xmlrpc`, `imap` e `ionCube`
   (activos en 7.0, no existen o cambian en 8.4). Dejar `display_errors` en OFF en producción.
+- **POS como Super Admin (modo pruebas, sin local en la sesión)**: el local se elige en el selector de la pantalla y el cupo
+  de un convenio POR MARCA depende de ese local. La búsqueda (GET) ahora envía `loc_id` y `resolverLocId()` lo lee de
+  GET o POST (antes solo POST: el cupo salía en $0 con "Error de sistema" aunque la persona tuviera cupo); si todavía no
+  hay local elegido se pide elegirlo, y al cambiar de local se recalcula. Un cajero real siempre tiene `loc_id` en la sesión.
 - Sigue pendiente (no bloquea): ~98 lecturas de `$_GET/$_POST` sin `??` en 8.x dan "Undefined array key" si se pasa el
   parámetro vacío; `econea/nusoap` sigue en `composer.json` (ya no se usa).
 
