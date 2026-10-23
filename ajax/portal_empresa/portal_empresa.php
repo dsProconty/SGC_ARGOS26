@@ -2,6 +2,7 @@
 date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/db_compat.php';
 require_once '../../helpers/cupo_marca_helpers.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
@@ -29,7 +30,7 @@ switch ($action) {
         $qBase = "SELECT COUNT(*) AS total_empleados,
                          SUM(CASE WHEN per_estado = 'activo' THEN 1 ELSE 0 END) AS activos
                   FROM personal WHERE cli_id = $cli_id AND per_estado != 'archivado'";
-        $r = mysqli_fetch_assoc(mysqli_query($mysqli, $qBase));
+        $r = dbFila($mysqli, $qBase);
 
         if ($modo['modo'] === 'marca') {
             $marcas = cupoMarcasActivas($mysqli);
@@ -71,7 +72,7 @@ switch ($action) {
                                SUM(per_cupo_disponible) AS total_disponible,
                                SUM(per_cupo_asignado - per_cupo_disponible) AS total_consumido
                         FROM personal WHERE cli_id = $cli_id";
-            $rGlobal = mysqli_fetch_assoc(mysqli_query($mysqli, $qGlobal));
+            $rGlobal = dbFila($mysqli, $qGlobal);
             $r['total_asignado']   = (float)$rGlobal['total_asignado'];
             $r['total_disponible'] = (float)$rGlobal['total_disponible'];
             $r['total_consumido']  = (float)$rGlobal['total_consumido'];
@@ -172,7 +173,7 @@ switch ($action) {
                      p.per_estado, p.per_cupo_asignado, p.per_cupo_disponible
               FROM personal p
               WHERE p.per_id = $per_id AND p.cli_id = $cli_id AND p.per_estado != 'archivado' LIMIT 1";
-        $row = mysqli_fetch_assoc(mysqli_query($mysqli, $q));
+        $row = dbFila($mysqli, $q);
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']); exit; }
 
         // Mismo fix que 'nomina': en modo marca el cupo real vive en
@@ -272,7 +273,7 @@ switch ($action) {
         }
 
         // Verificar que la cédula no exista ya
-        $chk = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT per_id FROM personal WHERE per_documento = '$documento' LIMIT 1"));
+        $chk = dbFila($mysqli, "SELECT per_id FROM personal WHERE per_documento = '$documento' LIMIT 1");
         if ($chk) {
             echo json_encode(['success' => false, 'mensaje' => 'Ya existe un empleado con esa cédula']);
             break;
@@ -322,9 +323,9 @@ switch ($action) {
         }
 
         // Validate belongs to this empresa
-        $emp_check = mysqli_fetch_assoc(mysqli_query($mysqli,
+        $emp_check = dbFila($mysqli,
             "SELECT per_id, per_nombre, per_documento, per_correo, per_cupo_asignado, per_cupo_disponible
-             FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
+             FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1");
         if (!$emp_check) {
             echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
             break;
@@ -333,8 +334,8 @@ switch ($action) {
         // CL-G: crear_empleado ya validaba que la cédula no exista (en ninguna
         // empresa); aquí faltaba revalidar al cambiarla, lo que permitía
         // terminar con la misma cédula duplicada en dos empresas.
-        $chkCed = mysqli_fetch_assoc(mysqli_query($mysqli,
-            "SELECT per_id FROM personal WHERE per_documento = '$documento' AND per_id != $per_id LIMIT 1"));
+        $chkCed = dbFila($mysqli,
+            "SELECT per_id FROM personal WHERE per_documento = '$documento' AND per_id != $per_id LIMIT 1");
         if ($chkCed) {
             echo json_encode(['success' => false, 'mensaje' => 'Ya existe otro empleado registrado con esa cédula']);
             break;
@@ -450,8 +451,8 @@ switch ($action) {
             break;
         }
 
-        $emp_check = mysqli_fetch_assoc(mysqli_query($mysqli,
-            "SELECT per_id, per_estado FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
+        $emp_check = dbFila($mysqli,
+            "SELECT per_id, per_estado FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1");
         if (!$emp_check) {
             echo json_encode(['success' => false, 'mensaje' => 'Empleado no encontrado']);
             break;
@@ -481,8 +482,8 @@ switch ($action) {
         if (!$per_id) { echo json_encode(['success' => false, 'data' => []]); break; }
 
         // Verify belongs to empresa
-        $chk = mysqli_fetch_assoc(mysqli_query($mysqli,
-            "SELECT per_id FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1"));
+        $chk = dbFila($mysqli,
+            "SELECT per_id FROM personal WHERE per_id = $per_id AND cli_id = $cli_id LIMIT 1");
         if (!$chk) { echo json_encode(['success' => false, 'mensaje' => 'No autorizado']); break; }
 
         $q = "SELECT t.tra_id, t.tra_campo, t.tra_campo_label, t.tra_valor_anterior, t.tra_valor_nuevo,

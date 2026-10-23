@@ -1,7 +1,9 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 require_once __DIR__ . "/../../config/database.php";
+require_once __DIR__ . "/../../helpers/db_compat.php";
 require_once __DIR__ . "/../../helpers/session_helpers.php";
+require_once __DIR__ . "/../../helpers/texto_helpers.php"; // utf8_decode/utf8_encode están obsoletas desde PHP 8.2
 // Antes cualquiera con la URL descargaba los 29 reportes (cobranza, consumos, datos de personas) sin iniciar sesión.
 exigirAccesoAjax($mysqli, 'reportes');
 require_once __DIR__ . "/../../services/giftcard_solicitud.php";
@@ -67,7 +69,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo  utf8_decode($row['loc_direccion']) ?></td>
+                    <td><?php echo  textoLatin1($row['loc_direccion']) ?></td>
                     <td>
                         <?php
                         echo $row['con_valor_total'];
@@ -132,7 +134,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php ?></td>
                     <td><?php echo $row['car_fecha_inicio'] ?></td>
                     <td><?php echo $row['car_fecha_fin'] ?></td>
@@ -141,7 +143,7 @@ switch ($tipo) {
                     <td><?php echo $row['cli_valor_pagar'] - $row['pag_monto']; ?></td>
                     <td></td>
                     <td><?php echo $row['name_user'] ?></td>
-                    <td><?php echo utf8_decode($row['ges_observacion']) ?></td>
+                    <td><?php echo textoLatin1($row['ges_observacion']) ?></td>
                 </tr>
             <?php
             }
@@ -154,7 +156,7 @@ switch ($tipo) {
         $fechafin = $_GET['fecha_fin'];
     ?>
         <table border="1" class="table table-bordered">
-            <tr colspan="3"><?php echo utf8_decode('TOTALIZACIÓN COBRANZA') ?></tr>
+            <tr colspan="3"><?php echo textoLatin1('TOTALIZACIÓN COBRANZA') ?></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CARTERA</td>
@@ -175,7 +177,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['car_tipo'] ?></td>
                     <td><?php echo $row['pag_monto']; ?></td>
                 </tr>
@@ -190,7 +192,7 @@ switch ($tipo) {
         $fechafin = $_GET['fecha_fin'];
     ?>
         <table border="1" class="table table-bordered">
-            <tr colspan="3"><?php echo utf8_decode('DETALLE COBRANZA') ?></tr>
+            <tr colspan="3"><?php echo textoLatin1('DETALLE COBRANZA') ?></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">PERIODO</td>
@@ -211,7 +213,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['car_fecha_inicio'] . ' / ' . $row['car_fecha_fin'] ?></td>
                     <td><?php echo $row['pag_monto'];
                         $total += $row['pag_monto']; ?></td>
@@ -232,7 +234,7 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr>
                 <td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
-                    <?php echo utf8_decode('DINERO POR EDADES DE CARTERA') ?>
+                    <?php echo textoLatin1('DINERO POR EDADES DE CARTERA') ?>
                 </td>
             </tr>
             <tr>
@@ -269,7 +271,7 @@ switch ($tipo) {
                 $grand_total  += $row['total'];
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo number_format($row['cartera_30'], 2) ?></td>
                     <td><?php echo number_format($row['cartera_60'], 2) ?></td>
                     <td><?php echo number_format($row['cartera_90'], 2) ?></td>
@@ -297,7 +299,7 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr>
                 <td colspan="5">
-                    <?php echo utf8_decode('CARTERA RECUPERADA') ?>
+                    <?php echo textoLatin1('CARTERA RECUPERADA') ?>
                 </td>
             </tr>
             <tr>
@@ -320,7 +322,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['car_tipo'] ?></td>
                     <td><?php echo $row['cli_valor_pagar'] ?></td>
                     <td><?php echo $row['pag_monto']; ?></td>
@@ -339,7 +341,7 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr>
                 <td colspan="4">
-                    <?php echo utf8_decode('CARTERA RECUPERADA') ?>
+                    <?php echo textoLatin1('CARTERA RECUPERADA') ?>
                 </td>
             </tr>
             <tr>
@@ -364,7 +366,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['con_valor_total'] ?></td>
                     <td><?php echo $row['con_fecha'] ?></td>
                     <td><?php echo $row['mar_descripcion']; ?></td>
@@ -382,7 +384,7 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr>
                 <td colspan="4">
-                    <?php echo utf8_decode('CARTERA RECUPERADA') ?>
+                    <?php echo textoLatin1('CARTERA RECUPERADA') ?>
                 </td>
             </tr>
             <tr>
@@ -406,7 +408,7 @@ switch ($tipo) {
             while ($row = mysqli_fetch_array($result)) {
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['con_fecha'] ?></td>
                     <td><?php echo $row['mar_descripcion']; ?></td>
                 </tr>
@@ -423,7 +425,7 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr>
                 <td colspan="4">
-                    <?php echo utf8_decode('COBRANZA POR GESTOR') ?>
+                    <?php echo textoLatin1('COBRANZA POR GESTOR') ?>
                 </td>
             </tr>
             <tr>
@@ -454,14 +456,14 @@ switch ($tipo) {
             ?>
                 <tr>
                     <td><?php echo $row['name_user'] ?></td>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['car_tipo'] ?></td>
                     <td><?php echo $row['cli_valor_pagar'] ?></td>
                     <td><?php echo $row['pag_monto'] ?></td>
                     <td><?php echo $row['cli_valor_pagar'] - $row['pag_monto'] ?></td>
                     <td><?php echo $row['pag_observacion'] ?></td>
                     <td><?php echo $row['pag_fecha'] ?></td>
-                    <td><?php echo utf8_decode($row['ges_observacion']) ?></td>
+                    <td><?php echo textoLatin1($row['ges_observacion']) ?></td>
 
                 </tr>
             <?php
@@ -478,7 +480,7 @@ switch ($tipo) {
         <table border="1" class="table table-bordered">
             <tr>
                 <td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
-                    <?php echo utf8_decode('CONSUMOS DEL MES ' . $marca) ?>
+                    <?php echo textoLatin1('CONSUMOS DEL MES ' . $marca) ?>
                 </td>
             </tr>
             <tr>
@@ -519,9 +521,9 @@ switch ($tipo) {
                 $hay_datos = true;
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
-                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
-                    <td><?php echo utf8_decode($row['con_fecha'] . ' / ' . $row['con_hora']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['per_nombre']) ?></td>
+                    <td><?php echo textoLatin1($row['con_fecha'] . ' / ' . $row['con_hora']) ?></td>
                     <td><?php echo $row['con_valor_total']; $total += $row['con_valor_total']; ?></td>
                     <td></td>
                 </tr>
@@ -554,7 +556,7 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td colspan="9" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TRANSACCIONES POR LOCAL') ?></td>
+                <td colspan="9" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('TRANSACCIONES POR LOCAL') ?></td>
             </tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
@@ -603,11 +605,11 @@ switch ($tipo) {
                 <tr>
                     <td><?php echo $row['con_fecha'] ?></td>
                     <td><?php echo $row['con_hora'] ?></td>
-                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
-                    <td><?php echo $row['cli_descripcion'] !== null ? utf8_decode($row['cli_descripcion']) : '' ?></td>
+                    <td><?php echo textoLatin1($row['loc_label']) ?></td>
+                    <td><?php echo $row['cli_descripcion'] !== null ? textoLatin1($row['cli_descripcion']) : '' ?></td>
                     <td><?php echo $row['con_numero_tarjeta'] ?></td>
                     <td><?php echo $row['per_documento'] ?? '' ?></td>
-                    <td><?php echo $row['per_nombre'] !== null ? utf8_decode($row['per_nombre']) : ($row['con_giftcard_codigo'] !== null ? 'Gift Card ' . $row['con_giftcard_codigo'] : '') ?></td>
+                    <td><?php echo $row['per_nombre'] !== null ? textoLatin1($row['per_nombre']) : ($row['con_giftcard_codigo'] !== null ? 'Gift Card ' . $row['con_giftcard_codigo'] : '') ?></td>
                     <td><?php echo $row['con_autorizacion'] ?></td>
                     <td><?php echo $row['con_valor_total'] ?></td>
                 </tr>
@@ -629,7 +631,7 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr>
-                <td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TOTAL VENTAS - VALORES PONDERADOS (SIN IVA)') ?></td>
+                <td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('TOTAL VENTAS - VALORES PONDERADOS (SIN IVA)') ?></td>
             </tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AÑO</td>
@@ -681,7 +683,7 @@ switch ($tipo) {
         $fechafin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REGISTRO COBRANZA') ?></td></tr>
+            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('REGISTRO COBRANZA') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA REGISTRO</td>
@@ -711,7 +713,7 @@ switch ($tipo) {
                 $total += $row['cli_valor_pagar'];
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['car_fecha_ingreso'] ?></td>
                     <td><?php echo $row['car_fecha_inicio'] ?></td>
                     <td><?php echo $row['car_fecha_fin'] ?></td>
@@ -742,7 +744,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('VENTAS LOCALES') ?></td></tr>
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('VENTAS LOCALES') ?></td></tr>
             <?php
             $where = ["l.mar_id = $marca"];
             if ($fechaini !== '') $where[] = "con.con_fecha >= '$fechaini'";
@@ -768,16 +770,16 @@ switch ($tipo) {
                 <tr><td colspan="3">No hay ventas registradas para esta marca en el período.</td></tr>
             <?php else:
                 foreach ($grupos as $provincia => $locales) {
-                    echo '<tr><td colspan="3" style="background-color:#eee;font-weight:bold;">' . utf8_decode(strtoupper($provincia)) . '</td></tr>';
+                    echo '<tr><td colspan="3" style="background-color:#eee;font-weight:bold;">' . textoLatin1(strtoupper($provincia)) . '</td></tr>';
                     echo '<tr><td>LOCAL</td><td>VALOR BRUTO</td><td>VALOR NETO (SIN IVA)</td></tr>';
                     $totalBruto = 0;
                     $totalNeto = 0;
                     foreach ($locales as $row) {
                         $totalBruto += $row['bruto'];
                         $totalNeto += $row['neto'];
-                        echo '<tr><td>' . utf8_decode($row['loc_label']) . '</td><td>' . number_format($row['bruto'], 2) . '</td><td>' . number_format($row['neto'], 2) . '</td></tr>';
+                        echo '<tr><td>' . textoLatin1($row['loc_label']) . '</td><td>' . number_format($row['bruto'], 2) . '</td><td>' . number_format($row['neto'], 2) . '</td></tr>';
                     }
-                    echo '<tr><td><strong>TOTAL ' . utf8_decode(strtoupper($provincia)) . '</strong></td><td><strong>' . number_format($totalBruto, 2) . '</strong></td><td><strong>' . number_format($totalNeto, 2) . '</strong></td></tr>';
+                    echo '<tr><td><strong>TOTAL ' . textoLatin1(strtoupper($provincia)) . '</strong></td><td><strong>' . number_format($totalBruto, 2) . '</strong></td><td><strong>' . number_format($totalNeto, 2) . '</strong></td></tr>';
                 }
             endif;
             ?>
@@ -794,7 +796,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COBRANZA PENDIENTE POR EMPRESA') ?></td></tr>
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('COBRANZA PENDIENTE POR EMPRESA') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AÑO</td>
@@ -819,7 +821,7 @@ switch ($tipo) {
                 $total += $row['valor'];
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo $row['anio'] ?></td>
                     <td><?php echo number_format($row['valor'], 2) ?></td>
                 </tr>
@@ -846,7 +848,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COBRANZA PENDIENTE POR MES') ?></td></tr>
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('COBRANZA PENDIENTE POR MES') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">AÑO</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">MES</td>
@@ -897,7 +899,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REPORTE PENDIENTE EMPRESAS ' . $anio) ?></td></tr>
+            <tr><td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('REPORTE PENDIENTE EMPRESAS ' . $anio) ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <?php
@@ -927,7 +929,7 @@ switch ($tipo) {
             while ($cli = mysqli_fetch_assoc($resClientes)) {
                 $hay_datos = true;
                 $totalEmpresa = 0;
-                echo '<tr><td>' . utf8_decode($cli['cli_descripcion']) . '</td>';
+                echo '<tr><td>' . textoLatin1($cli['cli_descripcion']) . '</td>';
                 for ($m = 1; $m <= 12; $m++) {
                     $v = $valores[$cli['cli_id']][$m] ?? 0;
                     $totalEmpresa += $v;
@@ -957,7 +959,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('CONSUMO MENSUAL POR EMPRESA ' . $anio) ?></td></tr>
+            <tr><td colspan="14" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('CONSUMO MENSUAL POR EMPRESA ' . $anio) ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <?php
@@ -992,7 +994,7 @@ switch ($tipo) {
             while ($cli = mysqli_fetch_assoc($resClientes)) {
                 $hay_datos = true;
                 $totalEmpresa = 0;
-                echo '<tr><td>' . utf8_decode($cli['cli_descripcion']) . '</td>';
+                echo '<tr><td>' . textoLatin1($cli['cli_descripcion']) . '</td>';
                 for ($m = 1; $m <= 12; $m++) {
                     $v = $valores[$cli['cli_id']][$m] ?? 0;
                     $totalEmpresa += $v;
@@ -1023,7 +1025,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('RANKING DE LOCALES POR VENTAS') ?></td></tr>
+            <tr><td colspan="3" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('RANKING DE LOCALES POR VENTAS') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">LOCAL</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR BRUTO</td>
@@ -1052,7 +1054,7 @@ switch ($tipo) {
                 $totalNeto += $row['neto'];
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo textoLatin1($row['loc_label']) ?></td>
                     <td><?php echo number_format($row['bruto'], 2) ?></td>
                     <td><?php echo number_format($row['neto'], 2) ?></td>
                 </tr>
@@ -1074,7 +1076,7 @@ switch ($tipo) {
     case 'detalle de tarjetas':
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('DETALLE DE TARJETAS - CLIENTES') ?></td></tr>
+            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('DETALLE DE TARJETAS - CLIENTES') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CLIENTE</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CONTACTO</td>
@@ -1091,8 +1093,8 @@ switch ($tipo) {
                 $hay_datos = true;
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
-                    <td><?php echo utf8_decode($row['cli_contacto']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_contacto']) ?></td>
                     <td><?php echo $row['cli_email'] ?></td>
                     <td><?php echo $row['cli_telefono'] ?></td>
                     <td><?php echo number_format($row['cli_comision'], 2) ?></td>
@@ -1115,7 +1117,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('DETALLE DE TARJETAS POR CLIENTE') ?></td></tr>
+            <tr><td colspan="6" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('DETALLE DE TARJETAS POR CLIENTE') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPLEADO</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">DOCUMENTO</td>
@@ -1133,11 +1135,11 @@ switch ($tipo) {
                 $hay_datos = true;
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo textoLatin1($row['per_nombre']) ?></td>
                     <td><?php echo $row['per_documento'] ?></td>
                     <td><?php echo $row['per_numero_tarjeta'] ?></td>
-                    <td><?php echo number_format($row['per_cupo_asignado'], 2) ?></td>
-                    <td><?php echo number_format($row['per_cupo_disponible'], 2) ?></td>
+                    <td><?php echo number_format((float)$row['per_cupo_asignado'], 2) ?></td>
+                    <td><?php echo number_format((float)$row['per_cupo_disponible'], 2) ?></td>
                     <td><?php echo $row['per_estado'] ?></td>
                 </tr>
             <?php
@@ -1152,7 +1154,7 @@ switch ($tipo) {
     case 'giftpoint':
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="7" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('GIFTPOINT - LISTADO DE CODIGOS') ?></td></tr>
+            <tr><td colspan="7" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('GIFTPOINT - LISTADO DE CODIGOS') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CODIGO</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CUPO INICIAL</td>
@@ -1197,7 +1199,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="7" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TRANSACCIONES DE LA TARJETA ' . $codigo) ?></td></tr>
+            <tr><td colspan="7" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('TRANSACCIONES DE LA TARJETA ' . $codigo) ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">HORA</td>
@@ -1223,9 +1225,9 @@ switch ($tipo) {
                 <tr>
                     <td><?php echo $row['con_fecha'] ?></td>
                     <td><?php echo $row['con_hora'] ?></td>
-                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo textoLatin1($row['loc_label']) ?></td>
                     <td><?php echo $row['per_documento'] ?? '' ?></td>
-                    <td><?php echo $row['per_nombre'] !== null ? utf8_decode($row['per_nombre']) : '<em>Venta directa de Gift Card (sin empleado)</em>' ?></td>
+                    <td><?php echo $row['per_nombre'] !== null ? textoLatin1($row['per_nombre']) : '<em>Venta directa de Gift Card (sin empleado)</em>' ?></td>
                     <td><?php echo $row['con_autorizacion'] ?></td>
                     <td><?php echo number_format($row['con_monto_giftcard'], 2) ?></td>
                 </tr>
@@ -1244,7 +1246,7 @@ switch ($tipo) {
         $cliente = (int)($_GET['cliente'] ?? 0);
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="8" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REPORTE GIFCARDS') ?></td></tr>
+            <tr><td colspan="8" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('REPORTE GIFCARDS') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CODIGO</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
@@ -1282,13 +1284,13 @@ switch ($tipo) {
             ?>
                 <tr>
                     <td><?php echo $row['cgc_codigo'] ?></td>
-                    <td><?php echo $row['cli_descripcion'] !== null ? utf8_decode($row['cli_descripcion']) : '' ?></td>
+                    <td><?php echo $row['cli_descripcion'] !== null ? textoLatin1($row['cli_descripcion']) : '' ?></td>
                     <td><?php echo number_format($row['cgc_cupo_inicial'], 2) ?></td>
                     <td><?php echo number_format($row['cgc_cupo_disponible'], 2) ?></td>
                     <td><?php echo $row['cgc_estado'] ?></td>
                     <td><?php echo $row['cgc_fecha_caducidad'] ?></td>
                     <td><?php echo $row['con_autorizacion'] ?></td>
-                    <td><?php echo $row['loc_label'] !== null ? utf8_decode($row['loc_label']) : '' ?></td>
+                    <td><?php echo $row['loc_label'] !== null ? textoLatin1($row['loc_label']) : '' ?></td>
                 </tr>
             <?php
             }
@@ -1312,7 +1314,7 @@ switch ($tipo) {
     ?>
         <table border="1" class="table table-bordered">
             <tr><td colspan="4" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">
-                <?php echo utf8_decode('REGISTRO PAGOS GIFT - ' . ($cliData ? $cliData['cli_descripcion'] : '') . ' - ' . $mes . '/' . $anio) ?>
+                <?php echo textoLatin1('REGISTRO PAGOS GIFT - ' . ($cliData ? $cliData['cli_descripcion'] : '') . ' - ' . $mes . '/' . $anio) ?>
             </td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">CODIGO</td>
@@ -1364,7 +1366,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COMISION MENSUAL EMPRESAS') ?></td></tr>
+            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('COMISION MENSUAL EMPRESAS') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">% COMISION</td>
@@ -1402,7 +1404,7 @@ switch ($tipo) {
                 $totalComision += $comision;
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo number_format($row['cli_comision'], 2) ?></td>
                     <td><?php echo number_format($row['venta_neta'], 2) ?></td>
                     <td><?php echo number_format($row['iva'], 2) ?></td>
@@ -1435,8 +1437,8 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('DETALLE COBRANZA - VENTAS POR EMPRESA') ?></td></tr>
-            <tr><td colspan="5" style="background-color:#eee;font-weight:bold;"><?php echo utf8_decode('VENTAS BUSINESS CARD') ?></td></tr>
+            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('DETALLE COBRANZA - VENTAS POR EMPRESA') ?></td></tr>
+            <tr><td colspan="5" style="background-color:#eee;font-weight:bold;"><?php echo textoLatin1('VENTAS BUSINESS CARD') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VENTA NETA</td>
@@ -1469,7 +1471,7 @@ switch ($tipo) {
                 $totalComision += $comision;
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo number_format($row['venta_neta'], 2) ?></td>
                     <td><?php echo number_format($row['iva'], 2) ?></td>
                     <td><?php echo number_format($row['cli_comision'], 2) ?></td>
@@ -1480,7 +1482,7 @@ switch ($tipo) {
             if (!$hayBc): ?>
                 <tr><td colspan="5">Sin ventas Business Card en el período.</td></tr>
             <?php endif; ?>
-            <tr><td colspan="5" style="background-color:#eee;font-weight:bold;"><?php echo utf8_decode('VENTAS GIFT CARD') ?></td></tr>
+            <tr><td colspan="5" style="background-color:#eee;font-weight:bold;"><?php echo textoLatin1('VENTAS GIFT CARD') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;" colspan="4">EMPRESA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
@@ -1509,7 +1511,7 @@ switch ($tipo) {
                 $totalGift += $row['valor_gift'];
             ?>
                 <tr>
-                    <td colspan="4"><?php echo utf8_decode($row['cli_descripcion']) ?></td>
+                    <td colspan="4"><?php echo textoLatin1($row['cli_descripcion']) ?></td>
                     <td><?php echo number_format($row['valor_gift'], 2) ?></td>
                 </tr>
             <?php
@@ -1549,7 +1551,7 @@ switch ($tipo) {
         $comisionPct = (float)(mysqli_fetch_assoc($qComision)['mar_comision'] ?? 12.5);
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="2" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('VENTAS POR LOCALES (LIQUIDACION) - ' . $mes . '/' . $anio) ?></td></tr>
+            <tr><td colspan="2" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('VENTAS POR LOCALES (LIQUIDACION) - ' . $mes . '/' . $anio) ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">LOCAL</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">VALOR</td>
@@ -1571,7 +1573,7 @@ switch ($tipo) {
                 $totalVenta += $row['valor'];
             ?>
                 <tr>
-                    <td><?php echo utf8_decode($row['loc_label']) ?></td>
+                    <td><?php echo textoLatin1($row['loc_label']) ?></td>
                     <td><?php echo number_format($row['valor'], 2) ?></td>
                 </tr>
             <?php
@@ -1599,7 +1601,7 @@ switch ($tipo) {
                     <td><strong><?php echo number_format($totalVenta, 2) ?></strong></td>
                 </tr>
                 <?php
-                $cfgIva = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'iva_porcentaje' LIMIT 1"));
+                $cfgIva = dbFila($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'iva_porcentaje' LIMIT 1");
                 $ivaPct = $cfgIva ? (float)$cfgIva['cfg_valor'] : 15.0;
                 $subtotalSinIva = $totalVenta - $totalIva;
                 $comisionArgos = $subtotalSinIva * $comisionPct / 100;
@@ -1607,19 +1609,19 @@ switch ($tipo) {
                 $totalFacturaMarca = $comisionArgos + $ivaComision;
                 ?>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('% COMISIÓN ARGOS') ?></td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('% COMISIÓN ARGOS') ?></td>
                     <td><strong><?php echo number_format($comisionPct, 2) ?>%</strong></td>
                 </tr>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('COMISIÓN ARGOS') ?></td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('COMISIÓN ARGOS') ?></td>
                     <td><strong><?php echo number_format($comisionArgos, 2) ?></strong></td>
                 </tr>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('IVA COMISIÓN') ?></td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('IVA COMISIÓN') ?></td>
                     <td><strong><?php echo number_format($ivaComision, 2) ?></strong></td>
                 </tr>
                 <tr>
-                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('TOTAL FACTURA A LA MARCA') ?></td>
+                    <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('TOTAL FACTURA A LA MARCA') ?></td>
                     <td><strong><?php echo number_format($totalFacturaMarca, 2) ?></strong></td>
                 </tr>
             <?php endif; ?>
@@ -1636,7 +1638,7 @@ switch ($tipo) {
         }
     ?>
         <table border="1" class="table table-bordered">
-            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo utf8_decode('REPORTE RECARGAS (HISTORIAL DE CUPO)') ?></td></tr>
+            <tr><td colspan="5" style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;"><?php echo textoLatin1('REPORTE RECARGAS (HISTORIAL DE CUPO)') ?></td></tr>
             <tr>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">FECHA</td>
                 <td style="background-color:#6d1b3a;color:#ffffff;font-weight:bold;">EMPLEADO</td>
@@ -1662,10 +1664,10 @@ switch ($tipo) {
             ?>
                 <tr>
                     <td><?php echo $row['tra_fecha'] ?></td>
-                    <td><?php echo utf8_decode($row['per_nombre']) ?></td>
+                    <td><?php echo textoLatin1($row['per_nombre']) ?></td>
                     <td><?php echo $row['tra_valor_anterior'] ?></td>
                     <td><?php echo $row['tra_valor_nuevo'] ?></td>
-                    <td><?php echo $row['name_user'] !== null ? utf8_decode($row['name_user']) : '' ?></td>
+                    <td><?php echo $row['name_user'] !== null ? textoLatin1($row['name_user']) : '' ?></td>
                 </tr>
             <?php
             }

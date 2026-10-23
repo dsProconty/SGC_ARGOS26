@@ -1,8 +1,10 @@
 <?php
 require_once "../../config/database.php";
+require_once "../../helpers/db_compat.php";
 require_once "../../helpers/session_helpers.php";
 require_once "../../helpers/db_helpers.php";
-require_once "../../helpers/cobro_helpers.php"; // se cobra solo la parte que salió del cupo (con_monto_convenio)
+require_once "../../helpers/cobro_helpers.php";
+require_once "../../helpers/texto_helpers.php"; // utf8_decode/utf8_encode están obsoletas desde PHP 8.2 // se cobra solo la parte que salió del cupo (con_monto_convenio)
 session_start();
 date_default_timezone_set('America/Guayaquil');
 exigirAccesoAjax($mysqli, 'gestiones'); // antes no pedía sesión: cobranza, consumos y pagos quedaban abiertos
@@ -42,13 +44,15 @@ switch ($action) {
                             $resultUltGes = mysqli_query($mysqli, $queryUltGes);
 
                             $rowUltGes = mysqli_fetch_array($resultUltGes);
+                            // una cartera sin gestiones previas no trae fila: se evita leer claves de null (aviso en PHP 8)
+                            if (!$rowUltGes) { $rowUltGes = array('ges_fecha' => '', 'ges_id' => ''); }
 
                         ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
                                 <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
-                                <td><?php echo utf8_encode($row['cli_contacto']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $rowUltGes['ges_fecha']; ?></td>
@@ -98,13 +102,15 @@ switch ($action) {
                             $resultUltGes = mysqli_query($mysqli, $queryUltGes);
 
                             $rowUltGes = mysqli_fetch_array($resultUltGes);
+                            // una cartera sin gestiones previas no trae fila: se evita leer claves de null (aviso en PHP 8)
+                            if (!$rowUltGes) { $rowUltGes = array('ges_fecha' => '', 'ges_id' => ''); }
 
                         ?>
                             <tr>
                                 <td><?php echo $no; ?></td>
                                 <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
-                                <td><?php echo utf8_encode($row['cli_contacto']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $rowUltGes['ges_fecha']; ?></td>
@@ -141,7 +147,7 @@ switch ($action) {
                     JOIN pago p ON g.pag_id = p.pag_id
                     WHERE c.car_tipo = '$cartera'
                     AND c.car_estado IN ('cobrada','pendiente_confirmacion')";
-                $rowRes = mysqli_fetch_assoc(mysqli_query($mysqli, $qResumen));
+                $rowRes = dbFila($mysqli, $qResumen);
                 $totalConfirmado = (float)$rowRes['total_confirmado'];
                 $totalPendConf   = (float)$rowRes['total_pendiente'];
                 $totalGlobal     = $totalConfirmado + $totalPendConf;
@@ -206,6 +212,8 @@ switch ($action) {
                             $resultUltGes = mysqli_query($mysqli, $queryUltGes);
 
                             $rowUltGes = mysqli_fetch_array($resultUltGes);
+                            // una cartera sin gestiones previas no trae fila: se evita leer claves de null (aviso en PHP 8)
+                            if (!$rowUltGes) { $rowUltGes = array('ges_fecha' => '', 'ges_id' => ''); }
 
                             $queryPagos = "SELECT sum(p.pag_monto) as total_pago, p.pag_estado,
                                 p.pag_fecha_confirmacion, p.pag_confirmado_por
@@ -245,8 +253,8 @@ switch ($action) {
                             <tr>
                                 <td><?php echo $no; ?></td>
                                 <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
-                                <td><?php echo utf8_encode($row['cli_contacto']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['cli_valor_pagar'] ?></td>
                                 <td><?php echo $totalPago; ?></td>
@@ -297,8 +305,8 @@ switch ($action) {
                             <tr>
                                 <td><?php echo $no; ?></td>
                                 <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
-                                <td><?php echo utf8_encode($row['cli_contacto']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td>
@@ -355,8 +363,8 @@ switch ($action) {
                             <tr>
                                 <td><?php echo $no; ?></td>
                                 <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
-                                <td><?php echo utf8_encode($row['cli_contacto']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_contacto']); ?></td>
                                 <td><?php echo $row['cli_dia_corte']; ?></td>
                                 <td><?php echo $row['com_fecha']; ?></td>
                                 <td><?php echo $row['com_monto']; ?></td>
@@ -412,7 +420,7 @@ switch ($action) {
                             <tr>
                                 <td><?php echo $no; ?></td>
                                 <td><?php echo $row['cli_ciudad']; ?></td>
-                                <td><?php echo utf8_encode($row['cli_descripcion']); ?></td>
+                                <td><?php echo textoUtf8($row['cli_descripcion']); ?></td>
                                 <td><?php echo $row['cli_valor_pagar']; ?></td>
                                 <td><?php echo $row['pag_monto']; ?></td>
                                 <td><?php echo $row['pag_observacion']; ?></td>
@@ -456,16 +464,16 @@ switch ($action) {
 
         $row = mysqli_fetch_array($result);
 
-        $array['cli_ciudad']=utf8_encode($row['cli_ciudad']);
-        $array['cli_descripcion']=utf8_encode($row['cli_descripcion']);
-        $array['cli_dia_corte']=utf8_encode($row['cli_dia_corte']);
-        $array['cli_telefono']=utf8_encode($row['cli_telefono']);
-        $array['cli_contacto']=utf8_encode($row['cli_contacto']);
-        $array['cli_email']=utf8_encode($row['cli_email']);
-        $array['cli_telefono']=utf8_encode($row['cli_telefono']);
-        $array['cli_id']=utf8_encode($row['cli_id']);
-        $array['car_fecha_inicio']=utf8_encode($row['car_fecha_inicio']);
-        $array['car_fecha_fin']=utf8_encode($row['car_fecha_fin']);
+        $array['cli_ciudad']=textoUtf8($row['cli_ciudad']);
+        $array['cli_descripcion']=textoUtf8($row['cli_descripcion']);
+        $array['cli_dia_corte']=textoUtf8($row['cli_dia_corte']);
+        $array['cli_telefono']=textoUtf8($row['cli_telefono']);
+        $array['cli_contacto']=textoUtf8($row['cli_contacto']);
+        $array['cli_email']=textoUtf8($row['cli_email']);
+        $array['cli_telefono']=textoUtf8($row['cli_telefono']);
+        $array['cli_id']=textoUtf8($row['cli_id']);
+        $array['car_fecha_inicio']=textoUtf8($row['car_fecha_inicio']);
+        $array['car_fecha_fin']=textoUtf8($row['car_fecha_fin']);
 
         echo json_encode($array);
         break;
@@ -790,7 +798,7 @@ switch ($action) {
         // mismo cliente que ya iniciaron dentro del período pagado, sin
         // necesidad del click manual "Confirmar Pago de Cuota" en Ventas Diferidas.
         $cuotasPagadas = 0;
-        $car = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cli_id, car_fecha_fin FROM cartera WHERE car_id = $car_id"));
+        $car = dbFila($mysqli, "SELECT cli_id, car_fecha_fin FROM cartera WHERE car_id = $car_id");
         if ($car && !empty($car['car_fecha_fin'])) {
             $cliId      = (int)$car['cli_id'];
             $finPeriodo = mysqli_real_escape_string($mysqli, $car['car_fecha_fin']);

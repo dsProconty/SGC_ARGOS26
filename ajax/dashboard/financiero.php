@@ -3,6 +3,7 @@
 // Visible solo para Super Admin / financiero / Operador (perfiles de gestión).
 session_start();
 require_once "../../config/database.php";
+require_once "../../helpers/db_compat.php";
 header('Content-Type: application/json');
 
 require_once "../../helpers/session_helpers.php";
@@ -40,7 +41,7 @@ switch ($action) {
             JOIN gestion g ON g.car_id = c.car_id AND g.pag_id IS NOT NULL
             JOIN pago p ON g.pag_id = p.pag_id
             WHERE c.car_estado IN ('cobrada', 'pendiente_confirmacion')";
-        $rowResumen = mysqli_fetch_assoc(mysqli_query($mysqli, $qResumen));
+        $rowResumen = dbFila($mysqli, $qResumen);
 
         // Top 5 deudores: deuda pendiente actual (no cobrada aún) agrupada por cliente
         $qDeudores = "SELECT cli.cli_descripcion, SUM(c.cli_valor_pagar) AS deuda_pendiente

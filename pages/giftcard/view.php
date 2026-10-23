@@ -1,6 +1,7 @@
 <?php
 if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; }
 require_once 'config/database.php';
+require_once 'helpers/db_compat.php';
 $rol_gc   = $_SESSION['permisos_acceso'] ?? '';
 // Acepta rol legacy O el perfil nuevo asignado (per_id -> perfil.per_nombre)
 $es_admin = (strtolower($rol_gc) === 'super admin');

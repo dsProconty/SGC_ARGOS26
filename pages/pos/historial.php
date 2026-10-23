@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'helpers/db_compat.php';
 require_once 'helpers/session_helpers.php';
 $esAdmin       = esSuperAdmin($mysqli) || tienePerfil($mysqli, 'Administrador');
 $puedeAnular   = esSuperAdmin($mysqli) || tienePermiso($mysqli, 'pos.anular');

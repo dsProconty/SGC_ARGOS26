@@ -18,6 +18,7 @@ register_shutdown_function(function () {
 
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/db_compat.php';
 require_once '../../helpers/session_helpers.php';
 mysqli_report(MYSQLI_REPORT_OFF); // PHP 8.1 lanza excepciones por defecto — lo desactivamos para manejar errores con if(!$result)
 header('Content-Type: application/json');
@@ -92,9 +93,9 @@ switch ($action) {
     // ----------------------------------------------------------
     case 'get_sucursal':
         $loc_id = (int)($_GET['loc_id'] ?? 0);
-        $row = mysqli_fetch_assoc(mysqli_query($mysqli,
+        $row = dbFila($mysqli,
             "SELECT loc_id, loc_nombre, loc_direccion, loc_provincia, loc_activo, mar_id
-             FROM local WHERE loc_id = $loc_id LIMIT 1"));
+             FROM local WHERE loc_id = $loc_id LIMIT 1");
         if (!$row) { echo json_encode(['success' => false, 'mensaje' => 'No encontrado']); break; }
         echo json_encode(['success' => true, 'data' => $row]);
         break;

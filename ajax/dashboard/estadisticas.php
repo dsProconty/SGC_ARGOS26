@@ -1,6 +1,7 @@
 <?php
 date_default_timezone_set('America/Guayaquil');
 require_once "../../config/database.php";
+require_once "../../helpers/db_compat.php";
 require_once "../../helpers/session_helpers.php";
 exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
 

@@ -2,6 +2,7 @@
 session_start();
 if (isset($_SESSION['id_user'])) {
     require_once "config/database.php";
+    require_once "helpers/db_compat.php";
     $_sv = $mysqli->prepare("SELECT session_version FROM usuario WHERE id_user = ? LIMIT 1");
     $_sv->bind_param('i', $_SESSION['id_user']);
     $_sv->execute();

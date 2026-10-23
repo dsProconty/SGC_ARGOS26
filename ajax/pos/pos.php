@@ -2,6 +2,7 @@
 date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/db_compat.php';
 require_once '../../helpers/session_helpers.php';
 require_once '../../helpers/cupo_marca_helpers.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
@@ -16,7 +17,7 @@ if (empty($_SESSION['id_user'])) {
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 // Leer IVA configurado
-$cfgRow = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'iva_porcentaje' LIMIT 1"));
+$cfgRow = dbFila($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'iva_porcentaje' LIMIT 1");
 $IVA_PCT = $cfgRow ? (float)$cfgRow['cfg_valor'] : 15.0;
 
 function calcularIva(float $total, float $pct): array {

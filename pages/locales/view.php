@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'helpers/db_compat.php';
 require_once 'helpers/session_helpers.php';
 if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     echo "<meta http-equiv='refresh' content='0; url=index.php'>";
@@ -406,8 +407,8 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
 
             <!-- LC-A: KPI marcas/sucursales -->
             <?php
-            $totalMarcas = (int)mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) c FROM marca"))['c'];
-            $totalLocales = (int)mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) c FROM local"))['c'];
+            $totalMarcas = (int)(dbFila($mysqli, "SELECT COUNT(*) c FROM marca")["c"] ?? 0);
+            $totalLocales = (int)(dbFila($mysqli, "SELECT COUNT(*) c FROM local")["c"] ?? 0);
             ?>
             <div class="row mb-3">
                 <div class="col-md-3">

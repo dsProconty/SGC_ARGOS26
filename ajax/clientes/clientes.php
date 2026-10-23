@@ -2,6 +2,7 @@
 date_default_timezone_set('America/Guayaquil');
 session_start();
 require_once "../../config/database.php";
+require_once "../../helpers/db_compat.php";
 require_once "../../helpers/cupo_marca_helpers.php";
 require_once "../../services/giftcard_solicitud.php";
 require_once "../../helpers/session_helpers.php";

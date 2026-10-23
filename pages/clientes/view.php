@@ -1,6 +1,7 @@
 <?php
 if (!isset($_SESSION['id_user'])) { echo "<meta http-equiv='refresh' content='0; url=index.php'>"; exit; }
 require_once 'config/database.php';
+require_once 'helpers/db_compat.php';
 require_once 'helpers/session_helpers.php';
 $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
 ?>

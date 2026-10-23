@@ -109,6 +109,7 @@
                         <i class="icon dripicons-location"></i>
                         <?php
                             require_once 'config/database.php';
+                            require_once 'helpers/db_compat.php';
                             $loc_id = (int)$_SESSION['loc_id'];
                             $rLoc = mysqli_query($mysqli, "SELECT COALESCE(l.loc_nombre, l.loc_direccion) AS loc_nombre, m.mar_descripcion FROM local l JOIN marca m ON l.mar_id = m.mar_id WHERE l.loc_id = $loc_id");
                             if ($rowLoc = mysqli_fetch_assoc($rLoc)) {

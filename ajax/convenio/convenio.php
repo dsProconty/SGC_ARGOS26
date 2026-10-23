@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../../config/database.php';
+require_once '../../helpers/db_compat.php';
 require_once '../../helpers/session_helpers.php';
 
 header('Content-Type: application/json');
@@ -150,7 +151,7 @@ switch ($action) {
         }
 
         // Verificar que no tenga personal asociado
-        $chk = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT(*) AS total FROM personal WHERE cli_id = $cli_id"));
+        $chk = dbFila($mysqli, "SELECT COUNT(*) AS total FROM personal WHERE cli_id = $cli_id");
         if ($chk['total'] > 0) {
             echo json_encode(['success' => false, 'mensaje' => 'No se puede eliminar: el convenio tiene ' . $chk['total'] . ' empleado(s) asociado(s)']);
             break;

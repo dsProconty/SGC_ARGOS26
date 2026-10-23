@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once('../../config/database.php');
+require_once('../../helpers/db_compat.php');
 
 header('Content-Type: application/json');
 

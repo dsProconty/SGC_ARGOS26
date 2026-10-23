@@ -2,9 +2,13 @@
 
 ob_start();
 require_once "config/database.php";
+require_once "helpers/db_compat.php";
+require_once "helpers/auth_helpers.php";
 
-$username     = mysqli_real_escape_string($mysqli, stripslashes(strip_tags(htmlspecialchars(trim($_POST['username'])))));
-$passwordPlano = stripslashes(strip_tags(htmlspecialchars(trim($_POST['password']))));
+$username     = mysqli_real_escape_string($mysqli, stripslashes(strip_tags(htmlspecialchars(trim(isset($_POST['username']) ? $_POST['username'] : '')))));
+// Formas válidas de la clave escrita (ver helpers/auth_helpers.php): la clave se compara tal cual se escribió y,
+// por compatibilidad, también con la transformación antigua; ya no se altera antes de comparar.
+$clavesCandidatas = clavesCandidatas($mysqli, isset($_POST['password']) ? $_POST['password'] : '');
 
 // Se aceptan letras (con ñ y tildes), números, guion, guion bajo y punto. Antes solo ctype_alnum(): 20 cuentas
 // migradas del sistema viejo (ej. "Mcedeño", "j___sod") quedaron imposibilitadas de entrar. El valor ya viaja
@@ -26,12 +30,7 @@ else {
 
 	$passwordValida = false;
 	if ($data) {
-		$esBcrypt = (strpos($data['password'], '$2y$') === 0 || strpos($data['password'], '$2a$') === 0 || strpos($data['password'], '$2b$') === 0);
-		if ($esBcrypt) {
-			$passwordValida = password_verify($passwordPlano, $data['password']);
-		} else {
-			$passwordValida = (md5($passwordPlano) === $data['password']);
-		}
+		$passwordValida = claveCoincide($data['password'], $clavesCandidatas);
 	}
 
 	if ($passwordValida) {

@@ -25,6 +25,7 @@ ob_start();
 date_default_timezone_set('America/Guayaquil');
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../helpers/db_compat.php';
 require_once __DIR__ . '/../../services/giftcard_solicitud.php';
 require_once __DIR__ . '/lib.php';
 

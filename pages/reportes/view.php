@@ -1,5 +1,5 @@
 <?php
-$tipo = $_GET['tipo'];
+$tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
 ?>
 <div class="content" data-layout="tabbed">
     <!-- PAGE HEADER -->

@@ -21,6 +21,7 @@ if (php_sapi_name() !== 'cli') {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/db_compat.php';
 require_once __DIR__ . '/../services/estado_cuenta_service.php';
 
 ec_generar_y_enviar_automaticos($mysqli);

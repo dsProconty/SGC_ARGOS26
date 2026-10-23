@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once 'helpers/db_compat.php';
 $rMarcasCombo = mysqli_query($mysqli, "SELECT mar_id, mar_descripcion FROM marca ORDER BY mar_descripcion ASC");
 ?>
 <div class="content">

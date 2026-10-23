@@ -1,5 +1,6 @@
 <?php
 require_once "config/database.php";
+require_once "helpers/db_compat.php";
 
 if (empty($_SESSION['username']) && empty($_SESSION['password'])) {
     echo "<meta http-equiv='refresh' content='0; url=index.php?alert=1'>";

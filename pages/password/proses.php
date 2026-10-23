@@ -2,6 +2,9 @@
 ob_start();
 session_start();
 require_once "../../config/database.php";
+require_once "../../helpers/db_compat.php";
+require_once "../../helpers/auth_helpers.php";
+require_once "../../helpers/session_helpers.php";
 
 if (empty($_SESSION['username'])) {
     header("location: ../../index.php?alert=1");
@@ -10,8 +13,10 @@ if (empty($_SESSION['username'])) {
 
 if (isset($_POST['Guardar'])) {
 
-    $new_pass    = md5(mysqli_real_escape_string($mysqli, trim($_POST['new_pass'])));
-    $retype_pass = md5(mysqli_real_escape_string($mysqli, trim($_POST['retype_pass'])));
+    // La clave nueva se guarda como MD5 de lo que se escribió (trim), sin escapes: así el login la reconoce siempre
+    // (ver helpers/auth_helpers.php). Antes se guardaba el MD5 de la versión escapada, con barras agregadas.
+    $new_pass    = md5(trim(isset($_POST['new_pass']) ? $_POST['new_pass'] : ''));
+    $retype_pass = md5(trim(isset($_POST['retype_pass']) ? $_POST['retype_pass'] : ''));
     $rol         = $_SESSION['permisos_acceso'] ?? '';
     $es_admin    = in_array($rol, ['Super Admin', 'Supervisor']);
 
@@ -24,6 +29,15 @@ if (isset($_POST['Guardar'])) {
     if ($es_admin && !empty($_POST['target_user_id'])) {
         // ── Admin: resetear contraseña de otro usuario directamente ──
         $target_id = (int)$_POST['target_user_id'];
+        // Un Supervisor puede resetear claves del personal, pero no la de un Super Admin (sería tomar su cuenta).
+        if (!esSuperAdmin($mysqli)) {
+            $rObj = mysqli_query($mysqli, "SELECT p.per_nombre FROM usuario u LEFT JOIN perfil p ON p.per_id = u.per_id WHERE u.id_user = $target_id");
+            $fObj = $rObj ? mysqli_fetch_assoc($rObj) : null;
+            if (!$fObj || strtolower((string)$fObj['per_nombre']) === 'super admin') {
+                header("location: ../../main.php?module=contrasena&alert=1");
+                exit;
+            }
+        }
         $query = mysqli_query($mysqli, "UPDATE usuario SET password = '$new_pass' WHERE id_user = '$target_id'");
         if ($query) {
             header("location: ../../main.php?module=contrasena&alert=3");
@@ -34,22 +48,13 @@ if (isset($_POST['Guardar'])) {
         }
     } else {
         // ── Usuario normal: verificar contraseña antigua ──
-        $old_pass = md5(mysqli_real_escape_string($mysqli, trim($_POST['old_pass'] ?? '')));
         $id_user  = (int)$_SESSION['id_user'];
 
         $sql  = mysqli_query($mysqli, "SELECT password FROM usuario WHERE id_user = $id_user");
         $data = mysqli_fetch_assoc($sql);
 
-        // Las cuentas migradas del sistema viejo guardan un hash bcrypt (igual que en login-check.php):
-        // se valida con password_verify(); las nuevas siguen comparando MD5.
-        $hashGuardado = $data['password'];
-        if (strpos($hashGuardado, '$2y$') === 0 || strpos($hashGuardado, '$2a$') === 0 || strpos($hashGuardado, '$2b$') === 0) {
-            // mismo tratamiento que aplica login-check.php a lo que escribe la persona
-            $oldPlano = stripslashes(strip_tags(htmlspecialchars(trim($_POST['old_pass'] ?? ''))));
-            $oldValida = password_verify($oldPlano, $hashGuardado);
-        } else {
-            $oldValida = ($old_pass === $hashGuardado);
-        }
+        // Mismas formas de clave y mismo criterio que el login (bcrypt de las cuentas migradas o MD5).
+        $oldValida = $data ? claveCoincide($data['password'], clavesCandidatas($mysqli, isset($_POST['old_pass']) ? $_POST['old_pass'] : '')) : false;
 
         if (!$oldValida) {
             header("Location: ../../main.php?module=contrasena&alert=1");

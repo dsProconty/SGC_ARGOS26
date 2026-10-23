@@ -517,6 +517,28 @@ con usuarios de prueba por rol (curl + navegador). Lo que salió y quedó correg
 - Pendiente menor: la comisión por marca (`marca.mar_comision`) no se puede editar desde ninguna pantalla. Rechazar una
   solicitud de gift card no exige motivo.
 
+**Compatibilidad PHP 7.0 ↔ 8.4 (23 de octubre de 2026).** Producción corre **PHP 7.0** (confirmado en cPanel de HostPapa;
+extensiones activas: mysqli, mysqlnd, mbstring, gd, curl, openssl, fileinfo, zip, json, iconv) y las vulnerabilidades
+"PHP2Shell" (CVE-2026-109618/109619) no tienen parche oficial para 7.0; el objetivo es migrar a **8.4.27** (corregida,
+publicada 21-oct-2026). El código ahora corre igual en las dos versiones (batería completa probada con PHP 7.0.33, 8.1.6 y
+8.4.27 portables: 0 avisos, 0 fatales; 53 endpoints, 58 reportes, 17 flujos de escritura, PDF, cron). Reglas:
+- **Todo archivo que cargue `config/database.php` (que NO va en git: es propio de cada servidor) debe cargar justo
+  después `helpers/db_compat.php`.** Fija `mysqli_report(MYSQLI_REPORT_OFF)` (desde PHP 8.1 mysqli lanza excepciones; el
+  código está escrito para "la consulta falla y devuelve false") y define `dbFila($mysqli, $sql)`. **No usar
+  `mysqli_fetch_assoc(mysqli_query(...))`** (TypeError en PHP 8 si la consulta falla): usar `dbFila()`.
+- **No usar `utf8_decode()`/`utf8_encode()`** (obsoletas desde 8.2, se eliminan en 9): usar `textoLatin1()` / `textoUtf8()`
+  de `helpers/texto_helpers.php` (mbstring, con respaldo a las antiguas; null → '').
+- **Claves**: `helpers/auth_helpers.php` (`clavesCandidatas()` + `claveCoincide()`) las usan `login-check.php` y
+  `pages/password/proses.php`. Desde PHP 8.1 `htmlspecialchars()` convierte también `'` (antes no): el login ya no altera
+  la clave antes de compararla, prueba la clave tal cual, la forma antigua (con banderas fijas ENT_COMPAT) y la escapada
+  del alta antigua; las claves nuevas se guardan como `md5(trim($clave))`. Un Supervisor ya no puede resetear la clave de
+  un Super Admin.
+- Antes de cambiar la versión del hosting: probar una copia en un subdominio con PHP 8.4 (la selección por dominio está
+  en cPanel; por carpeta no). Otros sistemas del mismo servidor: revisar `mcrypt`, `wddx`, `xmlrpc`, `imap` e `ionCube`
+  (activos en 7.0, no existen o cambian en 8.4). Dejar `display_errors` en OFF en producción.
+- Sigue pendiente (no bloquea): ~98 lecturas de `$_GET/$_POST` sin `??` en 8.x dan "Undefined array key" si se pasa el
+  parámetro vacío; `econea/nusoap` sigue en `composer.json` (ya no se usa).
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
