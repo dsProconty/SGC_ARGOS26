@@ -4,7 +4,7 @@
         <div class="container">
             <div class="d-flex align-items-center">
                 <div class="mr-auto">
-                    <h1 class="separator"><?php echo strtoupper($_GET['module']); ?></h1>
+                    <h1 class="separator"><?php echo htmlspecialchars(strtoupper($_GET['module'] ?? '')); ?></h1>
                     <nav class="breadcrumb-wrapper" aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item"><a href="?module=dashboard"><i class="icon dripicons-home"></i></a></li>

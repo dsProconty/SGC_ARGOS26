@@ -28,7 +28,7 @@ switch ($cartera) {
         <div class="container">
             <div class="d-flex align-items-center">
                 <div class="mr-auto">
-                    <h1 class="separator"><?php echo strtoupper($_GET['module']).' '.$title; ?></h1>
+                    <h1 class="separator"><?php echo htmlspecialchars(strtoupper($_GET['module'] ?? '')).' '.$title; ?></h1>
                     <input type="hidden" name="cartera" id="cartera" value="<?php echo $cartera;?>">
                     <nav class="breadcrumb-wrapper" aria-label="breadcrumb">
                         <ol class="breadcrumb">

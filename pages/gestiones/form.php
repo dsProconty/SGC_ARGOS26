@@ -9,7 +9,7 @@
                         <div class="row">
                             <div class="col-lg-4">
                                 <h5>Datos de Cliente</h5>
-                                <input type="hidden" name="id_cartera" id="id_cartera" value="<?php echo $_GET['id']; ?>">
+                                <input type="hidden" name="id_cartera" id="id_cartera" value="<?php echo (int)($_GET['id'] ?? 0); ?>">
                                 <input type="hidden" name="id_cliente" id="id_cliente">
                                 <div class="row">
                                     <div class="col-sm-12">

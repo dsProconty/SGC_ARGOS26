@@ -62,13 +62,13 @@ else {
 		}
 	};
 
-	if ($_GET['act']=='insert') {
+	if (($_GET['act'] ?? '')=='insert') {
 		if (isset($_POST['Guardar'])) {
 	
-			$validarUsuarioNombre(trim($_POST['username']), 0);
-			$username    = mysqli_real_escape_string($mysqli, trim($_POST['username']));
-			$password    = md5(trim($_POST['password'])); // MD5 de lo escrito, sin escapes (ver helpers/auth_helpers.php)
-			$name_user   = mysqli_real_escape_string($mysqli, trim($_POST['name_user']));
+			$validarUsuarioNombre(trim(($_POST['username'] ?? '')), 0);
+			$username    = mysqli_real_escape_string($mysqli, trim(($_POST['username'] ?? '')));
+			$password    = md5(trim(($_POST['password'] ?? ''))); // MD5 de lo escrito, sin escapes (ver helpers/auth_helpers.php)
+			$name_user   = mysqli_real_escape_string($mysqli, trim(($_POST['name_user'] ?? '')));
 			agregarColumnaSiNoExiste($mysqli, 'usuario', 'documento', 'VARCHAR(20) NULL');
 			$documento_t = mysqli_real_escape_string($mysqli, trim($_POST['documento'] ?? ''));
 			$documento_val = $documento_t !== '' ? "'$documento_t'" : 'NULL';
@@ -96,11 +96,11 @@ else {
 		}
 	}
 	
-	elseif ($_GET['act']=='update') {
+	elseif (($_GET['act'] ?? '')=='update') {
 		if (isset($_POST['Guardar'])) {
 			if (isset($_POST['id_user'])) {
-				$id_user     = mysqli_real_escape_string($mysqli, trim($_POST['id_user']));
-				$validarUsuarioNombre(trim($_POST['username']), (int)$id_user);
+				$id_user     = mysqli_real_escape_string($mysqli, trim(($_POST['id_user'] ?? '')));
+				$validarUsuarioNombre(trim(($_POST['username'] ?? '')), (int)$id_user);
 				if (!$soyAdminTotal) {
 					$rObj = mysqli_query($mysqli, "SELECT per_id FROM usuario WHERE id_user = " . (int)$id_user);
 					$fObj = $rObj ? mysqli_fetch_assoc($rObj) : null;
@@ -108,11 +108,11 @@ else {
 						$volverConError('Solo un Super Admin puede modificar cuentas con el perfil Super Admin.');
 					}
 				}
-				$username    = mysqli_real_escape_string($mysqli, trim($_POST['username']));
-				$password    = md5(trim($_POST['password'])); // MD5 de lo escrito, sin escapes (ver helpers/auth_helpers.php)
-				$name_user   = mysqli_real_escape_string($mysqli, trim($_POST['name_user']));
-				$email       = mysqli_real_escape_string($mysqli, trim($_POST['email']));
-				$telefono    = mysqli_real_escape_string($mysqli, trim($_POST['telefono']));
+				$username    = mysqli_real_escape_string($mysqli, trim(($_POST['username'] ?? '')));
+				$password    = md5(trim(($_POST['password'] ?? ''))); // MD5 de lo escrito, sin escapes (ver helpers/auth_helpers.php)
+				$name_user   = mysqli_real_escape_string($mysqli, trim(($_POST['name_user'] ?? '')));
+				$email       = mysqli_real_escape_string($mysqli, trim(($_POST['email'] ?? '')));
+				$telefono    = mysqli_real_escape_string($mysqli, trim(($_POST['telefono'] ?? '')));
 				agregarColumnaSiNoExiste($mysqli, 'usuario', 'documento', 'VARCHAR(20) NULL');
 				$documento_t = mysqli_real_escape_string($mysqli, trim($_POST['documento'] ?? ''));
 				$documento_val = $documento_t !== '' ? "'$documento_t'" : 'NULL';
@@ -266,10 +266,10 @@ else {
 	}
 
 
-	elseif ($_GET['act']=='on') {
+	elseif (($_GET['act'] ?? '')=='on') {
 		if (isset($_GET['id'])) {
 			
-			$id_user = $_GET['id'];
+			$id_user = (int)$_GET['id']; // el id va dentro de un UPDATE: se fuerza a número
 			$status  = "activo";
 
 		
@@ -286,10 +286,10 @@ else {
 	}
 
 
-	elseif ($_GET['act']=='off') {
+	elseif (($_GET['act'] ?? '')=='off') {
 		if (isset($_GET['id'])) {
 			
-			$id_user = $_GET['id'];
+			$id_user = (int)$_GET['id']; // el id va dentro de un UPDATE: se fuerza a número
 			$status  = "bloqueado";
 
 		

@@ -4,7 +4,7 @@ require_once "../../config/database.php";
 require_once "../../helpers/db_compat.php";
 require_once "../../helpers/session_helpers.php";
 exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
-$action = $_GET['action'];
+$action = ($_GET['action'] ?? '');
 
 switch ($action) {
     case 'total_cartera':
@@ -70,7 +70,7 @@ switch ($action) {
         echo json_encode($arr);
         break;
     case 'recuperado_anual':
-        $cartera = $_GET['cartera'];
+        $cartera = ($_GET['cartera'] ?? '');
         $meses = array();
         $query = "SELECT extract(month from p.pag_fecha) as mes, sum(p.pag_monto) as monto_total
         from pago p,gestion g, cartera c where c.car_id = g.car_id and g.pag_id = p.pag_id 

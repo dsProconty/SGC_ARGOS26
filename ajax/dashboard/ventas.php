@@ -5,12 +5,12 @@ require_once "../../helpers/db_compat.php";
 require_once "../../helpers/session_helpers.php";
 exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
 
-$action = $_GET['action'];
+$action = ($_GET['action'] ?? '');
 
 switch ($action) {
     case 'consumos_semana':
 
-        $marca = mysqli_real_escape_string($mysqli, $_GET['marca']);
+        $marca = mysqli_real_escape_string($mysqli, ($_GET['marca'] ?? ''));
         // Dash-1: la tarjeta "Otro" del dashboard agrupa todas las marcas que
         // no son Pizza Hut ni Fridays (antes no existía ninguna llamada para
         // ella, quedaba fija en $0.00 sin importar las ventas reales).
@@ -40,7 +40,7 @@ switch ($action) {
 
         break;
     case 'consumos_mes':
-        $marca = mysqli_real_escape_string($mysqli, $_GET['marca']);
+        $marca = mysqli_real_escape_string($mysqli, ($_GET['marca'] ?? ''));
         $condMarca = ($marca === 'OTRO')
             ? "m.mar_descripcion NOT IN ('PIZZA HUT','FRIDAYS')"
             : "m.mar_descripcion = '$marca'";
@@ -57,7 +57,7 @@ switch ($action) {
         break;
 
     case 'consumos_anio':
-        $marca = mysqli_real_escape_string($mysqli, $_GET['marca']);
+        $marca = mysqli_real_escape_string($mysqli, ($_GET['marca'] ?? ''));
         $condMarca = ($marca === 'OTRO')
             ? "m.mar_descripcion NOT IN ('PIZZA HUT','FRIDAYS')"
             : "m.mar_descripcion = '$marca'";

@@ -540,8 +540,11 @@ publicada 21-oct-2026). El código ahora corre igual en las dos versiones (bater
   de un convenio POR MARCA depende de ese local. La búsqueda (GET) ahora envía `loc_id` y `resolverLocId()` lo lee de
   GET o POST (antes solo POST: el cupo salía en $0 con "Error de sistema" aunque la persona tuviera cupo); si todavía no
   hay local elegido se pide elegirlo, y al cambiar de local se recalcula. Un cajero real siempre tiene `loc_id` en la sesión.
-- Sigue pendiente (no bloquea): ~98 lecturas de `$_GET/$_POST` sin `??` en 8.x dan "Undefined array key" si se pasa el
-  parámetro vacío; `econea/nusoap` sigue en `composer.json` (ya no se usa).
+- **Lecturas de `$_GET`/`$_POST`**: las ~46 que se leían sin proteger ya llevan `?? ''` (o `?? 0` con cast a int); una
+  llamada sin parámetros ya no genera avisos en PHP 7.0 ni 8.4. **Todo código nuevo debe leerlos con `??`.** De paso se
+  endurecieron el id de `pages/user/proses.php?act=on|off` (iba dentro de un UPDATE sin castear), `pages/gestiones/form.php`
+  y los títulos con `$_GET['module']` (XSS reflejado). `econea/nusoap` sigue declarado en `composer.json` (ya no se usa, composer
+  solo lo registra para carga bajo demanda: no afecta).
 
 ## Infraestructura del repo (para no repetir investigación)
 

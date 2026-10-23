@@ -15,15 +15,15 @@ require_once __DIR__ . "/../../services/giftcard_solicitud.php";
 // módulo Gift Card). Se corrige aquí igual que en esas otras pantallas.
 gc_expirar_codigos_vencidos($mysqli);
 
-$tipo = $_GET['tipo'];
+$tipo = ($_GET['tipo'] ?? '');
 header("Content-Type: application/xls");
 header("Content-Disposition: attachment; filename=$tipo.xls");
 
 switch ($tipo) {
     case 'ventas por locales':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
-        $marca = $_GET['marca'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
+        $marca = ($_GET['marca'] ?? '');
 ?>
         <table style="width: 20%;" border="1" class="table table-bordered">
             <tr>
@@ -102,8 +102,8 @@ switch ($tipo) {
     <?php
         break;
     case 'cobranzas anteriores':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
             <tr>
@@ -152,8 +152,8 @@ switch ($tipo) {
     <?php
         break;
     case 'total cobranza':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
             <tr colspan="3"><?php echo textoLatin1('TOTALIZACIÓN COBRANZA') ?></tr>
@@ -188,8 +188,8 @@ switch ($tipo) {
     <?php
         break;
     case 'detalle cobranza':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
             <tr colspan="3"><?php echo textoLatin1('DETALLE COBRANZA') ?></tr>
@@ -335,8 +335,8 @@ switch ($tipo) {
     <?php
         break;
     case 'cliente consumos':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
             <tr>
@@ -378,8 +378,8 @@ switch ($tipo) {
     <?php
         break;
     case 'cliente - consumos':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
             <tr>
@@ -419,8 +419,8 @@ switch ($tipo) {
     <?php
         break;
     case 'cobranza por gestor':
-        $fechaini = $_GET['fecha_inicio'];
-        $fechafin = $_GET['fecha_fin'];
+        $fechaini = ($_GET['fecha_inicio'] ?? '');
+        $fechafin = ($_GET['fecha_fin'] ?? '');
     ?>
         <table border="1" class="table table-bordered">
             <tr>
@@ -473,7 +473,7 @@ switch ($tipo) {
     <?php
         break;
     case 'consumos del mes':
-        $marca = $_GET['marca'];
+        $marca = ($_GET['marca'] ?? '');
         $inicioMes = date("Y-m-01");
         $finMes = date("Y-m-t");
     ?>

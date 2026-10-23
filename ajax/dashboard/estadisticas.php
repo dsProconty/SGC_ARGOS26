@@ -5,11 +5,11 @@ require_once "../../helpers/db_compat.php";
 require_once "../../helpers/session_helpers.php";
 exigirAccesoAjax($mysqli, 'dashboard'); // antes respondía a cualquiera, sin iniciar sesión
 
-$action = $_GET['action'];
+$action = ($_GET['action'] ?? '');
 
 switch ($action) {
     case 'consumo_marcas':
-        $marca = $_GET['marca'];
+        $marca = ($_GET['marca'] ?? '');
         $meses = array();
 
         $query = "SELECT extract(month from c.con_fecha)as mes,sum(c.con_valor_total) as total_mes 
@@ -69,7 +69,7 @@ switch ($action) {
         $Mes3Semana4Ini = date("Y-m-d",$Mes3Semana4IniTmp);
 
         
-        $marca = $_GET['marca'];
+        $marca = ($_GET['marca'] ?? '');
 
         $query = "SELECT sum(c.con_valor_total)as consumo from consumo c,local l,marca m 
         where c.con_estado NOT IN ('anulado','rechazado') AND c.loc_id = l.loc_id and l.mar_id = m.mar_id and m.mar_descripcion = '$marca' 

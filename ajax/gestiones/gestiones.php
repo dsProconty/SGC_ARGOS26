@@ -8,11 +8,11 @@ require_once "../../helpers/texto_helpers.php"; // utf8_decode/utf8_encode está
 session_start();
 date_default_timezone_set('America/Guayaquil');
 exigirAccesoAjax($mysqli, 'gestiones'); // antes no pedía sesión: cobranza, consumos y pagos quedaban abiertos
-$action = $_GET['action'];
+$action = ($_GET['action'] ?? '');
 
 switch ($action) {
     case 'list':
-        $case = $_GET['case'];
+        $case = ($_GET['case'] ?? '');
         $cartera = mysqli_real_escape_string($mysqli, $_GET['cartera'] ?? '');
 
         switch ($case) {

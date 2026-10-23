@@ -4,7 +4,7 @@
         <div class="container">
             <div class="d-flex align-items-center">
                 <div class="mr-auto">
-                    <h1 class="separator"><?php echo strtoupper($_GET['module']); ?></h1>
+                    <h1 class="separator"><?php echo htmlspecialchars(strtoupper($_GET['module'] ?? '')); ?></h1>
                     <nav class="breadcrumb-wrapper" aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item"><a href="?module=dashboard"><i class="icon dripicons-home"></i></a></li>
@@ -19,14 +19,14 @@
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <h5 class="card-header"><?php if ($_GET['action'] == 'new') {
+                    <h5 class="card-header"><?php if (($_GET['action'] ?? '') == 'new') {
                                                 echo "Ingreso de nuevo usuario";
                                             } else {
                                                 echo "Modificación de usuario";
                                             } ?></h5>
                     <div class="card-body">
                         <?php
-                        if ($_GET['action'] == 'new') { ?>
+                        if (($_GET['action'] ?? '') == 'new') { ?>
                             <div class="col-lg-12 offset-lg-3">
                                 <form role="form" class="form-horizontal" method="POST" action="pages/user/proses.php?act=insert" enctype="multipart/form-data">
                                     <div class="box-body">
@@ -122,9 +122,13 @@
                         } else {
                             if (isset($_GET['id'])) {
 
-                                $query = mysqli_query($mysqli, "SELECT u.*, p.per_nombre FROM usuario u LEFT JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user='" . (int)$_GET['id'] . "'")
+                                $query = mysqli_query($mysqli, "SELECT u.*, p.per_nombre FROM usuario u LEFT JOIN perfil p ON u.per_id = p.per_id WHERE u.id_user='" . (int)($_GET['id'] ?? 0) . "'")
                                     or die('error: ' . mysqli_error($mysqli));
                                 $data  = mysqli_fetch_assoc($query);
+                                if (!$data) { // id que no existe: de vuelta a la lista (antes salían avisos por variable sin definir)
+                                    echo "<meta http-equiv='refresh' content='0; url=?module=usuarios'>";
+                                    exit;
+                                }
 
                                 // Perfil real del usuario para decidir qué campos mostrar de entrada
                                 // (antes de que el JS reaccione a un cambio manual del select): prioriza
@@ -135,6 +139,9 @@
                                 $rolActualEdit = strtolower($data['per_nombre'] ?: $data['permisos_acceso']);
                                 $esClienteEdit  = in_array($rolActualEdit, ['empresa cliente', 'cliente giftcard', 'empresa_cliente', 'cliente_giftcard']);
                                 $esSucursalEdit = in_array($rolActualEdit, ['cajero', 'operador', 'supervisor de local']);
+                            } else { // sin id no hay a quién editar
+                                echo "<meta http-equiv='refresh' content='0; url=?module=usuarios'>";
+                                exit;
                             } ?>
                             <div class="col-lg-12 offset-lg-3">
                                 <form role="form" class="form-horizontal" method="POST" action="pages/user/proses.php?act=update" enctype="multipart/form-data">
