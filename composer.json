@@ -1,7 +1,10 @@
 {
     "require": {
-        "econea/nusoap": "^0.9.10",
         "tecnickcom/tcpdf": "6.7.8",
-        "phpmailer/phpmailer": "^6.9"
+        "phpmailer/phpmailer": "^7.1"
+    },
+    "config": {
+        "platform": { "php": "7.0.33" },
+        "audit": { "ignore": ["PKSA-wb9y-hg45-chz4","PKSA-ys59-hzk7-wxt5","PKSA-tdkc-7xrw-d14c","PKSA-98jj-zbnk-dgwp"] }
     }
 }

@@ -4,17 +4,17 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitf20985395a541ad22240d77a4de097bb
+class ComposerStaticInitf100eaaa7e8a507613cd9c537a010b3b
 {
     public static $prefixLengthsPsr4 = array (
-        'P' => 
+        'P' =>
         array (
             'PHPMailer\\PHPMailer\\' => 20,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'PHPMailer\\PHPMailer\\' => 
+        'PHPMailer\\PHPMailer\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
         ),
@@ -24,6 +24,13 @@ class ComposerStaticInitf20985395a541ad22240d77a4de097bb
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Datamatrix' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/datamatrix.php',
         'PDF417' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/pdf417.php',
+        'PHPMailer\\PHPMailer\\DSNConfigurator' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/DSNConfigurator.php',
+        'PHPMailer\\PHPMailer\\Exception' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/Exception.php',
+        'PHPMailer\\PHPMailer\\OAuth' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/OAuth.php',
+        'PHPMailer\\PHPMailer\\OAuthTokenProvider' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/OAuthTokenProvider.php',
+        'PHPMailer\\PHPMailer\\PHPMailer' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/PHPMailer.php',
+        'PHPMailer\\PHPMailer\\POP3' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/POP3.php',
+        'PHPMailer\\PHPMailer\\SMTP' => __DIR__ . '/..' . '/phpmailer/phpmailer/src/SMTP.php',
         'QRcode' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/barcodes/qrcode.php',
         'TCPDF' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf.php',
         'TCPDF2DBarcode' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf_barcodes_2d.php',
@@ -36,30 +43,14 @@ class ComposerStaticInitf20985395a541ad22240d77a4de097bb
         'TCPDF_IMPORT' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf_import.php',
         'TCPDF_PARSER' => __DIR__ . '/..' . '/tecnickcom/tcpdf/tcpdf_parser.php',
         'TCPDF_STATIC' => __DIR__ . '/..' . '/tecnickcom/tcpdf/include/tcpdf_static.php',
-        'XMLSchema' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_base' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_client' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_fault' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_parser' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_server' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_wsdlcache' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'nusoap_xmlschema' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'soap_fault' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'soap_parser' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'soap_server' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'soap_transport_http' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'soapclient' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'soapval' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'wsdl' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
-        'wsdlcache' => __DIR__ . '/..' . '/econea/nusoap/src/nusoap.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitf20985395a541ad22240d77a4de097bb::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitf20985395a541ad22240d77a4de097bb::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitf20985395a541ad22240d77a4de097bb::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitf100eaaa7e8a507613cd9c537a010b3b::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitf100eaaa7e8a507613cd9c537a010b3b::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitf100eaaa7e8a507613cd9c537a010b3b::$classMap;
 
         }, null, ClassLoader::class);
     }
