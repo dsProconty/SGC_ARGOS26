@@ -143,7 +143,7 @@
                                                     </div>
                                                     <div class="col-sm-3">
                                                         <label for="">Monto:</label>
-                                                        <input type="number" name="monto" id="monto" class="form-control">
+                                                        <input type="number" name="monto" id="monto" class="form-control" min="0.01" step="0.01" placeholder="0.00">
                                                     </div>
                                                     <div class="col-sm-9">
                                                         <label for="">Observación Pago:</label>
@@ -158,7 +158,7 @@
                                                     </div>
                                                     <div class="col-sm-3">
                                                         <label for="">Monto Compromiso:</label>
-                                                        <input type="number" name="monto_compromiso" id="monto_compromiso" class="form-control">
+                                                        <input type="number" name="monto_compromiso" id="monto_compromiso" class="form-control" min="0.01" step="0.01" placeholder="0.00">
                                                     </div>
                                                     <div class="col-sm-3">
                                                         <label for="">Fecha Compromiso:</label>
