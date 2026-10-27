@@ -81,6 +81,13 @@ function voucherHtml(d, reimprimir, ivaPct) {
             + '</table><hr>'
         : '';
 
+    // Saldo que le quedó justo después de esta venta (se guarda al vender: una reimpresión muestra el mismo valor).
+    // Las ventas anteriores a esta función no lo tienen y no muestran la línea.
+    var saldoRow = '';
+    if (d.con_saldo_posterior !== null && d.con_saldo_posterior !== undefined && d.con_saldo_posterior !== '') {
+        saldoRow = '<tr><td>' + (d.per_nombre ? 'Cupo disponible' : 'Saldo Gift Card') + '</td><td class="text-right">$' + parseFloat(d.con_saldo_posterior).toFixed(2) + '</td></tr>';
+    }
+
     return '<div id="voucher_print" style="font-family:monospace; font-size:12px; padding:10px;">'
         + reimpresionBadge
         + '<div class="text-center mb-2"><strong>SGC ARGOS</strong><br><strong>COMPROBANTE DE CONSUMO</strong></div><hr>'
@@ -102,8 +109,9 @@ function voucherHtml(d, reimprimir, ivaPct) {
         + '<tr><td>Subtotal</td><td class="text-right">$' + parseFloat(d.con_valor_neto).toFixed(2) + '</td></tr>'
         + '<tr><td>IVA (' + ivaPct + '%)</td><td class="text-right">$' + parseFloat(d.con_iva || 0).toFixed(2) + '</td></tr>'
         + '<tr><td><strong>TOTAL</strong></td><td class="text-right"><strong>$' + parseFloat(d.con_valor_total).toFixed(2) + '</strong></td></tr>'
+        + saldoRow
         + '</table><hr>'
-        + '<div class="mt-3" style="font-size:10px;"><p class="mb-1">Firma: ______________________</p><p class="mb-1">N° Cédula: ______________________</p></div>'
+        + '<div class="mt-3" style="font-size:10px;"><p class="mb-1">Firma: ______________________</p><p class="mb-1">N° Cédula: ______________________</p><p class="mb-1">N° Teléfono: __________________</p></div>'
         + '<div class="text-center mt-2" style="font-size:9px;">El comprobante firmado constituye respaldo legal del consumo</div>'
         + '</div>';
 }

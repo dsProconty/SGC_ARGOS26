@@ -19,6 +19,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 // Un local inactivo (cerrado) no vende: el cajero/supervisor asignado a él puede seguir entrando, pero ni
 // buscar ni cobrar. Historial, voucher y anulación NO se bloquean (las ventas pasadas siguen siendo suyas).
 require_once '../../helpers/locales_helpers.php';
+require_once '../../helpers/voucher_helpers.php';
 if (in_array($action, ['buscar', 'buscar_combo', 'registrar_combo_contado', 'registrar_giftcard', 'registrar'], true)
     && localSesionInactivo($mysqli)) {
     echo json_encode(['success' => false, 'mensaje' => 'Su local está inactivo. Contacte al administrador.']);
@@ -330,6 +331,7 @@ switch ($action) {
     // Registrar consumo solo con Gift Card (sin empleado)
     // ----------------------------------------------------------
     case 'registrar_giftcard':
+        voucherAsegurarColumnas($mysqli);
         $cgc_id         = (int)($_POST['cgc_id']          ?? 0);
         $monto_giftcard = (float)($_POST['monto_giftcard'] ?? 0);
         $monto_externo  = (float)($_POST['monto_externo']  ?? 0);
@@ -402,6 +404,8 @@ switch ($action) {
                                    cgc_estado = '$nuevo_estado',
                                    cgc_fecha_uso = $fecha_uso
                                WHERE cgc_id = $cgc_id");
+        // Lo que le queda a la gift card, para el voucher (se guarda aquí: una reimpresión muestra este valor, no el de hoy)
+        mysqli_query($mysqli, "UPDATE consumo SET con_saldo_posterior = " . number_format(max(0, $nuevo_saldo), 2, '.', '') . " WHERE con_id = $con_id");
 
         echo json_encode(['success' => true, 'con_id' => $con_id]);
         break;
@@ -410,6 +414,7 @@ switch ($action) {
     // Registrar venta
     // ----------------------------------------------------------
     case 'registrar':
+        voucherAsegurarColumnas($mysqli);
         $per_id         = (int)($_POST['per_id'] ?? 0);
         $combo_id       = (int)($_POST['combo_id'] ?? 0);
         $monto_convenio = (float)($_POST['monto_convenio'] ?? 0);
@@ -566,6 +571,16 @@ switch ($action) {
             mysqli_query($mysqli, "UPDATE personal SET per_cupo_disponible = per_cupo_disponible - $monto_convenio WHERE per_id = $per_id");
         }
 
+        // Cupo que le queda a la persona (de la marca del local si el convenio es por marca), para el voucher
+        if ($modoCupoEmp['modo'] === 'marca') {
+            $cupoRestante = cupoEmpleadoEnMarca($mysqli, $per_id, $mar_id_venta);
+            $saldoPost = $cupoRestante['disponible'];
+        } else {
+            $filaSaldo = dbFila($mysqli, "SELECT per_cupo_disponible FROM personal WHERE per_id = $per_id");
+            $saldoPost = $filaSaldo ? $filaSaldo['per_cupo_disponible'] : 0;
+        }
+        mysqli_query($mysqli, "UPDATE consumo SET con_saldo_posterior = " . number_format(max(0, (float)$saldoPost), 2, '.', '') . " WHERE con_id = $con_id");
+
         // Descontar saldo de gift card
         if ($monto_giftcard > 0 && $cgc_id > 0) {
             $nuevo_saldo = (float)$gc['cgc_cupo_disponible'] - $monto_giftcard;
@@ -586,6 +601,7 @@ switch ($action) {
     // Datos del voucher
     // ----------------------------------------------------------
     case 'voucher':
+        voucherAsegurarColumnas($mysqli);
         $con_id = (int)($_GET['con_id'] ?? 0);
         if ($con_id === 0) {
             echo json_encode(['success' => false]);
@@ -595,6 +611,7 @@ switch ($action) {
         $query = "SELECT c.con_id, c.con_fecha, c.con_hora, c.con_valor_neto, c.con_iva,
                          c.con_valor_total, c.con_monto_convenio, c.con_monto_externo,
                          c.con_giftcard_codigo, c.con_monto_giftcard, c.con_descripcion,
+                         c.con_saldo_posterior,
                          p.per_nombre, p.per_documento,
                          cl.cli_descripcion,
                          u.name_user AS cajero,

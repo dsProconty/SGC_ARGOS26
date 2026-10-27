@@ -626,6 +626,18 @@ en 30/60/90 (solo cae en +90 al cabo de 3 meses) — es el comportamiento origin
   historial) y en el navegador. Mismo cambio de la pasada anterior (v7.52/7.53), para recordar: los `input type=number` de dinero
   llevan `step="0.01"` (si no, el navegador rechaza centavos) y el número de contacto de Gestiones es `type="tel"`.
 
+**Voucher: línea de teléfono y saldo (27 de octubre de 2026, v7.55).** Pedido de la cliente (malentendido corregido): en el voucher
+el cliente **escribe a mano** firma, cédula y teléfono al comprar, igual que en el sistema viejo; solo faltaba el renglón del teléfono.
+- `voucherHtml()` (`js/voucher_print.js`) ahora imprime `Firma / N° Cédula / N° Teléfono` con renglones en blanco. **El teléfono NO se
+  guarda en el sistema** (primero se había entendido como un dato de la persona y se descartó; `personal` no tiene columna de teléfono).
+- Además imprime **"Cupo disponible"** (o "Saldo Gift Card" en una venta solo con gift card) con lo que le queda a la persona. Se guarda
+  al vender en `consumo.con_saldo_posterior DECIMAL(10,2) NULL` (cupo de la marca del local en convenios por marca, cupo global si no;
+  `registrar` y `registrar_giftcard` en `ajax/pos/pos.php`) para que una **reimpresión muestre lo mismo que el voucher original**, no el
+  saldo de hoy. Las ventas anteriores a la 7.55 y las de combo contado quedan en NULL y no imprimen la línea; si la venta mezcla
+  convenio y gift card se guarda el cupo del convenio. La columna la crea sola `voucherAsegurarColumnas()` (`helpers/voucher_helpers.php`);
+  `migrations/bloque28_voucher_saldo.sql` es solo por si se quiere correr a mano.
+- Validado con datos de peor caso en 63.5 y 72 mm: cada renglón en una sola línea, sin desbordes. Pendiente: prueba física en las impresoras.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
