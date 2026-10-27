@@ -596,6 +596,13 @@ monto mayor a la deuda". Ahora para `GC` devuelve `cli_valor_pagar` menos los pa
 resumen del lote (sin los códigos: son dinero canjeable). `action=cliente` devuelve `car_tipo`; al guardar, el formulario vuelve a la
 lista Gift Card y no a Cartera 30. Las fechas inicio/fin de una cartera GC son el período de facturación del lote (ambas iguales).
 **Toda lógica nueva de cobranza que calcule "deuda de una cartera" debe contemplar `GC`.**
+Comprobado en el mismo cambio (27-oct-2026): para las carteras 30/60/90/+90 la lista (`cartera.cli_valor_pagar`) y el formulario
+(`action=total`) usan la misma fórmula y la misma ventana: 42 carteras de prueba contra el endpoint real, 0 diferencias. La única
+diferencia posible es de TIEMPO: la lista es una foto que solo se refresca cuando corre el cron (05:30) o el botón manual, y el
+formulario recalcula en vivo; si se vende o anula algo después de la última corrida, adentro puede salir distinto hasta el
+siguiente refresco (le pasó a una cartera de prueba: lista $27, adentro $26). Pendiente de confirmar con Elbany, no cambiado:
+las ventanas terminan en `dia_corte - 1` con fin EXCLUSIVO (`con_fecha < fin`), así que el día anterior al día de corte no entra
+en 30/60/90 (solo cae en +90 al cabo de 3 meses) — es el comportamiento original del sistema.
 
 ## Infraestructura del repo (para no repetir investigación)
 
