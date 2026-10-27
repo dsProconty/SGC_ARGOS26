@@ -121,7 +121,7 @@
                                                         </div>
                                                         <div class="col-lg-6" id="telefono_contacto">
                                                             <label for="">Número de Contacto</label>
-                                                            <input type="number" class="form-control" placeholder="Número de contacto" id="numero_contacto" name="numero_contacto">
+                                                            <input type="tel" class="form-control" placeholder="Número de contacto" id="numero_contacto" name="numero_contacto" maxlength="30">
                                                         </div>
                                                         <div class="col-lg-6" style="display:none" id="email_form">
                                                             <label for="">Email de Contacto</label>
