@@ -725,10 +725,16 @@ $(document).ready(function () {
         $('#btn_buscar_combo').prop('disabled', true);
         ocultarAlerta('alerta_combo_b2b');
 
+        var datosCombo = { action: 'buscar_combo', codigo: codigo };
+        var $selLocalCombo = $('#local_selector');
+        if ($selLocalCombo.length && $selLocalCombo.val()) {
+            datosCombo.loc_id = $selLocalCombo.val(); // el combo aplica según la marca del local elegido (modo pruebas del Super Admin)
+        }
+
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'GET',
-            data: { action: 'buscar_combo', codigo: codigo },
+            data: datosCombo,
             dataType: 'json',
             success: function (resp) {
                 if (!resp.success) {
@@ -802,7 +808,12 @@ $(document).ready(function () {
         $.ajax({
             url: 'ajax/pos/pos.php',
             type: 'POST',
-            data: { action: 'registrar_combo_contado', combo_id: combo_actual.ce_id },
+            data: (function () {
+                var d = { action: 'registrar_combo_contado', combo_id: combo_actual.ce_id };
+                var $selLoc = $('#local_selector');
+                if ($selLoc.length && $selLoc.val()) { d.loc_id = $selLoc.val(); }
+                return d;
+            })(),
             dataType: 'json',
             success: function (resp) {
                 $btn.prop('disabled', false).html('<i class="icon dripicons-checkmark"></i> Registrar Combo (Contado)');

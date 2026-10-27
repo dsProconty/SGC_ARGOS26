@@ -235,6 +235,10 @@ switch ($action) {
 
         $loc_id_actual = resolverLocId($mysqli);
         $mar_id_actual = $loc_id_actual ? cupoMarcaDeLocal($mysqli, $loc_id_actual) : null;
+        if (!$loc_id_actual && esSuperAdmin($mysqli)) {
+            echo json_encode(['success' => false, 'mensaje' => 'Seleccione el local comercial para validar el combo']);
+            break;
+        }
         if ($mar_id_actual === null || (int)$combo['mar_id'] !== $mar_id_actual) {
             echo json_encode(['success' => false, 'mensaje' => 'Este combo no aplica en este local']);
             break;
