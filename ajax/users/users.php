@@ -12,7 +12,7 @@ exigirAccesoAjax($mysqli, $action === 'list_by_perfil' ? array('usuarios', 'perf
 
 switch ($action) {
     case 'list':
-        $query = "SELECT u.*, c.cli_descripcion, l.loc_nombre, l.loc_direccion, m.mar_descripcion,
+        $query = "SELECT u.*, c.cli_descripcion, l.loc_nombre, l.loc_direccion, l.loc_activo, m.mar_descripcion,
                          COALESCE(p.per_nombre, u.permisos_acceso) AS perfil_nombre
                   FROM usuario u
                   LEFT JOIN cliente c ON u.cli_id = c.cli_id
@@ -71,6 +71,9 @@ switch ($action) {
                         $marcaCol    = $row['mar_descripcion'] ? '<strong>' . htmlspecialchars($row['mar_descripcion']) . '</strong>' : '<span class="text-muted">—</span>';
                         $nombreLocal = $row['loc_nombre'] ?: $row['loc_direccion'];
                         $asignacion  = '<small><i class="icon dripicons-location"></i> ' . htmlspecialchars($nombreLocal) . '</small>';
+                        if ((int)$row['loc_activo'] === 0) {
+                            $asignacion .= ' <span class="badge badge-secondary" title="El POS no deja vender desde un local inactivo. Reasigne la cuenta a otro local.">local inactivo</span>';
+                        }
                     } elseif ($esCajeroFila) {
                         $marcaCol   = '<span class="text-muted">—</span>';
                         $asignacion = '<small class="text-muted">Sin local asignado</small>';

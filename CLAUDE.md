@@ -568,6 +568,26 @@ publicada 21-oct-2026). El código ahora corre igual en las dos versiones (bater
   ignorados en `composer.json > config > audit`. **Al subir producción a PHP 8.x, actualizar `tecnickcom/tcpdf` a 6.11.x** (quitar
   `platform` o subirlo, `composer update tecnickcom/tcpdf`, probar el PDF del estado de cuenta con tildes). `vendor/` va en git.
 
+**Cierre de locales (27 de octubre de 2026, v7.50).** Pedido de Elbany: unas dos veces cada tres meses hay que dar de baja
+locales (sobre todo de Pizza Hut, que cierra y abre locales). **Un local nunca se elimina** (`consumo`,
+`consumo_movimiento_local` y `usuario` lo referencian): se inactiva con `local.loc_activo = 0`, que ya existía.
+- Al inactivar se exigen **motivo** (mín. 3 caracteres) y **fecha de cierre** (válida y no futura): columnas
+  `local.loc_motivo_cierre` / `loc_fecha_cierre` y tabla `local_trazabilidad` (quién, cuándo, acción: inactivado /
+  reactivado / motivo editado). `migrations/bloque26_local_cierre.sql`; el código las crea solo (`localesAsegurarEsquema()`
+  en `helpers/locales_helpers.php`). Reactivar limpia motivo y fecha (quedan en el historial).
+- Locales (solo Super Admin, igual que antes): botón Inactivar/Reactivar por fila, casillas + "Inactivar/Reactivar
+  seleccionadas" (acción en lote con un solo motivo y fecha), buscador y filtro Todas/Activas/Inactivas por marca; el modal avisa
+  cuántos usuarios activos tiene asignados el local. Endpoints `cambiar_estado_locales` y `resumen_cierre` en
+  `ajax/locales/locales.php`. No se creó un permiso granular: todo el endpoint ya era solo Super Admin.
+- **El POS no vende desde un local inactivo**: `ajax/pos/pos.php` rechaza `buscar`, `buscar_combo`, `registrar`,
+  `registrar_giftcard` y `registrar_combo_contado` con "Su local está inactivo. Contacte al administrador." (`localSesionInactivo()`
+  lee el estado en cada petición, no de la sesión) y la pantalla muestra un aviso. Historial, voucher y anulación NO se bloquean.
+  Los usuarios del local cerrado siguen pudiendo entrar y NO se tocan: hay que reasignarlos a otro local desde Usuarios (la lista
+  marca "local inactivo"). Mover una venta a un local inactivo se rechaza.
+- Los locales inactivos siguen en el filtro de Reportes (marcados "(inactivo)") para poder consultar sus ventas pasadas; en cambio
+  no salen al asignar usuarios ni en el selector del Super Admin en el POS.
+- Lección: la tabla de sucursales de Locales imprimía nombre y dirección sin escapar (se pasó en la limpieza de la 7.47); ahora usa `esc()`.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

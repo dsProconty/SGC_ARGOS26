@@ -16,6 +16,15 @@ if (empty($_SESSION['id_user'])) {
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
+// Un local inactivo (cerrado) no vende: el cajero/supervisor asignado a él puede seguir entrando, pero ni
+// buscar ni cobrar. Historial, voucher y anulación NO se bloquean (las ventas pasadas siguen siendo suyas).
+require_once '../../helpers/locales_helpers.php';
+if (in_array($action, ['buscar', 'buscar_combo', 'registrar_combo_contado', 'registrar_giftcard', 'registrar'], true)
+    && localSesionInactivo($mysqli)) {
+    echo json_encode(['success' => false, 'mensaje' => 'Su local está inactivo. Contacte al administrador.']);
+    exit;
+}
+
 // Leer IVA configurado
 $cfgRow = dbFila($mysqli, "SELECT cfg_valor FROM configuracion WHERE cfg_clave = 'iva_porcentaje' LIMIT 1");
 $IVA_PCT = $cfgRow ? (float)$cfgRow['cfg_valor'] : 15.0;
@@ -933,6 +942,11 @@ switch ($action) {
         $marDestino = cupoMarcaDeLocal($mysqli, $loc_id_destino);
         if ($marOrigen === null || $marDestino === null || $marOrigen !== $marDestino) {
             echo json_encode(['success' => false, 'mensaje' => 'Solo se puede mover a un local de la misma franquicia']);
+            break;
+        }
+        $destActivo = dbFila($mysqli, "SELECT loc_activo FROM local WHERE loc_id = $loc_id_destino LIMIT 1");
+        if (!$destActivo || (int)$destActivo['loc_activo'] !== 1) {
+            echo json_encode(['success' => false, 'mensaje' => 'El local destino está inactivo']);
             break;
         }
 

@@ -128,6 +128,16 @@
 
     <section class="container m-t-30">
 
+        <?php
+            require_once 'helpers/locales_helpers.php';
+            if (localSesionInactivo($mysqli)):
+        ?>
+        <div class="alert alert-danger" role="alert">
+            <strong><i class="icon dripicons-warning"></i> Su local está inactivo.</strong>
+            No se pueden registrar ventas desde este local. Contacte al administrador. El historial sigue disponible.
+        </div>
+        <?php endif; ?>
+
         <!-- ===== CÓDIGO B2B (COMBOS ESPECIALES) ===== -->
         <div class="row mb-4">
             <div class="col-12">

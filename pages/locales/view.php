@@ -316,6 +316,87 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
         background: #fff8e6;
     }
 
+    /* Barra de herramientas de sucursales (buscar, filtrar, acciones en lote) */
+    .suc-toolbar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 4px 0 6px;
+    }
+
+    .suc-toolbar input[type=text],
+    .suc-toolbar select {
+        height: 32px;
+        font-size: .8rem;
+        border: 1px solid var(--arg-border);
+        border-radius: 8px;
+        padding: 0 10px;
+        background: #fff;
+    }
+
+    .suc-toolbar input[type=text] {
+        min-width: 220px;
+    }
+
+    .btn-suc-bulk {
+        border: 1px solid;
+        background: #fff;
+        border-radius: 8px;
+        font-size: .75rem;
+        font-weight: 600;
+        padding: 5px 10px;
+        cursor: pointer;
+    }
+
+    .btn-suc-bulk[disabled] {
+        opacity: .4;
+        cursor: not-allowed;
+    }
+
+    .btn-suc-bulk.cerrar {
+        color: var(--arg-red);
+        border-color: var(--arg-red);
+    }
+
+    .btn-suc-bulk.abrir {
+        color: var(--arg-teal);
+        border-color: var(--arg-teal);
+    }
+
+    .btn-estado-suc {
+        border: 1px solid;
+        background: #fff;
+        border-radius: 14px;
+        font-size: .7rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .btn-estado-suc.cerrar {
+        color: var(--arg-red);
+        border-color: var(--arg-red);
+    }
+
+    .btn-estado-suc.abrir {
+        color: var(--arg-teal);
+        border-color: var(--arg-teal);
+    }
+
+    .suc-cierre-info {
+        display: block;
+        font-size: .7rem;
+        color: var(--arg-muted);
+        margin-top: 3px;
+        max-width: 280px;
+    }
+
+    .sub-table tr.suc-inactiva td {
+        color: #9aa5b1;
+    }
+
     /* Empty state */
     .empty-subs {
         text-align: center;
@@ -456,7 +537,7 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                         <tr>
                             <th style="width:40px;"></th>
                             <th>Marca</th>
-                            <th style="width:130px;">Sucursales</th>
+                            <th style="width:230px;">Sucursales</th>
                             <th style="width:100px; text-align:center;">Acciones</th>
                         </tr>
                     </thead>
@@ -572,13 +653,65 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                             </select>
                         </div>
                     </div>
+                    <div class="col-md-4 suc-cierre-campos" style="display:none;">
+                        <div class="form-group">
+                            <label style="font-size:.82rem; font-weight:600;">Fecha de cierre <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="suc_fecha_cierre">
+                            <div class="field-msg err" id="err_suc_fecha">Indique la fecha de cierre (no puede ser futura)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 suc-cierre-campos" style="display:none;">
+                        <div class="form-group">
+                            <label style="font-size:.82rem; font-weight:600;">Motivo del cierre <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="suc_motivo_cierre" maxlength="255"
+                                placeholder="Ej: Local cerrado definitivamente">
+                            <div class="field-msg err" id="err_suc_motivo">Indique el motivo (mínimo 3 caracteres)</div>
+                        </div>
+                    </div>
                 </div>
+                <div id="suc_historial" style="display:none; font-size:.75rem; color:var(--arg-muted);"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-info btn-sm" id="btn_guardar_suc"
                     style="color:#fff; min-width:100px;">
                     <i class="icon dripicons-checkmark"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ MODAL INACTIVAR / REACTIVAR (uno o varios locales) ═══ -->
+<div class="modal fade" id="modal_cierre" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="titulo_cierre"></h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p id="cierre_resumen" style="font-size:.88rem;"></p>
+                <div id="cierre_campos">
+                    <div class="form-group">
+                        <label style="font-size:.82rem; font-weight:600;">Fecha de cierre <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="cierre_fecha">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:.82rem; font-weight:600;">Motivo del cierre <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="cierre_motivo" maxlength="255"
+                            placeholder="Ej: Local cerrado definitivamente">
+                    </div>
+                    <div class="alert alert-warning mb-0" id="cierre_aviso_usuarios" style="display:none; font-size:.8rem;"></div>
+                </div>
+                <div class="text-danger mt-2" id="cierre_error" style="display:none; font-size:.8rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info btn-sm" id="btn_confirmar_cierre" style="color:#fff; min-width:100px;">
+                    Confirmar
                 </button>
             </div>
         </div>
@@ -626,7 +759,8 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                     '      <span class="marca-name">' + esc(m.mar_descripcion) + '</span>' +
                     '    </div>' +
                     '  </td>' +
-                    '  <td><span class="marca-count">' + m.total_sucursales + ' sucursal' + (m.total_sucursales != 1 ? 'es' : '') + '</span></td>' +
+                    '  <td><span class="marca-count">' + m.total_sucursales + ' sucursal' + (m.total_sucursales != 1 ? 'es' : '') +
+                    (parseInt(m.total_inactivas) > 0 ? ' · ' + parseInt(m.total_inactivas) + ' inactiva' + (parseInt(m.total_inactivas) != 1 ? 's' : '') : '') + '</span></td>' +
                     '  <td class="text-center">' +
                     '    <a onclick="event.stopPropagation(); editarMarca(' + m.mar_id + ',\'' + escJs(m.mar_descripcion) + '\')" style="color:var(--arg-yellow); font-size:17px; cursor:pointer;" title="Editar marca"><i class="icon dripicons-pencil"></i></a>' +
                     '  </td>' +
@@ -675,40 +809,201 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     // ═══════════════════════════════════════════════
     // CARGA SUCURSALES DE UNA MARCA
     // ═══════════════════════════════════════════════
+    var sucData = {};     // marId -> sucursales cargadas
+    var sucSel = {};      // marId -> { loc_id: true } seleccionadas para acción en lote
+
+    function fechaCorta(iso) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+        return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+    }
+
+    function hoyIso() {
+        var d = new Date();
+        return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    }
+
     function cargarSucursales(marId) {
         $.getJSON(AJAX_URL + '?action=list_sucursales&mar_id=' + marId, function (r) {
             var html = '';
-            if (!r.success || !r.data.length) {
+            sucData[marId] = (r.success && r.data) ? r.data : [];
+            sucSel[marId] = {};
+            if (!sucData[marId].length) {
                 html = '<div class="empty-subs"><i class="icon dripicons-location" style="font-size:1.5rem; opacity:.3; display:block; margin-bottom:6px;"></i>Sin sucursales. Usa "+ Nueva Sucursal" para agregar.</div>';
-            } else {
-                html = '<table class="sub-table">' +
-                    '<thead><tr>' +
-                    '<th>#</th><th>Nombre / Descripción</th><th>Dirección</th><th>Región</th><th>Estado</th><th style="text-align:center">Editar</th>' +
-                    '</tr></thead><tbody>';
-
-                r.data.forEach(function (s, i) {
-                    var badge = s.loc_activo == 1
-                        ? '<span class="badge-activo">● Activo</span>'
-                        : '<span class="badge-inactivo">● Inactivo</span>';
-                    var nombre = s.loc_nombre || '<em style="color:#aaa;">Sin descripción</em>';
-                    var region = s.loc_provincia
-                        ? s.loc_provincia.charAt(0).toUpperCase() + s.loc_provincia.slice(1)
-                        : '—';
-                    html += '<tr>' +
-                        '<td style="color:var(--arg-muted); font-size:.75rem;">' + (i + 1) + '</td>' +
-                        '<td>' + nombre + '</td>' +
-                        '<td>' + (s.loc_direccion || '—') + '</td>' +
-                        '<td>' + region + '</td>' +
-                        '<td>' + badge + '</td>' +
-
-                        '<td style="text-align:center"><button class="btn-edit-suc" onclick="editarSucursal(' + s.loc_id + ')" title="Editar"><i class="icon dripicons-pencil"></i></button></td>' +
-                        '</tr>';
-                });
-                html += '</tbody></table>';
+                $('#detail-inner-' + marId).html(html);
+                return;
             }
+            html = '<div class="suc-toolbar">' +
+                '<input type="text" class="suc-buscar" data-mar="' + marId + '" placeholder="Buscar sucursal por nombre o dirección...">' +
+                '<select class="suc-filtro" data-mar="' + marId + '">' +
+                '<option value="">Todas</option><option value="1">Solo activas</option><option value="0">Solo inactivas</option></select>' +
+                '<button class="btn-suc-bulk cerrar" data-mar="' + marId + '" data-activo="0" disabled>Inactivar seleccionadas</button>' +
+                '<button class="btn-suc-bulk abrir" data-mar="' + marId + '" data-activo="1" disabled>Reactivar seleccionadas</button>' +
+                '<small class="text-muted suc-sel-count" id="suc-sel-count-' + marId + '"></small>' +
+                '</div>' +
+                '<table class="sub-table">' +
+                '<thead><tr>' +
+                '<th style="width:30px;"><input type="checkbox" class="suc-sel-todas" data-mar="' + marId + '" title="Seleccionar las que se ven"></th>' +
+                '<th>#</th><th>Nombre / Descripción</th><th>Dirección</th><th>Región</th><th>Estado</th><th style="text-align:center">Acciones</th>' +
+                '</tr></thead><tbody id="suc-body-' + marId + '"></tbody></table>';
             $('#detail-inner-' + marId).html(html);
+            pintarSucursales(marId);
         });
     }
+
+    // Pinta solo las filas (así buscar/filtrar no pierde el foco del cuadro de búsqueda).
+    function pintarSucursales(marId) {
+        var $wrap = $('#detail-inner-' + marId);
+        var q = ($wrap.find('.suc-buscar').val() || '').toLowerCase().trim();
+        var f = $wrap.find('.suc-filtro').val();
+        var html = '';
+        var visibles = 0;
+        (sucData[marId] || []).forEach(function (s, i) {
+            if (f !== '' && String(s.loc_activo) !== f) return;
+            if (q && ((s.loc_nombre || '') + ' ' + (s.loc_direccion || '')).toLowerCase().indexOf(q) < 0) return;
+            visibles++;
+            var activa = s.loc_activo == 1;
+            var badge = activa
+                ? '<span class="badge-activo">● Activo</span>'
+                : '<span class="badge-inactivo">● Inactivo</span>';
+            var info = '';
+            if (!activa && (s.loc_motivo_cierre || s.loc_fecha_cierre)) {
+                info = '<span class="suc-cierre-info">' + (s.loc_fecha_cierre ? 'Cerrado el ' + esc(fechaCorta(s.loc_fecha_cierre)) : 'Cerrado') +
+                    (s.loc_motivo_cierre ? ' · ' + esc(s.loc_motivo_cierre) : '') + '</span>';
+            }
+            if (!activa && parseInt(s.usuarios_activos) > 0) {
+                info += '<span class="suc-cierre-info" style="color:var(--arg-red);">' + parseInt(s.usuarios_activos) + ' usuario(s) activo(s) asignado(s): no pueden vender</span>';
+            }
+            var nombre = s.loc_nombre ? esc(s.loc_nombre) : '<em style="color:#aaa;">Sin descripción</em>';
+            var region = s.loc_provincia
+                ? esc(s.loc_provincia.charAt(0).toUpperCase() + s.loc_provincia.slice(1))
+                : '—';
+            var checked = (sucSel[marId] && sucSel[marId][s.loc_id]) ? ' checked' : '';
+            html += '<tr class="' + (activa ? '' : 'suc-inactiva') + '">' +
+                '<td><input type="checkbox" class="suc-sel" data-mar="' + marId + '" value="' + parseInt(s.loc_id) + '"' + checked + '></td>' +
+                '<td style="color:var(--arg-muted); font-size:.75rem;">' + (i + 1) + '</td>' +
+                '<td>' + nombre + '</td>' +
+                '<td>' + (s.loc_direccion ? esc(s.loc_direccion) : '—') + '</td>' +
+                '<td>' + region + '</td>' +
+                '<td>' + badge + info + '</td>' +
+                '<td style="text-align:center; white-space:nowrap;">' +
+                (activa
+                    ? '<button class="btn-estado-suc cerrar" onclick="abrirCambioEstado([' + parseInt(s.loc_id) + '],0,' + marId + ')" title="Inactivar este local">Inactivar</button> '
+                    : '<button class="btn-estado-suc abrir" onclick="abrirCambioEstado([' + parseInt(s.loc_id) + '],1,' + marId + ')" title="Reactivar este local">Reactivar</button> ') +
+                '<button class="btn-edit-suc" onclick="editarSucursal(' + parseInt(s.loc_id) + ')" title="Editar"><i class="icon dripicons-pencil"></i></button></td>' +
+                '</tr>';
+        });
+        if (!visibles) {
+            html = '<tr><td colspan="7" class="empty-subs">Ninguna sucursal coincide con la búsqueda.</td></tr>';
+        }
+        $('#suc-body-' + marId).html(html);
+        actualizarSeleccion(marId);
+    }
+
+    function actualizarSeleccion(marId) {
+        var ids = Object.keys(sucSel[marId] || {});
+        var activas = 0, inactivas = 0;
+        (sucData[marId] || []).forEach(function (s) {
+            if (!sucSel[marId][s.loc_id]) return;
+            if (s.loc_activo == 1) activas++; else inactivas++;
+        });
+        var $w = $('#detail-inner-' + marId);
+        $w.find('.btn-suc-bulk[data-activo="0"]').prop('disabled', activas === 0)
+            .text('Inactivar seleccionadas' + (activas ? ' (' + activas + ')' : ''));
+        $w.find('.btn-suc-bulk[data-activo="1"]').prop('disabled', inactivas === 0)
+            .text('Reactivar seleccionadas' + (inactivas ? ' (' + inactivas + ')' : ''));
+        $('#suc-sel-count-' + marId).text(ids.length ? ids.length + ' seleccionada(s)' : '');
+    }
+
+    $(document).on('input', '.suc-buscar', function () { pintarSucursales($(this).data('mar')); });
+    $(document).on('change', '.suc-filtro', function () { pintarSucursales($(this).data('mar')); });
+    $(document).on('change', '.suc-sel', function () {
+        var marId = $(this).data('mar');
+        if (this.checked) sucSel[marId][this.value] = true; else delete sucSel[marId][this.value];
+        actualizarSeleccion(marId);
+    });
+    $(document).on('change', '.suc-sel-todas', function () {
+        var marId = $(this).data('mar'), marcar = this.checked;
+        $('#suc-body-' + marId + ' .suc-sel').each(function () {
+            this.checked = marcar;
+            if (marcar) sucSel[marId][this.value] = true; else delete sucSel[marId][this.value];
+        });
+        actualizarSeleccion(marId);
+    });
+    $(document).on('click', '.btn-suc-bulk', function () {
+        var marId = $(this).data('mar'), activo = parseInt($(this).data('activo'));
+        var ids = [];
+        (sucData[marId] || []).forEach(function (s) {
+            // Solo las que de verdad cambian: inactivar las activas / reactivar las inactivas.
+            if (sucSel[marId][s.loc_id] && (s.loc_activo == 1) === (activo === 0)) ids.push(parseInt(s.loc_id));
+        });
+        if (ids.length) abrirCambioEstado(ids, activo, marId);
+    });
+
+    // ═══════════════════════════════════════════════
+    // INACTIVAR / REACTIVAR (uno o varios)
+    // ═══════════════════════════════════════════════
+    var cierreIds = [], cierreActivo = 0, cierreMarId = null;
+
+    function abrirCambioEstado(ids, activo, marId) {
+        cierreIds = ids; cierreActivo = activo; cierreMarId = marId;
+        $('#cierre_error').hide().text('');
+        $('#cierre_aviso_usuarios').hide().text('');
+        var uno = ids.length === 1;
+        var nombreUno = '';
+        if (uno) {
+            (sucData[marId] || []).forEach(function (s) { if (parseInt(s.loc_id) === ids[0]) nombreUno = s.loc_nombre || s.loc_direccion || ''; });
+        }
+        var sujeto = uno ? 'el local <strong>' + esc(nombreUno) + '</strong>' : '<strong>' + ids.length + ' locales</strong>';
+        if (activo === 0) {
+            $('#titulo_cierre').html('<i class="icon dripicons-lock" style="color:var(--arg-red)"></i> Inactivar ' + (uno ? 'local' : 'locales'));
+            $('#cierre_resumen').html('Se inactivará ' + sujeto + '. Dejará de vender y de aparecer al asignar usuarios; sus ventas pasadas se conservan.');
+            $('#cierre_fecha').val(hoyIso()).attr('max', hoyIso());
+            $('#cierre_motivo').val('');
+            $('#cierre_campos').show();
+            $('#btn_confirmar_cierre').text('Inactivar').css('background', 'var(--arg-red)');
+            $.post(AJAX_URL, { action: 'resumen_cierre', ids: ids.join(',') }, function (r) {
+                if (r && r.success && r.usuarios > 0) {
+                    $('#cierre_aviso_usuarios').text('Hay ' + r.usuarios + ' usuario(s) activo(s) asignado(s) a ' + (uno ? 'este local' : 'estos locales') +
+                        '. No podrán vender desde ' + (uno ? 'él' : 'ellos') + ' (siguen pudiendo entrar). Reasígnelos a otro local desde Usuarios si deben seguir trabajando.').show();
+                }
+            }, 'json');
+        } else {
+            $('#titulo_cierre').html('<i class="icon dripicons-unlock" style="color:var(--arg-teal)"></i> Reactivar ' + (uno ? 'local' : 'locales'));
+            $('#cierre_resumen').html('Se reactivará ' + sujeto + '. Volverá a poder vender y a aparecer en los selectores. El motivo del cierre queda en el historial.');
+            $('#cierre_campos').hide();
+            $('#btn_confirmar_cierre').text('Reactivar').css('background', 'var(--arg-teal)');
+        }
+        $('#modal_cierre').modal('show');
+    }
+
+    $('#cierre_motivo, #cierre_fecha').on('input change', function () { $('#cierre_error').hide(); });
+
+    $('#btn_confirmar_cierre').on('click', function () {
+        var motivo = $('#cierre_motivo').val().trim(), fecha = $('#cierre_fecha').val();
+        var $err = $('#cierre_error').hide();
+        if (cierreActivo === 0) {
+            if (motivo.length < 3) { $err.text('Indique el motivo del cierre (mínimo 3 caracteres)').show(); return; }
+            if (!fecha || fecha > hoyIso()) { $err.text('Indique una fecha de cierre válida (no puede ser futura)').show(); return; }
+        }
+        var btn = $(this).prop('disabled', true);
+        $.ajax({
+            url: AJAX_URL, type: 'POST', dataType: 'json',
+            data: { action: 'cambiar_estado_locales', ids: cierreIds.join(','), activo: cierreActivo, motivo: motivo, fecha_cierre: fecha },
+            success: function (r) {
+                if (!r.success) { $err.text(r.mensaje || 'No se pudo guardar').show(); return; }
+                $('#modal_cierre').modal('hide');
+                var marId = cierreMarId;
+                cargarMarcas(function () {
+                    expandedId = parseInt(marId);
+                    $('#marca-row-' + marId).addClass('expanded');
+                    $('#detail-row-' + marId).addClass('open');
+                    cargarSucursales(marId);
+                });
+            },
+            error: function () { $err.text('Error de conexión').show(); },
+            complete: function () { btn.prop('disabled', false); }
+        });
+    });
 
     // ═══════════════════════════════════════════════
     // BUSCADOR
@@ -780,9 +1075,25 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
         $('#suc_id').val('');
         $('#suc_mar_id, #suc_nombre, #suc_direccion, #suc_provincia').val('');
         $('#suc_activo').val('1');
+        $('#suc_fecha_cierre').val('').attr('max', hoyIso());
+        $('#suc_motivo_cierre').val('');
+        $('#suc_historial').hide().html('');
+        sucEraInactivo = false;
+        mostrarCamposCierre();
         $('.field-error').removeClass('field-error');
         $('.field-msg').removeClass('show');
     }
+
+    // true si el local que se edita ya estaba inactivo al abrir el modal (puede venir de antes de existir motivo/fecha).
+    var sucEraInactivo = false;
+
+    function mostrarCamposCierre() {
+        var cerrar = $('#suc_activo').val() === '0';
+        $('.suc-cierre-campos').toggle(cerrar);
+        // Al pasar de Activo a Inactivo, proponer la fecha de hoy.
+        if (cerrar && !$('#suc_fecha_cierre').val() && !sucEraInactivo) $('#suc_fecha_cierre').val(hoyIso());
+    }
+    $('#suc_activo').on('change', mostrarCamposCierre);
 
     $('#btn_nueva_sucursal').on('click', function () {
         resetSucModal();
@@ -803,6 +1114,18 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
             $('#suc_direccion').val(s.loc_direccion || '');
             $('#suc_provincia').val(s.loc_provincia || '');
             $('#suc_activo').val(s.loc_activo);
+            sucEraInactivo = (s.loc_activo == 0);
+            $('#suc_fecha_cierre').val(s.loc_fecha_cierre || '');
+            $('#suc_motivo_cierre').val(s.loc_motivo_cierre || '');
+            mostrarCamposCierre();
+            if (s.historial && s.historial.length) {
+                var h = '<strong>Historial reciente</strong><br>';
+                s.historial.forEach(function (x) {
+                    h += esc(fechaCorta(x.tra_fecha)) + ' · ' + esc(x.tra_accion) + (x.username ? ' por ' + esc(x.username) : '') +
+                        (x.tra_motivo ? ' — ' + esc(x.tra_motivo) : '') + '<br>';
+                });
+                $('#suc_historial').html(h).show();
+            }
             $('#titulo_modal_suc').html('<i class="icon dripicons-pencil" style="color:var(--arg-yellow)"></i> Editar Sucursal');
             $('#modal_sucursal').modal('show');
         });
@@ -832,6 +1155,16 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
             $('#suc_provincia').addClass('field-error'); $('#err_suc_provincia').addClass('show'); valid = false;
         } else { $('#suc_provincia').removeClass('field-error'); $('#err_suc_provincia').removeClass('show'); }
 
+        // Al inactivar (o crear inactiva) hacen falta motivo y fecha de cierre; un local ya inactivo de antes puede seguir sin ellos.
+        var motivoCierre = $('#suc_motivo_cierre').val().trim();
+        var fechaCierre = $('#suc_fecha_cierre').val();
+        if ($('#suc_activo').val() === '0' && !(sucEraInactivo && !motivoCierre && !fechaCierre)) {
+            if (motivoCierre.length < 3) { $('#suc_motivo_cierre').addClass('field-error'); $('#err_suc_motivo').addClass('show'); valid = false; }
+            else { $('#suc_motivo_cierre').removeClass('field-error'); $('#err_suc_motivo').removeClass('show'); }
+            if (!fechaCierre || fechaCierre > hoyIso()) { $('#suc_fecha_cierre').addClass('field-error'); $('#err_suc_fecha').addClass('show'); valid = false; }
+            else { $('#suc_fecha_cierre').removeClass('field-error'); $('#err_suc_fecha').removeClass('show'); }
+        }
+
         if (!valid) return;
 
         var id = $('#suc_id').val();
@@ -845,7 +1178,8 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                 action: id ? 'editar_sucursal' : 'crear_sucursal',
                 loc_id: id, mar_id: mar_id,
                 loc_nombre: nombre, loc_direccion: direccion,
-                loc_provincia: provincia, loc_activo: $('#suc_activo').val()
+                loc_provincia: provincia, loc_activo: $('#suc_activo').val(),
+                loc_motivo_cierre: motivoCierre, loc_fecha_cierre: fechaCierre
             },
             dataType: 'json',
             success: function (r) {

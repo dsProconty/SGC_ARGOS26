@@ -339,10 +339,11 @@ $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
                                                     <select name="local" id="local" class="form-control">
                                                         <option value="">— Todos —</option>
                                                         <?php
-                                                        $resLoc = mysqli_query($mysqli, "SELECT loc_id, COALESCE(loc_nombre, loc_direccion) AS loc_label FROM local WHERE loc_activo = 1 ORDER BY loc_label ASC");
+                                                        // Los locales cerrados siguen en el filtro (marcados): sus ventas pasadas se consultan por local.
+                                                        $resLoc = mysqli_query($mysqli, "SELECT loc_id, COALESCE(loc_nombre, loc_direccion) AS loc_label, loc_activo FROM local ORDER BY loc_activo DESC, loc_label ASC");
                                                         while ($l = mysqli_fetch_assoc($resLoc)):
                                                         ?>
-                                                            <option value="<?php echo (int)$l['loc_id']; ?>"><?php echo htmlspecialchars($l['loc_label']); ?></option>
+                                                            <option value="<?php echo (int)$l['loc_id']; ?>"><?php echo htmlspecialchars($l['loc_label']) . ((int)$l['loc_activo'] === 1 ? '' : ' (inactivo)'); ?></option>
                                                         <?php endwhile; ?>
                                                     </select>
                                                 </div>
