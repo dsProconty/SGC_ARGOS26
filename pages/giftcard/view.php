@@ -234,6 +234,31 @@ if (!$es_staff_gc && !$es_cliente) {
     </div>
 </div>
 
+<!-- Modal Bloquear / Reactivar Gift Cards -->
+<div class="modal fade" id="modal_bloqueo" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="icon dripicons-lock" id="bloqueo_icono"></i> <span id="bloqueo_titulo">Bloquear Gift Cards</span></h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="alerta_bloqueo"></div>
+                <p id="bloqueo_resumen" class="mb-2"></p>
+                <div class="form-group mb-0">
+                    <label for="bloqueo_motivo" id="bloqueo_motivo_label">Motivo <span class="text-danger">*</span></label>
+                    <textarea id="bloqueo_motivo" class="form-control" rows="3" maxlength="255" placeholder="Ej: emitidas por error, solicitud del cliente..."></textarea>
+                </div>
+                <small class="text-muted d-block mt-2" id="bloqueo_nota"></small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn" id="btn_confirmar_bloqueo" style="color:#fff; min-width:130px;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Crear Lote Directo (GC-B) -->
 <link rel="stylesheet" href="assets/vendor/select2/select2.min.css">
 <style>
@@ -373,6 +398,7 @@ $(document).ready(function () {
         var tabla = document.getElementById('table_codigos');
         if (!tabla) return;
         var clone = tabla.cloneNode(true);
+        $(clone).find('.col_chk').remove(); // casillas de bloqueo: no van al Excel
         $(clone).find('.badge, code').each(function () { $(this).replaceWith($(this).text()); });
         var titulo = $('#titulo_codigos').text().replace('Códigos del Lote — Período: ', '').replace(/\//g, '-');
         var wb = new ExcelJS.Workbook();
@@ -565,8 +591,11 @@ function abrirModalCrearLote() {
     $('#modal_crear_lote').modal('show');
 }
 
+var periodo_actual = '';
+
 function ver_codigos(lgc_id, periodo) {
     lgc_id_actual = lgc_id;
+    periodo_actual = periodo;
     $('#titulo_codigos').text('Códigos del Lote — Período: ' + periodo);
     $('#loader_codigos').html('<div class="text-center p-4"><span class="spinner-border"></span></div>');
     $('#modal_codigos').modal('show');
@@ -575,10 +604,82 @@ function ver_codigos(lgc_id, periodo) {
         success: function (r) {
             $('#loader_codigos').html(r);
             if ($.fn.dataTable.isDataTable('#table_codigos')) $('#table_codigos').DataTable().destroy();
-            $('#table_codigos').dataTable({ pageLength: 25, scrollX: true });
+            var conChk = $('#table_codigos th.col_chk').length > 0;
+            $('#table_codigos').dataTable({
+                pageLength: 25, scrollX: true,
+                order: [[conChk ? 1 : 0, 'asc']],
+                columnDefs: conChk ? [{ orderable: false, targets: 0 }] : []
+            });
+            $('#chk_todos_codigos').on('change', function () {
+                $('#table_codigos').DataTable().$('input.chk_cgc').prop('checked', this.checked);
+            });
         }
     });
 }
+
+// ── Bloquear / reactivar Gift Cards aprobadas ───────────────
+var bloqueoActual = null;
+
+// ids = null → todos los códigos del lote que estén en el estado de origen (activos / bloqueados)
+function abrirBloqueo(lgc_id, accion, ids, cantidad) {
+    var bloquear = (accion === 'bloquear');
+    bloqueoActual = { lgc_id: lgc_id, accion: accion, ids: ids };
+    $('#alerta_bloqueo').html('');
+    $('#bloqueo_motivo').val('');
+    $('#bloqueo_titulo').text(bloquear ? 'Bloquear Gift Cards' : 'Reactivar Gift Cards');
+    $('#bloqueo_icono').attr('class', 'icon ' + (bloquear ? 'dripicons-lock' : 'dripicons-lock-open'));
+    var que = ids ? (cantidad + (cantidad === 1 ? ' código seleccionado' : ' códigos seleccionados'))
+                  : ('los ' + cantidad + (bloquear ? ' códigos activos' : ' códigos bloqueados') + ' del lote #' + lgc_id);
+    $('#bloqueo_resumen').html(bloquear ? 'Se van a <strong>bloquear</strong> ' + que + '. El POS los rechazará hasta que se reactiven.'
+                                        : 'Se van a <strong>reactivar</strong> ' + que + '.');
+    $('#bloqueo_motivo_label').html(bloquear ? 'Motivo <span class="text-danger">*</span>' : 'Motivo (opcional)');
+    $('#bloqueo_nota').text(bloquear ? 'El saldo de cada código se conserva. Bloquear no cambia lo que la empresa debe en Cobranza.'
+                                     : 'Cada código vuelve a activo, o a vencido / consumido si ya corresponde.');
+    $('#btn_confirmar_bloqueo').removeClass('btn-success btn-danger').addClass(bloquear ? 'btn-danger' : 'btn-success')
+        .html(bloquear ? '<i class="icon dripicons-lock"></i> Bloquear' : '<i class="icon dripicons-lock-open"></i> Reactivar');
+    $('#modal_bloqueo').modal('show');
+}
+
+function abrirBloqueoSeleccion(accion) {
+    var origen = (accion === 'bloquear') ? 'activo' : 'bloqueado';
+    var ids = [];
+    $('#table_codigos').DataTable().$('input.chk_cgc:checked').each(function () {
+        if ($(this).data('estado') === origen) ids.push(parseInt(this.value, 10));
+    });
+    if (!ids.length) {
+        mostrarToast('error', accion === 'bloquear' ? 'Marque al menos un código activo para bloquear.' : 'Marque al menos un código bloqueado para reactivar.');
+        return;
+    }
+    abrirBloqueo(lgc_id_actual, accion, ids, ids.length);
+}
+
+$(document).on('click', '#btn_confirmar_bloqueo', function () {
+    if (!bloqueoActual) return;
+    var bloquear = (bloqueoActual.accion === 'bloquear');
+    var motivo = $.trim($('#bloqueo_motivo').val());
+    if (bloquear && motivo.length < 3) {
+        $('#alerta_bloqueo').html('<div class="alert alert-danger py-2">Indique el motivo del bloqueo (mínimo 3 caracteres).</div>');
+        return;
+    }
+    var $btn = $(this).prop('disabled', true);
+    var datos = { action: 'bloquear_codigos', lgc_id: bloqueoActual.lgc_id, accion: bloqueoActual.accion, motivo: motivo };
+    if (bloqueoActual.ids) datos.cgc_ids = bloqueoActual.ids;
+    $.ajax({
+        url: 'ajax/giftcard/giftcard.php', type: 'POST', data: datos, dataType: 'json',
+        success: function (r) {
+            if (!r.success) {
+                $('#alerta_bloqueo').html('<div class="alert alert-danger py-2">' + esc(r.mensaje || 'No se pudo completar') + '</div>');
+                return;
+            }
+            $('#modal_bloqueo').modal('hide');
+            mostrarToast('success', r.mensaje);
+            cargarLotes();
+            if ($('#modal_codigos').hasClass('show') && lgc_id_actual === bloqueoActual.lgc_id) ver_codigos(lgc_id_actual, periodo_actual);
+        },
+        error: function () { $('#alerta_bloqueo').html('<div class="alert alert-danger py-2">Error de conexión.</div>'); },
+        complete: function () { $btn.prop('disabled', false); }
+    });
+});
 
 function previsualizarSolicitud(sol_id, accion) {
     $('#preview_sol_id').val(sol_id);
@@ -656,11 +757,22 @@ function cargarYRenderizarHistorial(url) {
     $.ajax({
         url: url, type: 'GET', dataType: 'json',
         success: function (r) {
-            if (!r.success || !r.data.length) {
+            var bloqueos = (r && r.bloqueos) || [];
+            if (!r.success || (!r.data.length && !bloqueos.length)) {
                 $('#historial_body').html('<p class="text-muted text-center">Sin historial disponible para este lote.</p>');
                 return;
             }
             var html = '<div class="list-group">';
+            bloqueos.forEach(function (b) {
+                var bl = b.gbh_accion === 'bloqueado';
+                var n = parseInt(b.gbh_cantidad, 10) || 0;
+                html += '<div class="list-group-item"><div class="d-flex justify-content-between align-items-center">' +
+                    '<span><strong>' + esc(b.name_user || '—') + '</strong> &nbsp;<span class="badge badge-' + (bl ? 'dark' : 'success') + '">' + (bl ? 'Bloqueó' : 'Reactivó') + ' ' +
+                    n + (n === 1 ? ' código' : ' códigos') + (b.gbh_alcance === 'lote' ? ' (lote)' : '') + '</span></span>' +
+                    '<small class="text-muted">' + fFechaHora(b.gbh_fecha) + '</small></div>' +
+                    (b.gbh_motivo ? '<p class="mb-0 mt-1 text-muted small">' + esc(b.gbh_motivo) + '</p>' : '') +
+                    (b.gbh_codigos ? '<p class="mb-0 mt-1 small"><code>' + esc(b.gbh_codigos) + '</code></p>' : '') + '</div>';
+            });
             r.data.forEach(function (h) {
                 var ok = h.aph_accion === 'APPROVE';
                 html += '<div class="list-group-item"><div class="d-flex justify-content-between align-items-center">' +

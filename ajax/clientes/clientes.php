@@ -1042,7 +1042,8 @@ switch ($action) {
                     SUM(cgc.cgc_estado = 'activo')    AS activos,
                     SUM(cgc.cgc_estado = 'consumido') AS consumidos,
                     SUM(cgc.cgc_estado = 'vencido')   AS vencidos,
-                    SUM(cgc.cgc_estado = 'anulado')   AS anulados
+                    SUM(cgc.cgc_estado = 'anulado')   AS anulados,
+                    SUM(cgc.cgc_estado = 'bloqueado') AS bloqueados
              FROM lote_gift_card lgc
              JOIN usuario u ON lgc.id_user = u.id_user
              LEFT JOIN codigo_gift_card cgc ON lgc.lgc_id = cgc.lgc_id

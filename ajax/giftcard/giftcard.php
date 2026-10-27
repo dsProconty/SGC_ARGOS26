@@ -14,6 +14,7 @@ require_once '../../config/database.php';
 require_once '../../helpers/db_compat.php';
 require_once '../../services/giftcard_solicitud.php';
 require_once '../../helpers/session_helpers.php';
+require_once '../../helpers/giftcard_bloqueo_helpers.php';
 mysqli_query($mysqli, "SET time_zone = '-05:00'");
 
 if (empty($_SESSION['id_user'])) {
@@ -84,6 +85,10 @@ if (!$esStaffGC && !$esClienteGC) {
 // Perfiles y Permisos, sin necesidad de ser Super Admin).
 $puedeAprobarGC = $esSuperAdminGC || tienePermiso($mysqli, 'giftcard.aprobar');
 
+// Bloquear / reactivar códigos ya aprobados: mismo permiso que aprobar, y nunca el personal de una
+// empresa (solo lectura) ni el cliente externo.
+$puedeBloquearGC = $puedeAprobarGC && !$esEmpresaStaffGC && !$esClienteGC;
+
 // ─────────────────────────────────────────────
 // Helper: envío de email (compartido con Estados de Cuenta)
 // ─────────────────────────────────────────────
@@ -109,7 +114,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'list_lotes':
         header('Content-Type: text/html');
-        if (!$esSuperAdminGC && !$esEmpresaStaffGC) {
+        if (!$esSuperAdminGC && !$esEmpresaStaffGC && !$puedeBloquearGC) {
             echo '<div class="alert alert-danger">Sin permisos</div>';
             break;
         }
@@ -117,7 +122,8 @@ switch ($action) {
                          u.name_user,
                          COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre,
                          COALESCE(SUM(CASE WHEN c.cgc_estado = 'activo'    THEN 1 ELSE 0 END), 0) AS disponibles,
-                         COALESCE(SUM(CASE WHEN c.cgc_estado = 'consumido' THEN 1 ELSE 0 END), 0) AS consumidos
+                         COALESCE(SUM(CASE WHEN c.cgc_estado = 'consumido' THEN 1 ELSE 0 END), 0) AS consumidos,
+                         COALESCE(SUM(CASE WHEN c.cgc_estado = 'bloqueado' THEN 1 ELSE 0 END), 0) AS bloqueados
                   FROM lote_gift_card l
                   JOIN usuario u ON l.id_user = u.id_user
                   LEFT JOIN cliente c_directo ON l.cli_id = c_directo.cli_id
@@ -134,7 +140,7 @@ switch ($action) {
                 <tr>
                     <th>No.</th><th>Fecha Creación</th><th>Cliente</th><th>Período Facturación</th>
                     <th>Cantidad</th><th>Cupo x Código</th><th>Disponibles</th>
-                    <th>Consumidos</th><th>Creado por</th><th>Acciones</th>
+                    <th>Consumidos</th><th>Bloqueados</th><th>Creado por</th><th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -148,14 +154,27 @@ switch ($action) {
                     <td>$<?php echo number_format($row['lgc_cupo_codigo'], 2); ?></td>
                     <td><span class="badge badge-success"><?php echo $row['disponibles']; ?></span></td>
                     <td><span class="badge badge-secondary"><?php echo $row['consumidos']; ?></span></td>
+                    <td><span class="badge badge-<?php echo (int)$row['bloqueados'] > 0 ? 'danger' : 'light'; ?>"><?php echo (int)$row['bloqueados']; ?></span></td>
                     <td><?php echo htmlspecialchars($row['name_user']); ?></td>
-                    <td>
+                    <td style="white-space:nowrap">
                         <a class="btn btn-info btn-md mr-1" title="Ver Códigos"
                            onclick="ver_codigos(<?php echo $row['lgc_id']; ?>, '<?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?>')">
                             <i style="color:#fff" class="icon dripicons-list"></i>
                         </a>
-                        <?php if ($esSuperAdminGC): ?>
-                        <a class="btn btn-outline-secondary btn-md" title="Ver historial de aprobación"
+                        <?php if ($puedeBloquearGC && (int)$row['disponibles'] > 0): ?>
+                        <a class="btn btn-outline-danger btn-md mr-1" title="Bloquear los códigos activos del lote"
+                           onclick="abrirBloqueo(<?php echo (int)$row['lgc_id']; ?>, 'bloquear', null, <?php echo (int)$row['disponibles']; ?>)">
+                            <i class="icon dripicons-lock"></i>
+                        </a>
+                        <?php endif; ?>
+                        <?php if ($puedeBloquearGC && (int)$row['bloqueados'] > 0): ?>
+                        <a class="btn btn-outline-success btn-md mr-1" title="Reactivar los códigos bloqueados del lote"
+                           onclick="abrirBloqueo(<?php echo (int)$row['lgc_id']; ?>, 'reactivar', null, <?php echo (int)$row['bloqueados']; ?>)">
+                            <i class="icon dripicons-lock-open"></i>
+                        </a>
+                        <?php endif; ?>
+                        <?php if ($esSuperAdminGC || $puedeBloquearGC): ?>
+                        <a class="btn btn-outline-secondary btn-md" title="Ver historial del lote (aprobación y bloqueos)"
                            onclick="verHistorialLote(<?php echo $row['lgc_id']; ?>)">
                             <i class="icon dripicons-clock"></i>
                         </a>
@@ -173,7 +192,7 @@ switch ($action) {
     // ══════════════════════════════════════════════════
     case 'list_codigos':
         header('Content-Type: text/html');
-        if (!$esSuperAdminGC && !$esEmpresaStaffGC) {
+        if (!$esSuperAdminGC && !$esEmpresaStaffGC && !$puedeBloquearGC) {
             echo '<div class="alert alert-danger">Sin permisos</div>';
             break;
         }
@@ -192,11 +211,23 @@ switch ($action) {
         $result = mysqli_query($mysqli, "SELECT cgc_id, cgc_codigo, cgc_cupo_inicial, cgc_cupo_disponible,
                                            cgc_estado, cgc_fecha_activacion, cgc_fecha_caducidad, cgc_fecha_uso
                                     FROM codigo_gift_card WHERE lgc_id = $lgc_id ORDER BY cgc_id ASC");
-        $badges = ['activo' => 'success', 'consumido' => 'secondary', 'vencido' => 'warning', 'anulado' => 'danger'];
+        $badges = ['activo' => 'success', 'consumido' => 'secondary', 'vencido' => 'warning', 'anulado' => 'danger', 'bloqueado' => 'danger'];
         ?>
+        <?php if ($puedeBloquearGC): ?>
+        <div class="mb-2" id="barra_bloqueo_codigos">
+            <button type="button" class="btn btn-sm btn-outline-danger mr-1" onclick="abrirBloqueoSeleccion('bloquear')">
+                <i class="icon dripicons-lock"></i> Bloquear seleccionados
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="abrirBloqueoSeleccion('reactivar')">
+                <i class="icon dripicons-lock-open"></i> Reactivar seleccionados
+            </button>
+            <small class="text-muted ml-2">Solo se pueden bloquear los códigos activos y reactivar los bloqueados.</small>
+        </div>
+        <?php endif; ?>
         <table id="table_codigos" class="table table-striped table-bordered" style="width:100%">
             <thead>
                 <tr>
+                    <?php if ($puedeBloquearGC): ?><th class="col_chk" style="width:30px"><input type="checkbox" id="chk_todos_codigos" title="Marcar o desmarcar todos"></th><?php endif; ?>
                     <th>No.</th><th>Código</th><th>Cupo Inicial</th><th>Cupo Disponible</th>
                     <th>Estado</th><th>Activación</th><th>Caducidad</th><th>Fecha Uso</th>
                 </tr>
@@ -205,6 +236,9 @@ switch ($action) {
                 <?php $no = 1; while ($row = mysqli_fetch_assoc($result)) {
                     $color = $badges[$row['cgc_estado']] ?? 'info'; ?>
                 <tr>
+                    <?php if ($puedeBloquearGC): ?>
+                    <td class="col_chk"><?php if (in_array($row['cgc_estado'], ['activo', 'bloqueado'], true)): ?><input type="checkbox" class="chk_cgc" value="<?php echo (int)$row['cgc_id']; ?>" data-estado="<?php echo htmlspecialchars($row['cgc_estado']); ?>"><?php endif; ?></td>
+                    <?php endif; ?>
                     <td><?php echo $no; ?></td>
                     <td><code><?php echo htmlspecialchars($row['cgc_codigo']); ?></code></td>
                     <td>$<?php echo number_format($row['cgc_cupo_inicial'], 2); ?></td>
@@ -737,13 +771,27 @@ switch ($action) {
         $lgc_id  = (int)($_GET['lgc_id'] ?? 0);
         $res_sol = mysqli_query($mysqli, "SELECT sol_id FROM giftcard_solicitud WHERE sol_lgc_id = $lgc_id LIMIT 1");
         $solRow  = $res_sol ? mysqli_fetch_assoc($res_sol) : null;
-        if (!$solRow) { echo json_encode(['success' => true, 'data' => []]); break; }
+        if (!$solRow) { echo json_encode(['success' => true, 'data' => [], 'bloqueos' => gcBloqueosDeLote($mysqli, $lgc_id)]); break; }
         $res_h = mysqli_query($mysqli, "SELECT h.aph_accion, h.aph_notas, h.aph_timestamp, u.name_user
                                    FROM giftcard_approval_history h JOIN usuario u ON h.admin_id = u.id_user
                                    WHERE h.sol_id = " . (int)$solRow['sol_id'] . " ORDER BY h.aph_timestamp DESC");
         $rows = [];
         if ($res_h) { while ($r = mysqli_fetch_assoc($res_h)) $rows[] = $r; }
-        echo json_encode(['success' => true, 'data' => $rows]);
+        echo json_encode(['success' => true, 'data' => $rows, 'bloqueos' => gcBloqueosDeLote($mysqli, $lgc_id)]);
+        break;
+
+    // ══════════════════════════════════════════════════
+    // BLOQUEAR / REACTIVAR códigos ya aprobados (todo el lote o los códigos
+    // marcados). POST: lgc_id, accion = bloquear|reactivar, motivo, cgc_ids[]
+    // (opcional; sin ids = todo el lote). No toca la cartera de Cobranza.
+    // ══════════════════════════════════════════════════
+    case 'bloquear_codigos':
+        header('Content-Type: application/json');
+        if (!$puedeBloquearGC) { echo json_encode(['success' => false, 'mensaje' => 'Sin permisos']); break; }
+        $accionBl = $_POST['accion'] ?? '';
+        if ($accionBl !== 'bloquear' && $accionBl !== 'reactivar') { echo json_encode(['success' => false, 'mensaje' => 'Acción no válida']); break; }
+        $idsBl = isset($_POST['cgc_ids']) && is_array($_POST['cgc_ids']) ? $_POST['cgc_ids'] : null;
+        echo json_encode(gcBloqueoCambiar($mysqli, (int)($_POST['lgc_id'] ?? 0), $idsBl, $accionBl === 'bloquear', $_POST['motivo'] ?? '', $id_user));
         break;
 
     // ══════════════════════════════════════════════════

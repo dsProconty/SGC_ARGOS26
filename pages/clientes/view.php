@@ -333,7 +333,7 @@ $puedeEliminarCliente = tienePermiso($mysqli, 'clientes.eliminar');
                             <thead><tr>
                                 <th>#</th><th>Fecha</th><th>Solicitante</th>
                                 <th>Cantidad</th><th>Cupo c/código</th>
-                                <th>Activos</th><th>Consumidos</th><th>Vencidos</th>
+                                <th>Activos</th><th>Consumidos</th><th>Vencidos</th><th>Bloqueados</th>
                             </tr></thead>
                             <tbody id="tbody_gc"></tbody>
                         </table>
@@ -1437,6 +1437,7 @@ function cargarTabGiftCards() {
                     + '<td class="text-center"><span class="badge badge-success">' + (g.activos||0) + '</span></td>'
                     + '<td class="text-center"><span class="badge badge-secondary">' + (g.consumidos||0) + '</span></td>'
                     + '<td class="text-center"><span class="badge badge-warning">' + (g.vencidos||0) + '</span></td>'
+                    + '<td class="text-center"><span class="badge badge-' + ((g.bloqueados||0) > 0 ? 'danger' : 'light') + '">' + (g.bloqueados||0) + '</span></td>'
                   + '</tr>';
             });
             $('#tbody_gc').html(html);

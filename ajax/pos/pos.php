@@ -169,6 +169,13 @@ switch ($action) {
         if ($rGC && mysqli_num_rows($rGC) > 0) {
             $gc = mysqli_fetch_assoc($rGC);
 
+            // Bloqueada por un administrador: se avisa antes de mirar la caducidad (que reescribe el
+            // estado a 'vencido') para no perder el bloqueo si además ya pasó su fecha.
+            if ($gc['cgc_estado'] === 'bloqueado') {
+                echo json_encode(['success' => false, 'tipo' => 'giftcard_bloqueada', 'mensaje' => 'Gift Card BLOQUEADA — no se puede usar. Contacte al administrador.']);
+                break;
+            }
+
             // Verificar caducidad — se muestra cupo/saldo igual que una tarjeta
             // válida, para que el cajero vea el cuadro completo, no solo "vencida".
             if ($gc['cgc_fecha_caducidad'] && $gc['cgc_fecha_caducidad'] < date('Y-m-d')) {

@@ -604,6 +604,28 @@ siguiente refresco (le pasó a una cartera de prueba: lista $27, adentro $26). P
 las ventanas terminan en `dia_corte - 1` con fin EXCLUSIVO (`con_fecha < fin`), así que el día anterior al día de corte no entra
 en 30/60/90 (solo cae en +90 al cabo de 3 meses) — es el comportamiento original del sistema.
 
+**Bloquear / reactivar Gift Cards aprobadas (27 de octubre de 2026, v7.54).** Pedido de Diego: una vez aprobado un lote
+(ej. 5 códigos de $25 de Zurich) no había forma de volver a bloquearlo. Ahora, en Gift Cards > Lotes:
+- Estado nuevo **`bloqueado`** en `codigo_gift_card.cgc_estado` (la columna ya era VARCHAR(15)). Es **reversible**; `anulado` sigue
+  sin usarse. El POS solo acepta `activo`, así que bloquea sin cambios (`ajax/pos/pos.php` agrega el mensaje "Gift Card BLOQUEADA";
+  se comprueba ANTES de la caducidad porque esa rama reescribe el estado a `vencido`). `gc_expirar_codigos_vencidos()` solo toca
+  `activo`, no pisa los bloqueados. El saldo del código no se toca.
+- Botones en la fila del lote (candado = bloquear los activos, candado abierto = reactivar los bloqueados; columna **Bloqueados**) y
+  casillas en "Ver códigos" (Bloquear/Reactivar seleccionados). Motivo obligatorio (mín. 3) al bloquear, opcional al reactivar.
+  Lógica en `helpers/giftcard_bloqueo_helpers.php` (`gcBloqueoCambiar()`, `gcBloqueosDeLote()`); endpoint `bloquear_codigos` en
+  `ajax/giftcard/giftcard.php`. Solo bloquea códigos `activo` y solo reactiva `bloqueado`.
+- **Reactivar devuelve el código al estado que le corresponde HOY**: `consumido` si no tiene saldo, `vencido` si ya pasó la
+  caducidad, `activo` en los demás casos.
+- Permiso: el mismo de aprobar solicitudes (Super Admin o `giftcard.aprobar`, `$puedeBloquearGC`); nunca personal de una empresa
+  (solo lectura) ni el cliente externo. Cada acción queda en `giftcard_bloqueo_historial` (quién, cuándo, motivo, cuántos y, si
+  fueron códigos sueltos, cuáles), visible en el icono de reloj del lote junto a la aprobación. `migrations/bloque27_giftcard_bloqueo.sql`
+  (la app crea la tabla sola). La ficha del cliente > Gift Cards muestra la columna Bloqueados.
+- **Bloquear NO toca la cartera de Cobranza (`car_tipo = 'GC'`)**: la empresa sigue debiendo el valor del lote, que ya se facturó.
+  Si algún día se quiere cancelar también la deuda, es otra función (anular lote + cartera) y hay que definirla con Elbany.
+- Probado con PHP 7.0.33 y 8.4.27 (batería por curl: bloquear/reactivar por códigos y por lote, POS, caducidad, permisos,
+  historial) y en el navegador. Mismo cambio de la pasada anterior (v7.52/7.53), para recordar: los `input type=number` de dinero
+  llevan `step="0.01"` (si no, el navegador rechaza centavos) y el número de contacto de Gestiones es `type="tel"`.
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor
