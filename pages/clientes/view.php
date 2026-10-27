@@ -1054,7 +1054,7 @@ $('#btn_confirmar_eliminar_cliente').on('click', function () {
             $('#modalConfirmarEliminarCliente').modal('hide');
             cargarClientes();
         } else {
-            $('#dc_alerta').html('<div class="alert alert-danger py-2 mb-0">' + escesc(res.mensaje || 'Error al eliminar el cliente') + '</div>');
+            $('#dc_alerta').html('<div class="alert alert-danger py-2 mb-0">' + esc(res.mensaje || 'Error al eliminar el cliente') + '</div>');
         }
     }, 'json').fail(function () {
         btn.prop('disabled', false).html('<i class="icon dripicons-trash"></i> Eliminar');
@@ -1800,7 +1800,7 @@ function cmToggleConsumos(mar_id, btn) {
     $td.html('<div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span></div>');
     $.getJSON('ajax/clientes/clientes.php?action=personal_consumos_marca&cli_id=' + _cliId + '&per_id=' + _cmPerId + '&mar_id=' + mar_id, function(res) {
         if (!res.success) {
-            $td.html('<span class="text-danger small">' + _escHtmlesc(res.mensaje || 'No se pudo cargar el detalle.') + '</span>');
+            $td.html('<span class="text-danger small">' + _escHtml(res.mensaje || 'No se pudo cargar el detalle.') + '</span>');
             return;
         }
         $det.data('cargado', true);
@@ -1840,7 +1840,7 @@ function verCupoMarca(per_id) {
 
     $.getJSON('ajax/clientes/clientes.php?action=personal_cupo_marca&cli_id=' + _cliId + '&per_id=' + per_id, function(res) {
         if (!res.success) {
-            $('#cupo_marca_body').html('<p class="text-danger text-center mb-0">' + _escHtmlesc(res.mensaje || 'No se pudo cargar el cupo por marca.') + '</p>');
+            $('#cupo_marca_body').html('<p class="text-danger text-center mb-0">' + _escHtml(res.mensaje || 'No se pudo cargar el cupo por marca.') + '</p>');
             return;
         }
         _cmRenderMarcas(res.marcas);

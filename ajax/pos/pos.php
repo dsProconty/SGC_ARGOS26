@@ -666,6 +666,10 @@ switch ($action) {
                 $idUserCajero = (int)$_GET['id_user_cajero'];
                 $where .= " AND c.id_user = $idUserCajero";
             }
+        } elseif (tienePermiso($mysqli, 'pos.anular') && !empty($_SESSION['loc_id'])) {
+            // Supervisor de local (puede anular): ve las ventas de TODOS los cajeros de su local para poder anularlas,
+            // no solo las que registró él. Antes solo veía las propias y no encontraba la venta del cajero.
+            $where .= " AND c.loc_id = " . (int)$_SESSION['loc_id'];
         } else {
             // Cajero solo ve sus propias ventas
             $where .= " AND c.id_user = $id_user";
@@ -745,6 +749,12 @@ switch ($action) {
         $con = $stmt->get_result()->fetch_assoc();
 
         if (!$con) { echo json_encode(['success' => false, 'mensaje' => 'Venta no encontrada']); break; }
+        // Quien anula desde un local (supervisor) solo puede anular ventas de su propio local; administradores sin restricción.
+        if (!esSuperAdmin($mysqli) && !tienePerfil($mysqli, 'Administrador') && !tienePermiso($mysqli, 'pos.mover_local')
+            && !empty($_SESSION['loc_id']) && !empty($con['loc_id']) && (int)$con['loc_id'] !== (int)$_SESSION['loc_id']) {
+            echo json_encode(['success' => false, 'mensaje' => 'Esta venta pertenece a otro local']);
+            break;
+        }
         if ($con['con_fecha'] !== date('Y-m-d')) {
             echo json_encode(['success' => false, 'mensaje' => 'Solo se pueden anular ventas del mismo día']);
             break;

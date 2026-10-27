@@ -299,7 +299,7 @@ $(document).ready(function () {
                     $('#modal_combo').modal('hide');
                     cargarCombos();
                 } else {
-                    $('#alerta_combo').html('<div class="alert alert-danger">' + htmlEscesc(resp.mensaje || 'No se pudo guardar el combo') + '</div>');
+                    $('#alerta_combo').html('<div class="alert alert-danger">' + htmlEsc(resp.mensaje || 'No se pudo guardar el combo') + '</div>');
                 }
             },
             error: function () {
