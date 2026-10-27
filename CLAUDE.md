@@ -588,6 +588,15 @@ locales (sobre todo de Pizza Hut, que cierra y abre locales). **Un local nunca s
   no salen al asignar usuarios ni en el selector del Super Admin en el POS.
 - Lección: la tabla de sucursales de Locales imprimía nombre y dirección sin escapar (se pasó en la limpieza de la 7.47); ahora usa `esc()`.
 
+**Cobranza de Gift Card: "Total cartera $0" adentro y $125 afuera (27 de octubre de 2026, v7.51).** Las carteras de Gift Card
+(`cartera.car_tipo = 'GC'`, una por lote, `cartera.lgc_id`) se cobran por el VALOR DEL LOTE (`cli_valor_pagar` = cantidad x
+cupo, fijado al aprobar/crear el lote), no por consumos de empleados: esas empresas ni tienen personal. `action=total` de
+`ajax/gestiones/gestiones.php` sumaba `consumo` igual y daba $0, así que la lista decía $125 y el formulario "No se puede pagar un
+monto mayor a la deuda". Ahora para `GC` devuelve `cli_valor_pagar` menos los pagos no rechazados, y `action=consumos` muestra el
+resumen del lote (sin los códigos: son dinero canjeable). `action=cliente` devuelve `car_tipo`; al guardar, el formulario vuelve a la
+lista Gift Card y no a Cartera 30. Las fechas inicio/fin de una cartera GC son el período de facturación del lote (ambas iguales).
+**Toda lógica nueva de cobranza que calcule "deuda de una cartera" debe contemplar `GC`.**
+
 ## Infraestructura del repo (para no repetir investigación)
 
 - **Rama de producción real**: `feature/nuevas-funcionalidades`. El servidor

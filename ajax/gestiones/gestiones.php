@@ -457,7 +457,7 @@ switch ($action) {
 
         $id_car = (int)($_GET['id'] ?? 0);
 
-        $query = "SELECT cli.*,car.car_fecha_inicio,car.car_fecha_fin
+        $query = "SELECT cli.*,car.car_fecha_inicio,car.car_fecha_fin,car.car_tipo
         from cliente cli, cartera car where car.cli_id = cli.cli_id and car.car_id = '$id_car'";
 
         $result = mysqli_query($mysqli, $query);
@@ -474,6 +474,7 @@ switch ($action) {
         $array['cli_id']=textoUtf8($row['cli_id']);
         $array['car_fecha_inicio']=textoUtf8($row['car_fecha_inicio']);
         $array['car_fecha_fin']=textoUtf8($row['car_fecha_fin']);
+        $array['car_tipo']=$row['car_tipo'];
 
         echo json_encode($array);
         break;
@@ -591,6 +592,17 @@ switch ($action) {
         agregarColumnaSiNoExiste($mysqli, 'pago', 'pag_estado', "VARCHAR(20) NOT NULL DEFAULT 'pendiente'");
         $queryPagos = "SELECT sum(pag_monto) as monto_pagado from cartera c, gestion g,pago p where c.car_id = g.car_id and g.pag_id = p.pag_id and c.car_id = '$id_cartera' and p.pag_estado != 'rechazado'";
 
+        // Cartera de Gift Card (car_tipo = 'GC'): lo que se cobra es el VALOR DEL LOTE (cantidad x cupo, ya guardado en
+        // cartera.cli_valor_pagar al crear el lote), no consumos de empleados — esas empresas ni siquiera tienen
+        // personal. Antes se sumaba `consumo` igual y daba $0: la lista decía $125 y adentro "Total cartera 0.00",
+        // y no dejaba registrar el pago ("No se puede pagar un monto mayor a la deuda").
+        $cartGc = dbFila($mysqli, "SELECT car_tipo, cli_valor_pagar FROM cartera WHERE car_id = $id_cartera LIMIT 1");
+        if ($cartGc && $cartGc['car_tipo'] === 'GC') {
+            $pagGc = dbFila($mysqli, $queryPagos);
+            echo round((float)$cartGc['cli_valor_pagar'] - (float)($pagGc ? $pagGc['monto_pagado'] : 0), 2);
+            break;
+        }
+
         if ($fecha_ini != '') {
             $queryTotal = "SELECT sum(" . cobroConvenioSql('con') . ") as 'valor_pagar' 
             from consumo con, personal p,cliente c where con.con_estado NOT IN ('anulado','rechazado') AND con.per_id = p.per_id and p.cli_id = c.cli_id and c.cli_id = '$id_cliente'
@@ -613,6 +625,40 @@ switch ($action) {
         $id_cliente = (int)($_GET['id'] ?? 0);
         $fecha_ini = mysqli_real_escape_string($mysqli, $_GET['fecha_inicio'] ?? '');
         $fecha_fin = mysqli_real_escape_string($mysqli, $_GET['fecha_fin'] ?? '');
+        $id_cartera_c = (int)($_GET['id_cartera'] ?? 0);
+
+        // Cartera de Gift Card: el detalle es el lote que se cobra (sin mostrar los códigos, que son dinero canjeable).
+        $cartLote = $id_cartera_c ? dbFila($mysqli, "SELECT car_tipo, lgc_id FROM cartera WHERE car_id = $id_cartera_c LIMIT 1") : null;
+        if ($cartLote && $cartLote['car_tipo'] === 'GC' && (int)$cartLote['lgc_id'] > 0) {
+            $lote = dbFila($mysqli,
+                "SELECT l.lgc_id, l.lgc_fecha, l.lgc_cantidad, l.lgc_cupo_codigo, l.lgc_periodo_facturacion,
+                        COALESCE(SUM(c.cgc_estado = 'activo'), 0)    AS disponibles,
+                        COALESCE(SUM(c.cgc_estado = 'consumido'), 0) AS consumidos
+                 FROM lote_gift_card l LEFT JOIN codigo_gift_card c ON c.lgc_id = l.lgc_id
+                 WHERE l.lgc_id = " . (int)$cartLote['lgc_id'] . " GROUP BY l.lgc_id");
+            ?>
+            <table class="table table-bordered table-hover" id="table_consumos">
+                <thead>
+                    <tr><th>Lote</th><th>Fecha creación</th><th>Período facturación</th><th>Cantidad</th><th>Cupo por código</th><th>Valor del lote</th><th>Disponibles</th><th>Consumidos</th></tr>
+                </thead>
+                <tbody>
+                    <?php if ($lote): ?>
+                    <tr>
+                        <td>#<?php echo (int)$lote['lgc_id']; ?></td>
+                        <td><?php echo h($lote['lgc_fecha']); ?></td>
+                        <td><?php echo h($lote['lgc_periodo_facturacion']); ?></td>
+                        <td><?php echo (int)$lote['lgc_cantidad']; ?></td>
+                        <td>$<?php echo number_format((float)$lote['lgc_cupo_codigo'], 2); ?></td>
+                        <td>$<?php echo number_format((float)$lote['lgc_cantidad'] * (float)$lote['lgc_cupo_codigo'], 2); ?></td>
+                        <td><?php echo (int)$lote['disponibles']; ?></td>
+                        <td><?php echo (int)$lote['consumidos']; ?></td>
+                    </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            <?php
+            break;
+        }
 
         if ($fecha_ini != '') {
             $query = "SELECT con.*,

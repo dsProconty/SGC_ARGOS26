@@ -1,3 +1,5 @@
+var carTipo = '';   // '30' | '60' | '90' | '+90' | 'GC' (Gift Card), lo informa action=cliente
+
 $(document).ready(function () {
     var id_cliente = $('#id_cartera').val()
     load_datos(id_cliente);
@@ -21,6 +23,7 @@ function load_datos(id) {
             $('#id_cliente').val(data.cli_id)
             $('#fecha_inicio').val(data.car_fecha_inicio)
             $('#fecha_fin').val(data.car_fecha_fin)
+            carTipo = data.car_tipo || '';
             var id_cliente = $('#id_cliente').val();
             var fecha_inicio = $('#fecha_inicio').val();
             var fecha_fin = $('#fecha_fin').val();
@@ -45,7 +48,7 @@ function load_consumos() {
 
     $.ajax({
         type: "GET",
-        url: "ajax/gestiones/gestiones.php?action=consumos&id=" + id_cliente + "&fecha_inicio=" + fecha_inicio + "&fecha_fin=" + fecha_fin,
+        url: "ajax/gestiones/gestiones.php?action=consumos&id=" + id_cliente + "&fecha_inicio=" + fecha_inicio + "&fecha_fin=" + fecha_fin + "&id_cartera=" + $('#id_cartera').val(),
         success: function (response) {
             $('#outer_consumos').html(response);
             $('#table_consumos').dataTable({
@@ -173,7 +176,7 @@ $('#form_gestion').submit(function (e) {
                                 data: data,
                                 success: function (response) {
                                     if (response == 'exito') {
-                                        window.location.href = '?module=gestiones&cartera=30';
+                                        window.location.href = '?module=gestiones&cartera=' + (carTipo === 'GC' ? 'GC' : '30');
                                     } else {
                                         alert(String(response).replace(/<[^>]*>/g, ' ').substring(0, 200));
                                     }
