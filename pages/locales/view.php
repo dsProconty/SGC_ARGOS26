@@ -538,12 +538,13 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                             <th style="width:40px;"></th>
                             <th>Marca</th>
                             <th style="width:230px;">Sucursales</th>
+                            <th style="width:110px; text-align:center;" title="Porcentaje que Argos cobra a la marca; sale en el reporte Ventas por Locales (Liquidación)">Comisión</th>
                             <th style="width:100px; text-align:center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tbody_marcas">
                         <tr>
-                            <td colspan="4" class="loc-empty"><i class="icon dripicons-loading icon-spin"></i>
+                            <td colspan="5" class="loc-empty"><i class="icon dripicons-loading icon-spin"></i>
                                 Cargando...</td>
                         </tr>
                     </tbody>
@@ -572,6 +573,21 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                     <input type="text" class="form-control" id="marca_nombre" maxlength="200"
                         placeholder="Ej: Pizza Hut">
                     <div class="field-msg err" id="err_marca_nombre">Ingrese el nombre de la marca</div>
+                </div>
+                <div class="form-group mb-3">
+                    <label style="font-size:.82rem; font-weight:600;">Comisión de Argos (%) <span
+                            class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="marca_comision" min="0" max="100" step="0.01"
+                            placeholder="Ej: 12.5">
+                        <div class="input-group-append"><span class="input-group-text">%</span></div>
+                    </div>
+                    <div class="field-msg err" id="err_marca_comision">Ingrese un porcentaje entre 0 y 100</div>
+                    <small class="text-muted d-block mt-1">Lo que Argos le cobra a la marca por su contrato. Se usa en el
+                        reporte <strong>Ventas por Locales (Liquidación)</strong>.</small>
+                    <small class="text-warning d-block mt-1" id="aviso_comision_edicion" style="display:none !important;">
+                        Al cambiarla, la liquidación de <strong>todos los meses</strong> (también los ya pasados) se
+                        calcula con el nuevo porcentaje.</small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -747,7 +763,7 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     function renderMarcas(data) {
         var html = '';
         if (!data.length) {
-            html = '<tr><td colspan="4"><div class="loc-empty"><i class="icon dripicons-store"></i>Sin marcas registradas</div></td></tr>';
+            html = '<tr><td colspan="5"><div class="loc-empty"><i class="icon dripicons-store"></i>Sin marcas registradas</div></td></tr>';
         } else {
             data.forEach(function (m) {
                 html +=
@@ -761,12 +777,13 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
                     '  </td>' +
                     '  <td><span class="marca-count">' + m.total_sucursales + ' sucursal' + (m.total_sucursales != 1 ? 'es' : '') +
                     (parseInt(m.total_inactivas) > 0 ? ' · ' + parseInt(m.total_inactivas) + ' inactiva' + (parseInt(m.total_inactivas) != 1 ? 's' : '') : '') + '</span></td>' +
+                    '  <td class="text-center"><strong>' + (parseFloat(m.mar_comision) || 0).toFixed(2).replace(/\.?0+$/, '') + '%</strong></td>' +
                     '  <td class="text-center">' +
-                    '    <a onclick="event.stopPropagation(); editarMarca(' + m.mar_id + ',\'' + escJs(m.mar_descripcion) + '\')" style="color:var(--arg-yellow); font-size:17px; cursor:pointer;" title="Editar marca"><i class="icon dripicons-pencil"></i></a>' +
+                    '    <a onclick="event.stopPropagation(); editarMarca(' + m.mar_id + ',\'' + escJs(m.mar_descripcion) + '\',' + (parseFloat(m.mar_comision) || 0) + ')" style="color:var(--arg-yellow); font-size:17px; cursor:pointer;" title="Editar marca"><i class="icon dripicons-pencil"></i></a>' +
                     '  </td>' +
                     '</tr>' +
                     '<tr class="loc-detail-row" id="detail-row-' + m.mar_id + '">' +
-                    '  <td colspan="4">' +
+                    '  <td colspan="5">' +
                     '    <div class="detail-inner" id="detail-inner-' + m.mar_id + '">' +
                     '      <div class="text-center py-3 text-muted"><i class="icon dripicons-loading icon-spin"></i> Cargando sucursales...</div>' +
                     '    </div>' +
@@ -1023,15 +1040,19 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
     $('#btn_nueva_marca').on('click', function () {
         $('#marca_id').val('');
         $('#marca_nombre').val('').removeClass('field-error');
-        $('#err_marca_nombre').removeClass('show');
+        $('#marca_comision').val('').removeClass('field-error');
+        $('#err_marca_nombre, #err_marca_comision').removeClass('show');
+        $('#aviso_comision_edicion').attr('style', 'display:none !important;');
         $('#titulo_modal_marca').html('<i class="icon dripicons-store" style="color:var(--arg-blue)"></i> Nueva Marca');
         $('#modal_marca').modal('show');
     });
 
-    function editarMarca(id, nombre) {
+    function editarMarca(id, nombre, comision) {
         $('#marca_id').val(id);
         $('#marca_nombre').val(nombre).removeClass('field-error');
-        $('#err_marca_nombre').removeClass('show');
+        $('#marca_comision').val(comision).removeClass('field-error');
+        $('#err_marca_nombre, #err_marca_comision').removeClass('show');
+        $('#aviso_comision_edicion').attr('style', 'display:block;');
         $('#titulo_modal_marca').html('<i class="icon dripicons-pencil" style="color:var(--arg-yellow)"></i> Editar Marca');
         $('#modal_marca').modal('show');
     }
@@ -1048,6 +1069,16 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
             $('#marca_nombre').removeClass('field-error');
             $('#err_marca_nombre').removeClass('show');
         }
+        var comision = $('#marca_comision').val().trim();
+        var comNum = parseFloat(comision.replace(',', '.'));
+        if (comision === '' || isNaN(comNum) || comNum < 0 || comNum > 100) {
+            $('#marca_comision').addClass('field-error');
+            $('#err_marca_comision').addClass('show');
+            valid = false;
+        } else {
+            $('#marca_comision').removeClass('field-error');
+            $('#err_marca_comision').removeClass('show');
+        }
         if (!valid) return;
 
         var id = $('#marca_id').val();
@@ -1055,7 +1086,7 @@ if (!isset($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
         $.ajax({
             url: AJAX_URL + '?action=' + (id ? 'editar_marca' : 'crear_marca'),
             type: 'POST',
-            data: { mar_id: id, mar_descripcion: nombre },
+            data: { mar_id: id, mar_descripcion: nombre, mar_comision: comision },
             dataType: 'json',
             success: function (r) {
                 if (r.success) { $('#modal_marca').modal('hide'); cargarMarcas(); }

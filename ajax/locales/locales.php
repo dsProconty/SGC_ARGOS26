@@ -31,13 +31,26 @@ if (empty($_SESSION['id_user']) || !esSuperAdmin($mysqli)) {
 require_once '../../helpers/locales_helpers.php';
 localesAsegurarEsquema($mysqli);
 
+// Comisión de Argos por marca (%): acepta coma o punto, 0 a 100, 2 decimales. false si no es válida.
+function marcaComisionValida($valor) {
+    $v = str_replace(',', '.', trim((string)$valor));
+    if ($v === '' || !is_numeric($v)) {
+        return false;
+    }
+    $v = round((float)$v, 2);
+    if ($v < 0 || $v > 100) {
+        return false;
+    }
+    return number_format($v, 2, '.', '');
+}
+
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
 
     // ----------------------------------------------------------
     case 'list_marcas':
-        $q = "SELECT m.mar_id, m.mar_descripcion,
+        $q = "SELECT m.mar_id, m.mar_descripcion, m.mar_comision,
                      COUNT(l.loc_id) AS total_sucursales,
                      COALESCE(SUM(l.loc_activo = 0), 0) AS total_inactivas
               FROM marca m
@@ -54,11 +67,13 @@ switch ($action) {
     case 'crear_marca':
         $nombre = mysqli_real_escape_string($mysqli, trim($_POST['mar_descripcion'] ?? ''));
         if (!$nombre) { ob_clean(); echo json_encode(['success' => false, 'mensaje' => 'Nombre requerido']); break; }
+        $comision = marcaComisionValida($_POST['mar_comision'] ?? '');
+        if ($comision === false) { ob_clean(); echo json_encode(['success' => false, 'mensaje' => 'Ingrese la comisión de Argos para esta marca: un porcentaje entre 0 y 100 (ej: 12.5)']); break; }
         $res_chk = mysqli_query($mysqli, "SELECT mar_id FROM marca WHERE mar_descripcion = '$nombre' LIMIT 1");
         if (!$res_chk) { ob_clean(); echo json_encode(['success' => false, 'mensaje' => 'Error BD: ' . mysqli_error($mysqli)]); break; }
         $chk = mysqli_fetch_assoc($res_chk);
         if ($chk) { ob_clean(); echo json_encode(['success' => false, 'mensaje' => 'Ya existe una marca con ese nombre']); break; }
-        $ins = mysqli_query($mysqli, "INSERT INTO marca (mar_descripcion) VALUES ('$nombre')");
+        $ins = mysqli_query($mysqli, "INSERT INTO marca (mar_descripcion, mar_comision) VALUES ('$nombre', $comision)");
         ob_clean();
         if (!$ins) {
             error_log('[locales crear_marca] INSERT failed: ' . mysqli_error($mysqli));
@@ -74,7 +89,11 @@ switch ($action) {
         $mar_id = (int)($_POST['mar_id'] ?? 0);
         $nombre = mysqli_real_escape_string($mysqli, trim($_POST['mar_descripcion'] ?? ''));
         if (!$mar_id || !$nombre) { echo json_encode(['success' => false, 'mensaje' => 'Datos incompletos']); break; }
-        mysqli_query($mysqli, "UPDATE marca SET mar_descripcion = '$nombre' WHERE mar_id = $mar_id");
+        $comision = marcaComisionValida($_POST['mar_comision'] ?? '');
+        if ($comision === false) { echo json_encode(['success' => false, 'mensaje' => 'Ingrese la comisión de Argos para esta marca: un porcentaje entre 0 y 100 (ej: 12.5)']); break; }
+        $dup = dbFila($mysqli, "SELECT mar_id FROM marca WHERE mar_descripcion = '$nombre' AND mar_id <> $mar_id LIMIT 1");
+        if ($dup) { echo json_encode(['success' => false, 'mensaje' => 'Ya existe otra marca con ese nombre']); break; }
+        mysqli_query($mysqli, "UPDATE marca SET mar_descripcion = '$nombre', mar_comision = $comision WHERE mar_id = $mar_id");
         echo json_encode(['success' => true]);
         break;
 

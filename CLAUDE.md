@@ -514,8 +514,7 @@ con usuarios de prueba por rol (curl + navegador). Lo que salió y quedó correg
   ventas migradas traen `con_monto_convenio` = total, y las filas viejas con NULL se toman completas. **Toda suma NUEVA que
   represente lo que debe una empresa debe usar el helper, no `con_valor_total`.** Siguen sumando el total vendido (volumen
   por marca/local, no cobranza): dashboard, Ventas por Locales, Total Ventas, Ranking, Liquidación, Comisión Mensual.
-- Pendiente menor: la comisión por marca (`marca.mar_comision`) no se puede editar desde ninguna pantalla. Rechazar una
-  solicitud de gift card no exige motivo.
+- Pendiente menor: rechazar una solicitud de gift card no exige motivo. (La comisión por marca ya se edita: ver v7.56.)
 
 **Compatibilidad PHP 7.0 ↔ 8.4 (23 de octubre de 2026).** Producción corre **PHP 7.0** (confirmado en cPanel de HostPapa;
 extensiones activas: mysqli, mysqlnd, mbstring, gd, curl, openssl, fileinfo, zip, json, iconv) y las vulnerabilidades
@@ -637,6 +636,15 @@ el cliente **escribe a mano** firma, cédula y teléfono al comprar, igual que e
   convenio y gift card se guarda el cupo del convenio. La columna la crea sola `voucherAsegurarColumnas()` (`helpers/voucher_helpers.php`);
   `migrations/bloque28_voucher_saldo.sql` es solo por si se quiere correr a mano.
 - Validado con datos de peor caso en 63.5 y 72 mm: cada renglón en una sola línea, sin desbordes. Pendiente: prueba física en las impresoras.
+
+**Comisión de Argos por marca, editable (28 de octubre de 2026, v7.56).** Pedido de Diego: al crear una marca nueva (ej. Pollo
+Campero) hay que fijar la comisión que Argos cobra por ese contrato, y poder ver la de Pizza Hut / Vaco y Vaca / Fridays, que es la
+que sale en "Ventas por Locales (Liquidación)". Antes `marca.mar_comision` solo existía en la base (default 12.5, Vaco y Vaca 10).
+Ahora Locales > Marcas (solo Super Admin) tiene la columna **Comisión** y el campo obligatorio "Comisión de Argos (%)" al crear/editar
+(`ajax/locales/locales.php`: `marcaComisionValida()` acepta coma o punto, 0 a 100, 2 decimales; `editar_marca` ahora también rechaza
+nombre repetido). **El reporte de liquidación lee la comisión VIGENTE, no la de cada mes**: cambiar el porcentaje recalcula también los
+meses ya pasados (el modal lo avisa). Si algún día se necesita conservar la comisión histórica, hay que guardarla con vigencia.
+La marca solo guarda nombre y comisión; no hay otros campos descriptivos.
 
 ## Infraestructura del repo (para no repetir investigación)
 
