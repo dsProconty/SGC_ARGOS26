@@ -518,16 +518,38 @@ $(document).ready(function () {
 
 // ── Funciones globales ──────────────────────────────────────
 
+// Lotes paginados por el servidor: la tabla se arma una sola vez y después solo se recarga la página
+// visible (sin perder la página ni la búsqueda en que estaba el usuario).
 function cargarLotes() {
-    $('#loader_lotes').html('<div class="text-center p-3"><span class="spinner-border"></span></div>');
-    $.ajax({
-        url: 'ajax/giftcard/giftcard.php?action=list_lotes', type: 'GET',
-        success: function (r) {
-            $('#loader_lotes').html(r);
-            if ($.fn.dataTable.isDataTable('#table_lotes')) $('#table_lotes').DataTable().destroy();
-            $('#table_lotes').dataTable({ order: [[0, 'desc']] });
+    if ($.fn.dataTable.isDataTable('#table_lotes')) {
+        $('#table_lotes').DataTable().ajax.reload(null, false);
+        return;
+    }
+    $('#loader_lotes').html(
+        '<div class="form-inline mb-2"><label class="mr-2" for="filtro_lotes_estado">Mostrar:</label>' +
+        '<select id="filtro_lotes_estado" class="form-control form-control-sm">' +
+        '<option value="">Todos los lotes</option>' +
+        '<option value="activos">Solo con códigos activos</option>' +
+        '<option value="bloqueados">Solo con códigos bloqueados</option></select></div>' +
+        '<table id="table_lotes" class="table table-striped table-bordered" style="width:100%"><thead><tr>' +
+        '<th>No.</th><th>Fecha Creación</th><th>Cliente</th><th>Período Facturación</th>' +
+        '<th>Cantidad</th><th>Cupo x Código</th><th>Disponibles</th>' +
+        '<th>Consumidos</th><th>Bloqueados</th><th>Creado por</th><th>Acciones</th>' +
+        '</tr></thead><tbody></tbody></table>');
+    var tabla = $('#table_lotes').DataTable({
+        serverSide: true,
+        processing: true,
+        searchDelay: 400,
+        pageLength: 25,
+        order: [[0, 'desc']],
+        columnDefs: [{ targets: 10, orderable: false }],
+        ajax: {
+            url: 'ajax/giftcard/giftcard.php?action=list_lotes',
+            type: 'GET',
+            data: function (d) { d.estado = $('#filtro_lotes_estado').val(); }
         }
     });
+    $('#filtro_lotes_estado').on('change', function () { tabla.ajax.reload(); });
 }
 
 function cargarSolicitudes() {

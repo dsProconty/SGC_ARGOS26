@@ -113,78 +113,105 @@ switch ($action) {
     // de solo lectura (PER-01, $esEmpresaStaffGC) solo ve los de su empresa.
     // ══════════════════════════════════════════════════
     case 'list_lotes':
-        header('Content-Type: text/html');
+        // Paginado por el servidor (formato DataTables serverSide): hay miles de lotes, dibujarlos
+        // todos en una sola tabla HTML era lento. Cada pedido trae solo la página visible.
+        header('Content-Type: application/json');
         if (!$esSuperAdminGC && !$esEmpresaStaffGC && !$puedeBloquearGC) {
-            echo '<div class="alert alert-danger">Sin permisos</div>';
+            echo json_encode(['draw' => (int)($_GET['draw'] ?? 0), 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [], 'error' => 'Sin permisos']);
             break;
         }
-        $query = "SELECT l.lgc_id, l.lgc_cantidad, l.lgc_cupo_codigo, l.lgc_fecha, l.lgc_periodo_facturacion,
-                         u.name_user,
-                         COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre,
-                         COALESCE(SUM(CASE WHEN c.cgc_estado = 'activo'    THEN 1 ELSE 0 END), 0) AS disponibles,
-                         COALESCE(SUM(CASE WHEN c.cgc_estado = 'consumido' THEN 1 ELSE 0 END), 0) AS consumidos,
-                         COALESCE(SUM(CASE WHEN c.cgc_estado = 'bloqueado' THEN 1 ELSE 0 END), 0) AS bloqueados
-                  FROM lote_gift_card l
+        $draw   = (int)($_GET['draw'] ?? 0);
+        $inicio = max(0, (int)($_GET['start'] ?? 0));
+        $largo  = (int)($_GET['length'] ?? 25);
+        if ($largo < 1 || $largo > 200) $largo = 25;
+        $buscar = (isset($_GET['search']) && is_array($_GET['search'])) ? trim((string)($_GET['search']['value'] ?? '')) : '';
+        $estadoFiltro = $_GET['estado'] ?? '';
+
+        $columnasOrden = [
+            0 => 'l.lgc_id', 1 => 'l.lgc_fecha', 2 => 'cliente_nombre', 3 => 'l.lgc_periodo_facturacion',
+            4 => 'l.lgc_cantidad', 5 => 'l.lgc_cupo_codigo', 6 => 'disponibles', 7 => 'consumidos',
+            8 => 'bloqueados', 9 => 'u.name_user',
+        ];
+        $colOrden = (int)($_GET['order'][0]['column'] ?? 0);
+        $dirOrden = (($_GET['order'][0]['dir'] ?? 'desc') === 'asc') ? 'ASC' : 'DESC';
+        $sqlOrden = (isset($columnasOrden[$colOrden]) ? $columnasOrden[$colOrden] : 'l.lgc_id') . ' ' . $dirOrden . ', l.lgc_id DESC';
+
+        $filtroBase = $esEmpresaStaffGC ? "COALESCE(l.cli_id, u.cli_id) = $cliIdSesionGC" : '1=1';
+        $dondeExtra = [];
+        if ($estadoFiltro === 'activos')    $dondeExtra[] = 'COALESCE(a.disponibles, 0) > 0';
+        if ($estadoFiltro === 'bloqueados') $dondeExtra[] = 'COALESCE(a.bloqueados, 0) > 0';
+        if ($buscar !== '') {
+            $q = mysqli_real_escape_string($mysqli, addcslashes($buscar, '%_\\'));
+            $dondeExtra[] = "(CAST(l.lgc_id AS CHAR) LIKE '%$q%'
+                           OR COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '') LIKE '%$q%'
+                           OR u.name_user LIKE '%$q%'
+                           OR DATE_FORMAT(l.lgc_fecha, '%d/%m/%Y') LIKE '%$q%')";
+        }
+        $desde = "FROM lote_gift_card l
                   JOIN usuario u ON l.id_user = u.id_user
                   LEFT JOIN cliente c_directo ON l.cli_id = c_directo.cli_id
                   LEFT JOIN cliente c_usuario ON u.cli_id = c_usuario.cli_id
-                  LEFT JOIN codigo_gift_card c ON l.lgc_id = c.lgc_id";
-        if ($esEmpresaStaffGC) {
-            $query .= " WHERE COALESCE(l.cli_id, u.cli_id) = $cliIdSesionGC";
+                  LEFT JOIN (SELECT lgc_id,
+                                    SUM(cgc_estado = 'activo')    AS disponibles,
+                                    SUM(cgc_estado = 'consumido') AS consumidos,
+                                    SUM(cgc_estado = 'bloqueado') AS bloqueados
+                             FROM codigo_gift_card GROUP BY lgc_id) a ON a.lgc_id = l.lgc_id";
+        $donde = ' WHERE ' . $filtroBase . ($dondeExtra ? ' AND ' . implode(' AND ', $dondeExtra) : '');
+
+        $filaTotal = dbFila($mysqli, "SELECT COUNT(*) AS n FROM lote_gift_card l JOIN usuario u ON l.id_user = u.id_user WHERE $filtroBase");
+        $total = (int)($filaTotal['n'] ?? 0);
+        if ($dondeExtra) {
+            $filaFiltrado = dbFila($mysqli, "SELECT COUNT(*) AS n $desde $donde");
+            $filtrado = (int)($filaFiltrado['n'] ?? 0);
+        } else {
+            $filtrado = $total;
         }
-        $query .= " GROUP BY l.lgc_id ORDER BY l.lgc_id DESC";
-        $result = mysqli_query($mysqli, $query);
-        ?>
-        <table id="table_lotes" class="table table-striped table-bordered" style="width:100%">
-            <thead>
-                <tr>
-                    <th>No.</th><th>Fecha Creación</th><th>Cliente</th><th>Período Facturación</th>
-                    <th>Cantidad</th><th>Cupo x Código</th><th>Disponibles</th>
-                    <th>Consumidos</th><th>Bloqueados</th><th>Creado por</th><th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php $no = 1; while ($row = mysqli_fetch_assoc($result)) { ?>
-                <tr>
-                    <td><?php echo $no; ?></td>
-                    <td><?php echo date('d/m/Y H:i', strtotime($row['lgc_fecha'])); ?></td>
-                    <td><?php echo htmlspecialchars($row['cliente_nombre']); ?></td>
-                    <td><?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?></td>
-                    <td><?php echo $row['lgc_cantidad']; ?></td>
-                    <td>$<?php echo number_format($row['lgc_cupo_codigo'], 2); ?></td>
-                    <td><span class="badge badge-success"><?php echo $row['disponibles']; ?></span></td>
-                    <td><span class="badge badge-secondary"><?php echo $row['consumidos']; ?></span></td>
-                    <td><span class="badge badge-<?php echo (int)$row['bloqueados'] > 0 ? 'danger' : 'light'; ?>"><?php echo (int)$row['bloqueados']; ?></span></td>
-                    <td><?php echo htmlspecialchars($row['name_user']); ?></td>
-                    <td style="white-space:nowrap">
-                        <a class="btn btn-info btn-md mr-1" title="Ver Códigos"
-                           onclick="ver_codigos(<?php echo $row['lgc_id']; ?>, '<?php echo date('d/m/Y', strtotime($row['lgc_periodo_facturacion'])); ?>')">
-                            <i style="color:#fff" class="icon dripicons-list"></i>
-                        </a>
-                        <?php if ($puedeBloquearGC && (int)$row['disponibles'] > 0): ?>
-                        <a class="btn btn-outline-danger btn-md mr-1" title="Bloquear los códigos activos del lote"
-                           onclick="abrirBloqueo(<?php echo (int)$row['lgc_id']; ?>, 'bloquear', null, <?php echo (int)$row['disponibles']; ?>)">
-                            <i class="icon dripicons-lock"></i>
-                        </a>
-                        <?php endif; ?>
-                        <?php if ($puedeBloquearGC && (int)$row['bloqueados'] > 0): ?>
-                        <a class="btn btn-outline-success btn-md mr-1" title="Reactivar los códigos bloqueados del lote"
-                           onclick="abrirBloqueo(<?php echo (int)$row['lgc_id']; ?>, 'reactivar', null, <?php echo (int)$row['bloqueados']; ?>)">
-                            <i class="icon dripicons-lock-open"></i>
-                        </a>
-                        <?php endif; ?>
-                        <?php if ($esSuperAdminGC || $puedeBloquearGC): ?>
-                        <a class="btn btn-outline-secondary btn-md" title="Ver historial del lote (aprobación y bloqueos)"
-                           onclick="verHistorialLote(<?php echo $row['lgc_id']; ?>)">
-                            <i class="icon dripicons-clock"></i>
-                        </a>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <?php $no++; } ?>
-            </tbody>
-        </table>
-        <?php
+
+        $result = mysqli_query($mysqli,
+            "SELECT l.lgc_id, l.lgc_cantidad, l.lgc_cupo_codigo, l.lgc_fecha, l.lgc_periodo_facturacion, u.name_user,
+                    COALESCE(c_directo.cli_descripcion, c_usuario.cli_descripcion, '—') AS cliente_nombre,
+                    COALESCE(a.disponibles, 0) AS disponibles,
+                    COALESCE(a.consumidos, 0)  AS consumidos,
+                    COALESCE(a.bloqueados, 0)  AS bloqueados
+             $desde $donde ORDER BY $sqlOrden LIMIT $inicio, $largo");
+
+        $filas = [];
+        while ($result && ($row = mysqli_fetch_assoc($result))) {
+            $periodo     = date('d/m/Y', strtotime($row['lgc_periodo_facturacion']));
+            $lgc         = (int)$row['lgc_id'];
+            $disponibles = (int)$row['disponibles'];
+            $bloqueados  = (int)$row['bloqueados'];
+
+            $acciones = '<a class="btn btn-info btn-md mr-1" title="Ver Códigos" onclick="ver_codigos(' . $lgc . ", '" . $periodo . "')\">"
+                      . '<i style="color:#fff" class="icon dripicons-list"></i></a>';
+            if ($puedeBloquearGC && $disponibles > 0) {
+                $acciones .= '<a class="btn btn-outline-danger btn-md mr-1" title="Bloquear los códigos activos del lote" onclick="abrirBloqueo('
+                           . $lgc . ", 'bloquear', null, " . $disponibles . ')"><i class="icon dripicons-lock"></i></a>';
+            }
+            if ($puedeBloquearGC && $bloqueados > 0) {
+                $acciones .= '<a class="btn btn-outline-success btn-md mr-1" title="Reactivar los códigos bloqueados del lote" onclick="abrirBloqueo('
+                           . $lgc . ", 'reactivar', null, " . $bloqueados . ')"><i class="icon dripicons-lock-open"></i></a>';
+            }
+            if ($esSuperAdminGC || $puedeBloquearGC) {
+                $acciones .= '<a class="btn btn-outline-secondary btn-md" title="Ver historial del lote (aprobación y bloqueos)" onclick="verHistorialLote('
+                           . $lgc . ')"><i class="icon dripicons-clock"></i></a>';
+            }
+
+            $filas[] = [
+                $lgc,
+                date('d/m/Y H:i', strtotime($row['lgc_fecha'])),
+                htmlspecialchars($row['cliente_nombre']),
+                $periodo,
+                (int)$row['lgc_cantidad'],
+                '$' . number_format($row['lgc_cupo_codigo'], 2),
+                '<span class="badge badge-success">' . $disponibles . '</span>',
+                '<span class="badge badge-secondary">' . (int)$row['consumidos'] . '</span>',
+                '<span class="badge badge-' . ($bloqueados > 0 ? 'danger' : 'light') . '">' . $bloqueados . '</span>',
+                htmlspecialchars($row['name_user']),
+                '<span style="white-space:nowrap">' . $acciones . '</span>',
+            ];
+        }
+        echo json_encode(['draw' => $draw, 'recordsTotal' => $total, 'recordsFiltered' => $filtrado, 'data' => $filas]);
         break;
 
     // ══════════════════════════════════════════════════
